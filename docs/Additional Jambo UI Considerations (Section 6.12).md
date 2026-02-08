@@ -54,14 +54,12 @@ Long Press: Card rule popup + audio
 
 **Haptic Roadmap**:
 
-
 | Gesture | Intensity | Pattern |
 | :-- | :-- | :-- |
 | Card Drag | Light | Single pulse |
 | Gold Earned | Medium | Double pulse |
 | Guard Reaction | Heavy | Long vibration |
 | Phase Change | Light | Triple pulse |
-
 
 ***
 
@@ -84,7 +82,6 @@ Turn 10: P2 Hand = [3Tea? Elephant?]     ← Partial reveal
 • Played: Elephant (P1: 4 wares exposed)
 ```
 
-
 ***
 
 ## **⚠️ Error Prevention \& Undo**
@@ -106,7 +103,6 @@ Turn 10: P2 Hand = [3Tea? Elephant?]     ← Partial reveal
 ↶ Undo: "Phase: DRAW→PLAY" ← 15s window
 ```
 
-
 ***
 
 ## **📚 Contextual Help System**
@@ -125,7 +121,6 @@ Expert: Disabled (Settings toggle)
 Search: "steal" → Throne, Rainmaker, Parrot, Crocodile
 Tap → Full rules + strategy tips
 ```
-
 
 ***
 
@@ -149,7 +144,6 @@ Dusk: Cool purple tones
 Rain: Subtle water reflections on cards
 ```
 
-
 ***
 
 ## **📊 Information Density Controls**
@@ -171,7 +165,6 @@ Debug: + Card IDs + State hash + FPS
 - Log: 5 latest actions, scrollable history
 ```
 
-
 ***
 
 ## **🔄 Complex Interaction Flows**
@@ -192,7 +185,6 @@ Debug: + Card IDs + State hash + FPS
 [Play Guard?]        ← Auto-dismiss if none
 ✓ Guard played → Both discarded
 ```
-
 
 ***
 
@@ -233,7 +225,6 @@ Medium: Tablet (120×164px)
 Icon: Mobile portrait (<90px)
 ```
 
-
 ***
 
 ## **🎯 Localization Ready**
@@ -252,7 +243,6 @@ Market flow: Right→Left for Arabic/Hebrew
 Hand: RTL swipe gestures
 Numbers: Localized formats
 ```
-
 
 ***
 
@@ -278,19 +268,18 @@ Phase 4: Localization + Advanced gestures
 
 [^4]: cards.pdf
 
-[^5]: https://gdkeys.com/the-card-games-ui-design-of-fairtravel-battle/
+[^5]: <https://gdkeys.com/the-card-games-ui-design-of-fairtravel-battle/>
 
-[^6]: https://blog.logrocket.com/ux-design/ui-card-design/
+[^6]: <https://blog.logrocket.com/ux-design/ui-card-design/>
 
-[^7]: https://www.reddit.com/r/gamedesign/comments/1c8h8sv/ui_design_for_a_card_game_how_can_i_fit_two/
+[^7]: <https://www.reddit.com/r/gamedesign/comments/1c8h8sv/ui_design_for_a_card_game_how_can_i_fit_two/>
 
-[^8]: https://www.mockplus.com/blog/post/card-ui-design
+[^8]: <https://www.mockplus.com/blog/post/card-ui-design>
 
-[^9]: https://www.justinmind.com/ui-design/cards
+[^9]: <https://www.justinmind.com/ui-design/cards>
 
-[^10]: https://www.linkedin.com/pulse/how-make-card-game-from-perspective-ux-designer-reena-ngauv
+[^10]: <https://www.linkedin.com/pulse/how-make-card-game-from-perspective-ux-designer-reena-ngauv>
 
-[^11]: https://uxdesign.cc/ux-in-board-game-design-97bfcdb1d581
+[^11]: <https://uxdesign.cc/ux-in-board-game-design-97bfcdb1d581>
 
-[^12]: https://stackoverflow.com/questions/4074514/what-is-a-good-ui-framework-for-a-card-game
-
+[^12]: <https://stackoverflow.com/questions/4074514/what-is-a-good-ui-framework-for-a-card-game>
