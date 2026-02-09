@@ -47,6 +47,10 @@ export function initializeResolution(
       const opponent: 0 | 1 = state.currentPlayer === 0 ? 1 : 0;
       // Throne (swap)
       if (isDesign(cardId, 'throne')) {
+        const opponentHasWares = state.players[opponent].market.some(w => w !== null);
+        if (!opponentHasWares) {
+          throw new Error('Cannot activate Throne: opponent has no wares');
+        }
         return { type: 'WARE_THEFT_SWAP', sourceCard: cardId, step: 'STEAL' };
       }
       // Parrot (steal single ware)

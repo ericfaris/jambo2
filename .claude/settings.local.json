@@ -4,7 +4,11 @@
       "Bash(npx vitest:*)",
       "Bash(npx tsc:*)",
       "Bash(npx tsx:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(npm install:*)",
+      "Bash(del \"C:\\\\code\\\\jambo2\\\\src\\\\App.css\")",
+      "Bash(timeout 8 npx vite:*)",
+      "Bash(npm run dev:*)"
     ]
   }
 }
