@@ -48,10 +48,10 @@ export function ActionButtons({ state, dispatch, disabled }: ActionButtonsProps)
         ) : (
           <button
             className="primary"
-            disabled={!canAct || state.keptCardThisDrawPhase}
+            disabled={!canAct || state.keptCardThisDrawPhase || state.actionsLeft <= 0}
             onClick={() => dispatch({ type: 'DRAW_CARD' })}
           >
-            Draw Card ({state.drawsThisPhase}/5)
+            Draw Card ({state.actionsLeft} actions left)
           </button>
         )}
       </div>
@@ -68,12 +68,6 @@ export function ActionButtons({ state, dispatch, disabled }: ActionButtonsProps)
         padding: '8px 0',
         flexWrap: 'wrap',
       }}>
-        <button
-          disabled={!canAct || state.actionsLeft <= 0}
-          onClick={() => dispatch({ type: 'DRAW_ACTION' })}
-        >
-          Draw (1 action)
-        </button>
         <button
           className="danger"
           disabled={!canAct}

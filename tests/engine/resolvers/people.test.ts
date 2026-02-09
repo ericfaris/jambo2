@@ -156,10 +156,10 @@ describe('Portuguese (Ware Sell Bulk)', () => {
     const s2 = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
     expect(s2.pendingResolution!.type).toBe('WARE_SELL_BULK');
 
-    // Sell 2 wares at 2g each = +4g, minus 1g play cost
+    // Sell 2 wares at 2g each = +4g
     const s3 = resolve(s2, { type: 'SELL_WARES', wareIndices: [0, 1] });
     expect(s3.pendingResolution).toBeNull();
-    expect(gold(s3, 0)).toBe(20 - 1 + 4);
+    expect(gold(s3, 0)).toBe(20 + 4);
     expect(market(s3, 0)[0]).toBeNull();
     expect(market(s3, 0)[1]).toBeNull();
     expect(market(s3, 0)[2]).toBe('tea'); // untouched
@@ -178,8 +178,8 @@ describe('Basket Maker (Ware Select Multiple)', () => {
 
     const s3 = resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'silk' });
     expect(s3.pendingResolution).toBeNull();
-    // Paid play cost (1g) + basket maker cost (2g) = 3g
-    expect(gold(s3, 0)).toBe(20 - 1 - 2);
+    // Basket maker cost (2g)
+    expect(gold(s3, 0)).toBe(20 - 2);
     const silkCount = market(s3, 0).filter(w => w === 'silk').length;
     expect(silkCount).toBe(2);
     expect(s3.wareSupply.silk).toBe(6 - 2);
@@ -221,8 +221,8 @@ describe('Dancer (Ware Cash Conversion)', () => {
     const s4 = resolve(s3, { type: 'SELECT_WARES', wareIndices: [0, 1, 2] });
     expect(s4.pendingResolution).toBeNull();
 
-    // Got sell price of ware_3k (10g), paid 1g play cost
-    expect(gold(s4, 0)).toBe(20 - 1 + 10);
+    // Got sell price of ware_3k (10g)
+    expect(gold(s4, 0)).toBe(20 + 10);
     // ware_3k_1 discarded
     expect(hand(s4, 0)).not.toContain('ware_3k_1');
     // 3 wares removed from market

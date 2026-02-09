@@ -8,7 +8,14 @@
       "Bash(npm install:*)",
       "Bash(del \"C:\\\\code\\\\jambo2\\\\src\\\\App.css\")",
       "Bash(timeout 8 npx vite:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(node -e:*)",
+      "WebFetch(domain:vitest.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(node:*)",
+      "Bash(npm ls:*)",
+      "Bash(cmd /c \"echo %CD%\")",
+      "Bash(powershell:*)"
     ]
   }
 }

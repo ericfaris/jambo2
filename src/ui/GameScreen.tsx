@@ -80,8 +80,8 @@ export function GameScreen() {
       padding: '12px 16px',
       minHeight: '100vh',
     }}>
-      {/* Error banner */}
-      {error && (
+      {/* Error banner — only show for human player errors */}
+      {error && !isAiTurn && (
         <div style={{
           background: '#6a2d2d',
           border: '1px solid #9a4a4a',

@@ -98,11 +98,6 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
         alignItems: 'center',
       }}>
         <span>{card.type}</span>
-        {card.playCost > 0 && (
-          <span style={{ background: '#0003', borderRadius: 3, padding: '0 3px' }}>
-            {card.playCost}g
-          </span>
-        )}
       </div>
 
       {/* Card name */}

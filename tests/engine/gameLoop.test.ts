@@ -38,7 +38,7 @@ describe('Draw Phase', () => {
     const s2 = act(s1, { type: 'KEEP_CARD' });
     expect(s2.phase).toBe('PLAY');
     expect(s2.drawnCard).toBeNull();
-    expect(s2.actionsLeft).toBe(CONSTANTS.MAX_ACTIONS);
+    expect(s2.actionsLeft).toBe(CONSTANTS.MAX_ACTIONS - 1); // 1 action spent drawing
     expect(hand(s2, 0)).toContain(drawn);
   });
 
@@ -57,14 +57,14 @@ describe('Draw Phase', () => {
     expect(s3.drawsThisPhase).toBe(2);
   });
 
-  it('5 discards auto-transitions to PLAY phase', () => {
+  it('5 discards auto-transitions to PLAY phase with 0 actions', () => {
     let s = createTestState();
     for (let i = 0; i < 5; i++) {
       s = act(s, { type: 'DRAW_CARD' });
       s = act(s, { type: 'DISCARD_DRAWN' });
     }
     expect(s.phase).toBe('PLAY');
-    expect(s.actionsLeft).toBe(CONSTANTS.MAX_ACTIONS);
+    expect(s.actionsLeft).toBe(0); // all 5 actions spent drawing
   });
 
   it('cannot play card during DRAW phase', () => {
@@ -83,12 +83,10 @@ describe('Draw Phase', () => {
 describe('Play Phase — Card Play', () => {
   it('playing a card decrements actionsLeft', () => {
     let s = toPlayPhase(createTestState());
-    // Find a people/animal card in hand that we can play
-    // Use a specific seed state where we know hand contents
-    // For safety, just use DRAW_ACTION which always works
-    expect(s.actionsLeft).toBe(5);
+    // toPlayPhase spends 1 action drawing, so 4 remain
+    expect(s.actionsLeft).toBe(4);
     const s2 = act(s, { type: 'DRAW_ACTION' });
-    expect(s2.actionsLeft).toBe(4);
+    expect(s2.actionsLeft).toBe(3);
   });
 
   it('DRAW_ACTION costs 1 action and adds card to hand', () => {
@@ -101,8 +99,8 @@ describe('Play Phase — Card Play', () => {
 
   it('cannot act with 0 actions left', () => {
     let s = toPlayPhase(createTestState());
-    // Spend all 5 actions via DRAW_ACTION
-    for (let i = 0; i < 5; i++) {
+    // toPlayPhase spent 1, spend remaining 4 via DRAW_ACTION
+    for (let i = 0; i < 4; i++) {
       s = act(s, { type: 'DRAW_ACTION' });
     }
     expect(s.actionsLeft).toBe(0);
@@ -125,7 +123,7 @@ describe('Ware Buy/Sell', () => {
     const mkt = market(s2, 0);
     const trinketCount = mkt.filter(w => w === 'trinkets').length;
     expect(trinketCount).toBe(3);
-    expect(s2.actionsLeft).toBe(4);
+    expect(s2.actionsLeft).toBe(3); // 1 for draw + 1 for play
   });
 
   it('ware sell removes from market, returns to supply, adds gold', () => {
@@ -175,7 +173,7 @@ describe('End Turn', () => {
   it('+1g bonus for 2+ remaining actions', () => {
     let s = toPlayPhase(createTestState());
     s = withGold(s, 0, 20);
-    // actionsLeft is 5, which is >= 2
+    // actionsLeft is 4 (1 spent drawing), which is >= 2
     const s2 = act(s, { type: 'END_TURN' });
     // Player 0 should have gotten +1g bonus
     expect(gold(s2, 0)).toBe(21);
@@ -184,8 +182,8 @@ describe('End Turn', () => {
   it('no bonus with fewer than 2 actions', () => {
     let s = toPlayPhase(createTestState());
     s = withGold(s, 0, 20);
-    // Spend actions down to 1
-    for (let i = 0; i < 4; i++) {
+    // 4 actions left after draw+keep, spend 3 to get down to 1
+    for (let i = 0; i < 3; i++) {
       s = act(s, { type: 'DRAW_ACTION' });
     }
     expect(s.actionsLeft).toBe(1);

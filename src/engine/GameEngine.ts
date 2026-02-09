@@ -226,7 +226,7 @@ export function startDrawPhase(state: GameState): GameState {
 }
 
 /**
- * Draw phase: reveal top card from deck, increment drawsThisPhase.
+ * Draw phase: reveal top card from deck. Costs 1 action.
  */
 export function handleDrawCard(state: GameState): GameState {
   const drawResult = drawFromDeck(state);
@@ -240,6 +240,7 @@ export function handleDrawCard(state: GameState): GameState {
     ...next,
     drawnCard: drawResult.card,
     drawsThisPhase: next.drawsThisPhase + 1,
+    actionsLeft: next.actionsLeft - 1,
   };
 
   next = withLog(next, 'DRAW_CARD', `Drew ${drawResult.card}`);
@@ -260,7 +261,6 @@ export function handleKeepCard(state: GameState): GameState {
   next = {
     ...next,
     phase: 'PLAY',
-    actionsLeft: CONSTANTS.MAX_ACTIONS,
     drawnCard: null,
     keptCardThisDrawPhase: true,
   };
@@ -281,13 +281,12 @@ export function handleDiscardDrawn(state: GameState): GameState {
 
   next = withLog(next, 'DISCARD_DRAWN', `Discarded ${discardedCard}`);
 
-  if (next.drawsThisPhase >= CONSTANTS.MAX_DRAW_PHASE_DRAWS) {
+  if (next.actionsLeft <= 0) {
     next = {
       ...next,
       phase: 'PLAY',
-      actionsLeft: CONSTANTS.MAX_ACTIONS,
     };
-    next = withLog(next, 'AUTO_TRANSITION', 'Max draws reached, transitioning to PLAY phase');
+    next = withLog(next, 'AUTO_TRANSITION', 'No actions remaining, transitioning to PLAY phase');
   }
 
   return next;
@@ -336,7 +335,7 @@ export function handlePlayCard(
       break;
 
     case 'utility':
-      next = handlePlayUtility(next, cardId, cardDef.designId as UtilityDesignId, cardDef.playCost);
+      next = handlePlayUtility(next, cardId, cardDef.designId as UtilityDesignId);
       break;
 
     case 'people':
@@ -452,8 +451,7 @@ function handleWareCard(
 function handlePlayUtility(
   state: GameState,
   cardId: DeckCardId,
-  designId: UtilityDesignId,
-  playCost: number
+  designId: UtilityDesignId
 ): GameState {
   const cp = state.currentPlayer;
   const player = state.players[cp];
@@ -462,21 +460,16 @@ function handlePlayUtility(
     throw new Error(`Cannot play utility: already have ${CONSTANTS.MAX_UTILITIES} utilities`);
   }
 
-  if (player.gold < playCost) {
-    throw new Error(`Cannot play utility: need ${playCost}g, have ${player.gold}g`);
-  }
-
   const newUtilities = [
     ...player.utilities,
     { cardId, designId, usedThisTurn: false },
   ];
 
   let next = withPlayer(state, cp, {
-    gold: player.gold - playCost,
     utilities: newUtilities,
   });
 
-  next = withLog(next, 'PLAY_UTILITY', `Placed ${cardId} in play area (cost: ${playCost}g)`);
+  next = withLog(next, 'PLAY_UTILITY', `Placed ${cardId} in play area`);
 
   return next;
 }
@@ -519,18 +512,9 @@ function handlePlayStand(state: GameState, cardId: DeckCardId): GameState {
 function handlePlayPeople(
   state: GameState,
   cardId: DeckCardId,
-  cardDef: { name: string; interactionType: string; playCost: number }
+  cardDef: { name: string; interactionType: string }
 ): GameState {
-  const cp = state.currentPlayer;
-
   let next = state;
-  if (cardDef.playCost > 0) {
-    const player = next.players[cp];
-    if (player.gold < cardDef.playCost) {
-      throw new Error(`Cannot play ${cardDef.name}: need ${cardDef.playCost}g, have ${player.gold}g`);
-    }
-    next = withPlayer(next, cp, { gold: player.gold - cardDef.playCost });
-  }
 
   // REACTION cards (Guard, Rain Maker) are not played via PLAY_CARD action
   if (cardDef.interactionType === 'REACTION') {
@@ -580,19 +564,10 @@ function handlePlayPeople(
 function handlePlayAnimal(
   state: GameState,
   cardId: DeckCardId,
-  cardDef: { name: string; interactionType: string; playCost: number },
+  cardDef: { name: string; interactionType: string },
   opponent: 0 | 1
 ): GameState {
-  const cp = state.currentPlayer;
-
   let next = state;
-  if (cardDef.playCost > 0) {
-    const player = next.players[cp];
-    if (player.gold < cardDef.playCost) {
-      throw new Error(`Cannot play ${cardDef.name}: need ${cardDef.playCost}g, have ${player.gold}g`);
-    }
-    next = withPlayer(next, cp, { gold: player.gold - cardDef.playCost });
-  }
 
   // Check if opponent has any Guard card in hand (design-based check)
   const opponentHasGuard = next.players[opponent].hand.some(

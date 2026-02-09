@@ -1,7 +1,8 @@
 import type { GameState, GameAction, InteractionResponse, WareType, WareCardWares } from '../engine/types.ts';
-import { WARE_TYPES } from '../engine/types.ts';
+import { WARE_TYPES, CONSTANTS } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { validateAction } from '../engine/validation/actionValidator.ts';
+import { processAction } from '../engine/GameEngine.ts';
 
 function canBuyWares(state: GameState, player: 0 | 1, wares: WareCardWares): boolean {
   const p = state.players[player];
@@ -30,6 +31,21 @@ function tryAction(state: GameState, action: GameAction): boolean {
   return validateAction(state, action).valid;
 }
 
+/** Try executing an action; return true if it doesn't throw. */
+function safeExec(state: GameState, action: GameAction): boolean {
+  try {
+    processAction(state, action);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Get ware types that have supply available. */
+function availableWareTypes(state: GameState): WareType[] {
+  return WARE_TYPES.filter(w => state.wareSupply[w] > 0);
+}
+
 function getRandomInteractionResponse(state: GameState): InteractionResponse | null {
   const pr = state.pendingResolution;
   if (!pr) return null;
@@ -44,13 +60,27 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
         if (wareTypesInMarket.length === 0) return null;
         return { type: 'SELECT_WARE_TYPE', wareType: pick(wareTypesInMarket) };
       }
-      const available = WARE_TYPES.filter(w => w !== pr.giveType);
+      // SELECT_RECEIVE: pick from supply, exclude give type
+      const available = availableWareTypes(state).filter(w => w !== pr.giveType);
+      if (available.length === 0) return null;
       return { type: 'SELECT_WARE_TYPE', wareType: pick(available) };
     }
 
-    case 'WARE_SELECT_MULTIPLE':
-    case 'CARRIER_WARE_SELECT':
-      return { type: 'SELECT_WARE_TYPE', wareType: pick([...WARE_TYPES]) };
+    case 'WARE_SELECT_MULTIPLE': {
+      // Need supply >= count and market space >= count
+      const emptySlots = player.market.filter(s => s === null).length;
+      const available = availableWareTypes(state).filter(w => state.wareSupply[w] >= pr.count);
+      if (available.length === 0 || emptySlots < pr.count) return null;
+      return { type: 'SELECT_WARE_TYPE', wareType: pick(available) };
+    }
+
+    case 'CARRIER_WARE_SELECT': {
+      const target = state.players[pr.targetPlayer];
+      const emptySlots = target.market.filter(s => s === null).length;
+      const available = availableWareTypes(state).filter(w => state.wareSupply[w] >= 2);
+      if (available.length === 0 || emptySlots < 2) return null;
+      return { type: 'SELECT_WARE_TYPE', wareType: pick(available) };
+    }
 
     case 'WARE_THEFT_SINGLE': {
       const opponent: 0 | 1 = cp === 0 ? 1 : 0;
@@ -68,7 +98,6 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
         if (filledSlots.length === 0) return null;
         return { type: 'SELECT_WARE', wareIndex: pick(filledSlots).i };
       }
-      // GIVE step: pick from own market
       const mySlots = player.market.map((w, i) => ({ w, i })).filter(s => s.w !== null);
       if (mySlots.length === 0) return null;
       return { type: 'SELECT_WARE', wareIndex: pick(mySlots).i };
@@ -86,7 +115,6 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
         if (pr.revealedHand.length === 0) return null;
         return { type: 'SELECT_CARD', cardId: pick(pr.revealedHand) };
       }
-      // GIVE step
       if (player.hand.length === 0) return null;
       return { type: 'SELECT_CARD', cardId: pick(player.hand) };
     }
@@ -98,9 +126,11 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
       return { type: 'OPPONENT_CHOICE', choice: Math.random() < 0.5 ? 0 : 1 };
 
     case 'AUCTION': {
-      // 50% chance to bid, 50% to pass
-      if (Math.random() < 0.5) {
-        return { type: 'AUCTION_BID', amount: pr.currentBid + 1 };
+      const bidAmount = pr.currentBid + 1;
+      const bidder = state.players[pr.nextBidder];
+      // Only bid if we can afford it
+      if (Math.random() < 0.5 && bidder.gold >= bidAmount) {
+        return { type: 'AUCTION_BID', amount: bidAmount };
       }
       return { type: 'AUCTION_PASS' };
     }
@@ -125,7 +155,8 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
         const filledSlots = player.market
           .map((w, i) => ({ w, i }))
           .filter(s => s.w !== null);
-        const toReturn = filledSlots.slice(0, Math.min(3, filledSlots.length));
+        if (filledSlots.length < 3) return null;
+        const toReturn = filledSlots.sort(() => Math.random() - 0.5).slice(0, 3);
         return { type: 'SELECT_WARES', wareIndices: toReturn.map(s => s.i) };
       }
       return null;
@@ -136,7 +167,6 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
         .map((w, i) => ({ w, i }))
         .filter(s => s.w !== null);
       if (filledSlots.length === 0) return null;
-      // Sell 1-3 random wares
       const count = Math.min(1 + Math.floor(Math.random() * 3), filledSlots.length);
       const shuffled = filledSlots.sort(() => Math.random() - 0.5).slice(0, count);
       return { type: 'SELL_WARES', wareIndices: shuffled.map(s => s.i) };
@@ -151,7 +181,6 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
     }
 
     case 'OPPONENT_DISCARD': {
-      // AI is the one who must discard
       const target = pr.targetPlayer;
       const targetPlayer = state.players[target];
       const handSize = targetPlayer.hand.length;
@@ -198,13 +227,17 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
     case 'UTILITY_EFFECT': {
       if (pr.step === 'SELECT_CARD') {
         if (player.hand.length === 0) return null;
-        // Select 1 or 2 cards
-        const count = Math.min(1 + Math.floor(Math.random() * 2), player.hand.length);
+        const maxCards = pr.utilityDesign === 'kettle' ? 2 : 1;
+        const count = Math.min(1 + Math.floor(Math.random() * maxCards), player.hand.length);
         const cards = player.hand.slice().sort(() => Math.random() - 0.5).slice(0, count);
-        return { type: 'SELECT_CARDS', cardIds: cards };
+        return count === 1
+          ? { type: 'SELECT_CARD', cardId: cards[0] }
+          : { type: 'SELECT_CARDS', cardIds: cards };
       }
       if (pr.step === 'SELECT_WARE_TYPE') {
-        return { type: 'SELECT_WARE_TYPE', wareType: pick([...WARE_TYPES]) };
+        const available = availableWareTypes(state);
+        if (available.length === 0) return null;
+        return { type: 'SELECT_WARE_TYPE', wareType: pick(available) };
       }
       return null;
     }
@@ -215,7 +248,7 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
     }
 
     case 'TURN_MODIFIER':
-      return null; // Auto-resolved
+      return null;
 
     default:
       return null;
@@ -237,7 +270,9 @@ export function getRandomAiAction(state: GameState): GameAction | null {
   if (state.pendingResolution) {
     const response = getRandomInteractionResponse(state);
     if (response) {
-      return { type: 'RESOLVE_INTERACTION', response };
+      const action: GameAction = { type: 'RESOLVE_INTERACTION', response };
+      // Validate the resolution won't throw
+      if (safeExec(state, action)) return action;
     }
     return null;
   }
@@ -252,7 +287,6 @@ export function getRandomAiAction(state: GameState): GameAction | null {
     if (tryAction(state, { type: 'DRAW_CARD' })) {
       return { type: 'DRAW_CARD' };
     }
-    // Can't draw more, transition happens automatically
     return null;
   }
 
@@ -262,15 +296,16 @@ export function getRandomAiAction(state: GameState): GameAction | null {
       return { type: 'END_TURN' };
     }
 
-    // Weighted random: 40% play card, 20% activate utility, 15% draw action, 25% end turn
     const roll = Math.random();
-    const player = state.players[state.currentPlayer];
+    const cp = state.currentPlayer;
+    const player = state.players[cp];
 
+    // 40% play card
     if (roll < 0.4 && player.hand.length > 0) {
       const cardId = pick(player.hand);
       const cardDef = getCard(cardId);
+
       if (cardDef.type === 'ware' && cardDef.wares) {
-        const cp = state.currentPlayer;
         const cb = canBuyWares(state, cp, cardDef.wares);
         const cs = canSellWares(state, cp, cardDef.wares);
         let wareMode: 'buy' | 'sell' | null = null;
@@ -279,14 +314,28 @@ export function getRandomAiAction(state: GameState): GameAction | null {
         else if (cs) wareMode = 'sell';
         if (wareMode) {
           const action: GameAction = { type: 'PLAY_CARD', cardId, wareMode };
-          if (tryAction(state, action)) return action;
+          if (tryAction(state, action) && safeExec(state, action)) return action;
+        }
+      } else if (cardDef.type === 'utility') {
+        // Check utility count limit
+        if (player.utilities.length < CONSTANTS.MAX_UTILITIES) {
+          const action: GameAction = { type: 'PLAY_CARD', cardId };
+          if (tryAction(state, action) && safeExec(state, action)) return action;
+        }
+      } else if (cardDef.type === 'stand') {
+        const standCost = player.smallMarketStands === 0 ? CONSTANTS.FIRST_STAND_COST : CONSTANTS.ADDITIONAL_STAND_COST;
+        if (player.gold >= standCost) {
+          const action: GameAction = { type: 'PLAY_CARD', cardId };
+          if (tryAction(state, action) && safeExec(state, action)) return action;
         }
       } else if (cardDef.type !== 'ware') {
+        // People/animal cards
         const action: GameAction = { type: 'PLAY_CARD', cardId };
-        if (tryAction(state, action)) return action;
+        if (tryAction(state, action) && safeExec(state, action)) return action;
       }
     }
 
+    // 20% activate utility
     if (roll < 0.6) {
       const unusedUtils = player.utilities
         .map((u, i) => ({ u, i }))
@@ -294,10 +343,11 @@ export function getRandomAiAction(state: GameState): GameAction | null {
       if (unusedUtils.length > 0) {
         const { i } = pick(unusedUtils);
         const action: GameAction = { type: 'ACTIVATE_UTILITY', utilityIndex: i };
-        if (tryAction(state, action)) return action;
+        if (tryAction(state, action) && safeExec(state, action)) return action;
       }
     }
 
+    // 15% draw action
     if (roll < 0.75) {
       const action: GameAction = { type: 'DRAW_ACTION' };
       if (tryAction(state, action)) return action;

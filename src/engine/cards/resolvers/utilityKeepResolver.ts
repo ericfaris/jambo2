@@ -47,7 +47,13 @@ export function resolveUtilityKeep(
     const activeUtils = state.players[cp].utilities;
 
     if (activeUtils.length === 0) {
-      // No utilities — skip to opponent's turn
+      // No utilities — check if opponent also has none
+      if (state.players[opponent].utilities.length === 0) {
+        let next = { ...state, pendingResolution: null };
+        next = withLog(next, 'SNAKE_COMPLETE', 'Snake effect resolved (neither player has utilities)');
+        return next;
+      }
+      // Skip to opponent's turn
       return {
         ...state,
         pendingResolution: {
@@ -73,6 +79,13 @@ export function resolveUtilityKeep(
 
     next = withPlayer(next, cp, { utilities: [kept] });
     next = withLog(next, 'SNAKE_KEEP', `Active player kept ${kept.cardId}`);
+
+    // Check if opponent has utilities to choose from
+    if (next.players[opponent].utilities.length === 0) {
+      next = { ...next, pendingResolution: null };
+      next = withLog(next, 'SNAKE_COMPLETE', 'Snake effect resolved (opponent has no utilities)');
+      return next;
+    }
 
     // Move to opponent's turn
     return {

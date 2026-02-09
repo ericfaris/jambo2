@@ -70,8 +70,8 @@ function validateDrawCard(state: GameState): ValidationResult {
   if (state.drawnCard !== null) {
     return fail('Must keep or discard the current drawn card first');
   }
-  if (state.drawsThisPhase >= CONSTANTS.MAX_DRAW_PHASE_DRAWS) {
-    return fail('Maximum draws reached in draw phase');
+  if (state.actionsLeft <= 0) {
+    return fail('No actions remaining');
   }
   if (state.deck.length === 0 && state.discardPile.length === 0) {
     return fail('No cards available to draw (deadlock)');

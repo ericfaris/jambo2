@@ -104,7 +104,7 @@ describe('Cheetah (Opponent Choice)', () => {
     const s3 = resolve(s2, { type: 'OPPONENT_CHOICE', choice: 0 });
     expect(s3.pendingResolution).toBeNull();
     expect(gold(s3, 1)).toBe(18); // opponent lost 2g
-    expect(gold(s3, 0)).toBe(20 - 1 + 2); // play cost 1g, gained 2g
+    expect(gold(s3, 0)).toBe(20 + 2); // gained 2g
   });
 
   it('active draws 2 cards when choice=1', () => {

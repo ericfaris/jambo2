@@ -34,7 +34,7 @@ describe('Well (Pay 1g, draw 1)', () => {
     expect(s2.pendingResolution).toBeNull();
     expect(gold(s2, 0)).toBe(20 - 1);
     expect(hand(s2, 0).length).toBe(1);
-    expect(s2.actionsLeft).toBe(4);
+    expect(s2.actionsLeft).toBe(3); // 1 for draw + 1 for activate
     expect(utilities(s2, 0)[0].usedThisTurn).toBe(true);
   });
 
