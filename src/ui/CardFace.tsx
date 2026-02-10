@@ -59,9 +59,11 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
 
   const card = getCard(cardId);
   const headerColor = CARD_TYPE_COLORS[card.type] || '#666';
+  const tooltip = `${card.name} — ${card.description}`;
 
   return (
     <div
+      title={tooltip}
       onClick={onClick}
       style={{
         width: small ? 60 : 90,

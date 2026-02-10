@@ -13,7 +13,7 @@ import type {
   UtilityDesignId,
 } from '../../types.ts';
 import { CONSTANTS } from '../../types.ts';
-import { addWareToMarket, getMarketWares, getEmptySlots } from '../../market/MarketManager.ts';
+import { addWareToMarket, getEmptySlots } from '../../market/MarketManager.ts';
 import { discardCard } from '../../deck/DeckManager.ts';
 import { getCard } from '../CardDatabase.ts';
 
@@ -27,13 +27,6 @@ function withPlayer(
     player === 1 ? { ...state.players[1], ...updates } : state.players[1],
   ];
   return { ...state, players: newPlayers };
-}
-
-function withLog(state: GameState, action: string, details: string): GameState {
-  return {
-    ...state,
-    log: [...state.log, { turn: state.turn, player: state.currentPlayer, action, details }],
-  };
 }
 
 export function resolveDraft(
@@ -62,33 +55,9 @@ function resolveWareDraft(
   pending: PendingDraft,
   response: InteractionResponse
 ): GameState {
-  // Initialize: if availableWares is empty, populate from BOTH markets
   if (pending.availableWares.length === 0) {
-    const activePlayer = state.currentPlayer;
-    const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
-
-    const activeWares = getMarketWares(state, activePlayer);
-    const opponentWares = getMarketWares(state, opponent);
-    const allWares = [...activeWares, ...opponentWares];
-
-    if (allWares.length === 0) {
-      return { ...state, pendingResolution: null };
-    }
-
-    // Clear both markets
-    const emptyMarket0 = state.players[0].market.map(() => null) as (WareType | null)[];
-    const emptyMarket1 = state.players[1].market.map(() => null) as (WareType | null)[];
-    let next = withPlayer(state, 0, { market: emptyMarket0 });
-    next = withPlayer(next, 1, { market: emptyMarket1 });
-
-    return {
-      ...next,
-      pendingResolution: {
-        ...pending,
-        availableWares: allWares,
-        currentPicker: activePlayer,
-      },
-    };
+    // No wares to draft — resolve immediately
+    return { ...state, pendingResolution: null };
   }
 
   // Pick phase
@@ -154,30 +123,9 @@ function resolveCardDraft(
   pending: PendingDraft,
   response: InteractionResponse
 ): GameState {
-  const activePlayer = state.currentPlayer;
-  const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
-
-  // Initialize: pool cards from both hands
   if (!pending.availableCards || pending.availableCards.length === 0) {
-    const allCards = [...state.players[activePlayer].hand, ...state.players[opponent].hand];
-
-    if (allCards.length === 0) {
-      return { ...state, pendingResolution: null };
-    }
-
-    // Clear both hands
-    let next = withPlayer(state, 0, { hand: [] });
-    next = withPlayer(next, 1, { hand: [] });
-
-    return {
-      ...next,
-      pendingResolution: {
-        ...pending,
-        availableCards: allCards,
-        cardPicks: [[], []],
-        currentPicker: activePlayer,
-      },
-    };
+    // No cards to draft — resolve immediately
+    return { ...state, pendingResolution: null };
   }
 
   // Pick phase
@@ -211,7 +159,7 @@ function resolveCardDraft(
       pendingResolution: null,
       log: [...newState.log, {
         turn: state.turn,
-        player: activePlayer,
+        player: state.currentPlayer,
         action: 'DRAFT_COMPLETE',
         details: `Card draft finished`,
       }],
@@ -240,35 +188,9 @@ function resolveUtilityDraft(
   pending: PendingDraft,
   response: InteractionResponse
 ): GameState {
-  const activePlayer = state.currentPlayer;
-  const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
-
-  // Initialize: pool utilities from both players
   if (!pending.availableCards || pending.availableCards.length === 0) {
-    const activeUtils = state.players[activePlayer].utilities;
-    const opponentUtils = state.players[opponent].utilities;
-    const allUtilityCards = [
-      ...activeUtils.map(u => u.cardId),
-      ...opponentUtils.map(u => u.cardId),
-    ];
-
-    if (allUtilityCards.length === 0) {
-      return { ...state, pendingResolution: null };
-    }
-
-    // Clear both utility arrays
-    let next = withPlayer(state, 0, { utilities: [] });
-    next = withPlayer(next, 1, { utilities: [] });
-
-    return {
-      ...next,
-      pendingResolution: {
-        ...pending,
-        availableCards: allUtilityCards,
-        cardPicks: [[], []],
-        currentPicker: activePlayer,
-      },
-    };
+    // No utilities to draft — resolve immediately
+    return { ...state, pendingResolution: null };
   }
 
   // Pick phase
@@ -317,7 +239,7 @@ function resolveUtilityDraft(
       pendingResolution: null,
       log: [...newState.log, {
         turn: state.turn,
-        player: activePlayer,
+        player: state.currentPlayer,
         action: 'DRAFT_COMPLETE',
         details: `Utility draft finished`,
       }],

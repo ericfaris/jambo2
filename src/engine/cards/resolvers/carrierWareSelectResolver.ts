@@ -7,22 +7,9 @@ import type {
   GameState,
   PendingCarrierWareSelect,
   InteractionResponse,
-  PlayerState,
 } from '../../types.ts';
 import { takeFromSupply } from '../../market/WareSupply.ts';
 import { addWaresToMarket, getEmptySlots } from '../../market/MarketManager.ts';
-
-function withPlayer(
-  state: GameState,
-  player: 0 | 1,
-  updates: Partial<PlayerState>
-): GameState {
-  const newPlayers: [PlayerState, PlayerState] = [
-    player === 0 ? { ...state.players[0], ...updates } : state.players[0],
-    player === 1 ? { ...state.players[1], ...updates } : state.players[1],
-  ];
-  return { ...state, players: newPlayers };
-}
 
 export function resolveCarrierWareSelect(
   state: GameState,

@@ -335,6 +335,16 @@ function UtilityTheftPanel({ state, dispatch }: { state: GameState; dispatch: In
 function HandSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'HAND_SWAP' }>; dispatch: InteractionPanelProps['dispatch'] }) {
   const cp = state.currentPlayer;
   if (pr.step === 'TAKE') {
+    if (pr.revealedHand.length === 0) {
+      return (
+        <div>
+          <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>Opponent has no cards to take.</div>
+          <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })}>
+            Continue
+          </button>
+        </div>
+      );
+    }
     return (
       <div>
         <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>Select a card to take from opponent's hand:</div>
@@ -362,6 +372,18 @@ function OpponentDiscardPanel({ state, pr, dispatch }: { state: GameState; pr: E
   const [selected, setSelected] = useState<number[]>([]);
   const target = state.players[pr.targetPlayer];
   const discardCount = target.hand.length - pr.discardTo;
+
+  // Already at or below target — auto-resolve
+  if (discardCount <= 0) {
+    return (
+      <div>
+        <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>No cards need to be discarded.</div>
+        <button className="primary" onClick={() => resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [] })}>
+          Continue
+        </button>
+      </div>
+    );
+  }
 
   if (pr.targetPlayer !== 0) {
     return <div style={{ color: 'var(--text-muted)' }}>Opponent is choosing cards to discard...</div>;
@@ -401,7 +423,7 @@ function DraftPanel({ pr, dispatch }: { state: GameState; pr: Extract<PendingRes
         <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>Draft a ware ({pr.availableWares.length} left):</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {pr.availableWares.map((wt, i) => (
-            <button key={i} onClick={() => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button key={i} onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <WareToken type={wt} /> {WARE_LABELS[wt]}
             </button>
           ))}
@@ -425,11 +447,24 @@ function DraftPanel({ pr, dispatch }: { state: GameState; pr: Extract<PendingRes
 
 function SuppliesDiscardPanel({ state, dispatch }: { state: GameState; dispatch: InteractionPanelProps['dispatch'] }) {
   const cp = state.currentPlayer;
+  const hand = state.players[cp].hand;
+
+  if (hand.length === 0) {
+    return (
+      <div>
+        <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>No cards to discard. Drawing until ware found...</div>
+        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })}>
+          Continue
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>Select a card to discard:</div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {state.players[cp].hand.map((cardId) => (
+        {hand.map((cardId) => (
           <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
         ))}
       </div>
@@ -446,6 +481,18 @@ function UtilityKeepPanel({ state, pr, dispatch }: { state: GameState; pr: Extra
   }
 
   const utils = state.players[responder].utilities;
+
+  if (utils.length === 0) {
+    return (
+      <div>
+        <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>You have no utilities.</div>
+        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: 0 })}>
+          Continue
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>Choose a utility to keep (others will be discarded):</div>
@@ -480,17 +527,94 @@ function UtilityEffectPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
   const cp = state.currentPlayer;
   const player = state.players[cp];
 
+  // Drums: return 1 ware from market, draw 1 card
+  if (pr.utilityDesign === 'drums') {
+    const filledSlots = player.market.map((w, i) => ({ w, i })).filter(s => s.w !== null);
+    if (filledSlots.length === 0) {
+      // Auto-resolve: no wares to return, resolver draws a card anyway
+      return (
+        <div>
+          <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>No wares to return.</div>
+          <button className="primary" onClick={() => resolve(dispatch, { type: 'RETURN_WARE', wareIndex: 0 })}>
+            Draw a card
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>Select a ware to return (then draw 1 card):</div>
+        <MarketDisplay market={player.market} onSlotClick={(i) => resolve(dispatch, { type: 'RETURN_WARE', wareIndex: i })} />
+      </div>
+    );
+  }
+
+  // Scale: draw 2 cards, keep 1, give 1 to opponent
+  if (pr.utilityDesign === 'scale') {
+    if (!pr.selectedCards || pr.selectedCards.length === 0) {
+      // First phase: trigger the draw
+      return (
+        <div>
+          <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>Scale: Draw 2 cards, keep 1, give 1 to opponent.</div>
+          <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })}>
+            Draw cards
+          </button>
+        </div>
+      );
+    }
+    // Second phase: pick which drawn card to keep
+    return (
+      <div>
+        <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>Keep one card (other goes to opponent):</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {pr.selectedCards.map((cardId) => (
+            <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Kettle / Boat / Weapons: select card(s) from hand
   if (pr.step === 'SELECT_CARD') {
-    // For kettle: select 1-2 cards; for boat/weapons: select 1 card
+    // Empty hand — resolver auto-resolves; show Continue button
+    if (player.hand.length === 0) {
+      const dummyResponse: InteractionResponse = pr.utilityDesign === 'kettle'
+        ? { type: 'SELECT_CARDS', cardIds: [] }
+        : { type: 'SELECT_CARD', cardId: '' };
+      return (
+        <div>
+          <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>No cards in hand.</div>
+          <button className="primary" onClick={() => resolve(dispatch, dummyResponse)}>
+            Continue
+          </button>
+        </div>
+      );
+    }
+
     const maxCards = pr.utilityDesign === 'kettle' ? 2 : 1;
     const toggleCard = (cardId: DeckCardId) => {
       setSelectedCards(prev => prev.includes(cardId) ? prev.filter(c => c !== cardId) : prev.length < maxCards ? [...prev, cardId] : prev);
     };
 
+    if (maxCards === 1) {
+      // Single card selection — click to confirm immediately
+      return (
+        <div>
+          <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>Select a card from your hand:</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {player.hand.map((cardId) => (
+              <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div>
         <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>
-          Select {maxCards === 1 ? 'a card' : '1-2 cards'} from your hand ({selectedCards.length} selected):
+          Select 1-2 cards from your hand ({selectedCards.length} selected):
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {player.hand.map((cardId) => (
@@ -513,13 +637,28 @@ function UtilityEffectPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
 
 function DrawModifierPanel({ state, dispatch }: { state: GameState; dispatch: InteractionPanelProps['dispatch'] }) {
   const cp = state.currentPlayer;
+  const hand = state.players[cp].hand;
+
+  if (hand.length === 0 || state.discardPile.length === 0) {
+    return (
+      <div>
+        <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>
+          {hand.length === 0 ? 'No cards in hand to trade.' : 'Discard pile is empty.'}
+        </div>
+        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })}>
+          Continue
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>
         Mask of Transformation: Select a card from your hand to trade for top of discard pile:
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {state.players[cp].hand.map((cardId) => (
+        {hand.map((cardId) => (
           <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
         ))}
       </div>

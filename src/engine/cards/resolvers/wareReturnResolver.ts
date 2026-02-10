@@ -10,14 +10,24 @@ export function resolveWareReturn(
   pending: PendingWareReturn,
   response: InteractionResponse
 ): GameState {
+  const activePlayer = state.currentPlayer;
+  const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
+  const market = state.players[opponent].market;
+
+  // Guard: opponent has no wares — auto-resolve
+  if (!market.some(w => w !== null)) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, { turn: state.turn, player: activePlayer, action: 'LEOPARD_RETURN', details: 'Opponent has no wares to return' }],
+    };
+  }
+
   if (response.type !== 'RETURN_WARE') {
     throw new Error('Expected RETURN_WARE response for ware return');
   }
 
   const { wareIndex } = response;
-  const activePlayer = state.currentPlayer;
-  const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
-  const market = state.players[opponent].market;
 
   // Validate the target slot is occupied
   if (wareIndex < 0 || wareIndex >= market.length || market[wareIndex] === null) {

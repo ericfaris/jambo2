@@ -37,6 +37,13 @@ export function resolveHandSwap(
   const opponent: 0 | 1 = cp === 0 ? 1 : 0;
 
   if (pending.step === 'TAKE') {
+    // Guard: opponent has no cards — auto-resolve
+    if (state.players[opponent].hand.length === 0) {
+      let next: GameState = { ...state, pendingResolution: null };
+      next = withLog(next, 'HYENA_SWAP', 'Opponent has no cards to take');
+      return next;
+    }
+
     // Active player selects 1 card to take from opponent's hand
     if (response.type !== 'SELECT_CARD') {
       throw new Error('Expected SELECT_CARD response for Hyena take step');

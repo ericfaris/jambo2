@@ -9,16 +9,16 @@ export function resolveOpponentSelect(
   pending: PendingOpponentDiscard,
   response: InteractionResponse
 ): GameState {
-  if (response.type !== 'OPPONENT_DISCARD_SELECTION') {
-    throw new Error('Expected OPPONENT_DISCARD_SELECTION response');
-  }
-
   const { targetPlayer, discardTo } = pending;
   const targetHand = state.players[targetPlayer].hand;
 
-  // If already at or below target, no discard needed
+  // Guard: already at or below target — auto-resolve (before response type check)
   if (targetHand.length <= discardTo) {
     return { ...state, pendingResolution: null };
+  }
+
+  if (response.type !== 'OPPONENT_DISCARD_SELECTION') {
+    throw new Error('Expected OPPONENT_DISCARD_SELECTION response');
   }
 
   const { cardIndices } = response;

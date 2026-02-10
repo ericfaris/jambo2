@@ -39,6 +39,15 @@ function resolveThrone(
   const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
 
   if (pending.step === 'STEAL') {
+    // Guard: opponent has no wares — auto-resolve
+    if (!state.players[opponent].market.some(w => w !== null)) {
+      return {
+        ...state,
+        pendingResolution: null,
+        log: [...state.log, { turn: state.turn, player: activePlayer, action: 'THRONE_SWAP', details: 'Opponent has no wares to steal' }],
+      };
+    }
+
     // Step 1: Active player selects a ware to steal from opponent
     if (response.type !== 'SELECT_WARE') {
       throw new Error('Expected SELECT_WARE for Throne steal step');
@@ -54,6 +63,15 @@ function resolveThrone(
     let newState = removeWareFromMarket(state, opponent, wareIndex).state;
     newState = addWareToMarket(newState, activePlayer, ware);
 
+    // Guard: active player has no wares to give back — just keep the stolen ware
+    if (!newState.players[activePlayer].market.some(w => w !== null)) {
+      return {
+        ...newState,
+        pendingResolution: null,
+        log: [...newState.log, { turn: state.turn, player: activePlayer, action: 'THRONE_SWAP', details: `Stole ${ware}, no wares to give back` }],
+      };
+    }
+
     return {
       ...newState,
       pendingResolution: {
@@ -65,6 +83,15 @@ function resolveThrone(
   }
 
   if (pending.step === 'GIVE') {
+    // Guard: active player has no wares — auto-resolve
+    if (!state.players[activePlayer].market.some(w => w !== null)) {
+      return {
+        ...state,
+        pendingResolution: null,
+        log: [...state.log, { turn: state.turn, player: activePlayer, action: 'THRONE_SWAP', details: `Stole ${pending.stolenWare}, no wares to give back` }],
+      };
+    }
+
     // Step 2: Active player selects a ware to give to opponent
     if (response.type !== 'SELECT_WARE') {
       throw new Error('Expected SELECT_WARE for Throne give step');
@@ -108,11 +135,21 @@ function resolveParrot(
   _pending: PendingWareTheftSingle,
   response: InteractionResponse
 ): GameState {
+  const activePlayer = state.currentPlayer;
+  const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
+
+  // Guard: opponent has no wares — auto-resolve
+  if (!state.players[opponent].market.some(w => w !== null)) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, { turn: state.turn, player: activePlayer, action: 'PARROT_STEAL', details: 'Opponent has no wares to steal' }],
+    };
+  }
+
   if (response.type !== 'SELECT_WARE') {
     throw new Error('Expected SELECT_WARE for Parrot steal');
   }
-  const activePlayer = state.currentPlayer;
-  const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
   const { wareIndex } = response;
 
   const ware = state.players[opponent].market[wareIndex];
@@ -140,12 +177,22 @@ function resolveCrocodile(
   _pending: PendingUtilityTheft,
   response: InteractionResponse
 ): GameState {
+  const activePlayer = state.currentPlayer;
+  const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
+
+  // Guard: opponent has no utilities — auto-resolve
+  if (state.players[opponent].utilities.length === 0) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, { turn: state.turn, player: activePlayer, action: 'CROCODILE_DISCARD', details: 'Opponent has no utilities to discard' }],
+    };
+  }
+
   if (response.type !== 'SELECT_WARE') {
     // Reusing SELECT_WARE index for utility selection
     throw new Error('Expected SELECT_WARE (index) for Crocodile utility discard');
   }
-  const activePlayer = state.currentPlayer;
-  const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
   const { wareIndex: utilityIndex } = response;
 
   const opponentUtils = state.players[opponent].utilities;

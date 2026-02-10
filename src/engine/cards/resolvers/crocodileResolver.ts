@@ -39,6 +39,13 @@ export function resolveCrocodileUse(
   const opponent = pending.opponentPlayer;
 
   if (pending.step === 'SELECT_UTILITY') {
+    // Guard: opponent has no utilities — auto-resolve
+    if (state.players[opponent].utilities.length === 0) {
+      let next: GameState = { ...state, pendingResolution: null };
+      next = withLog(next, 'CROCODILE_USE', 'Opponent has no utilities');
+      return next;
+    }
+
     if (response.type !== 'SELECT_UTILITY') {
       throw new Error('Expected SELECT_UTILITY response for Crocodile');
     }

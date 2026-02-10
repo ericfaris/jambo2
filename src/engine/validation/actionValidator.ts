@@ -4,7 +4,7 @@
 
 import type { GameState, DeckCardId, GameAction } from '../types.ts';
 import { CONSTANTS } from '../types.ts';
-import { getCard } from '../cards/CardDatabase.ts';
+import { getCard, isDesign } from '../cards/CardDatabase.ts';
 
 export interface ValidationResult {
   valid: boolean;
@@ -140,6 +140,76 @@ function validatePlayCard(
     }
   }
 
+  // Animal card preconditions
+  if (cardDef.type === 'animal') {
+    const opponent: 0 | 1 = state.currentPlayer === 0 ? 1 : 0;
+    const opPlayer = state.players[opponent];
+
+    // Crocodile: opponent must have at least 1 utility
+    if (isDesign(cardId, 'crocodile') && opPlayer.utilities.length === 0) {
+      return fail('Cannot play Crocodile: opponent has no utilities');
+    }
+    // Parrot: opponent must have at least 1 ware
+    if (isDesign(cardId, 'parrot') && !opPlayer.market.some(w => w !== null)) {
+      return fail('Cannot play Parrot: opponent has no wares');
+    }
+    // Elephant: both markets must have at least 1 ware total
+    if (isDesign(cardId, 'elephant')) {
+      const totalWares = player.market.filter(w => w !== null).length + opPlayer.market.filter(w => w !== null).length;
+      if (totalWares === 0) return fail('Cannot play Elephant: no wares on either market');
+    }
+    // Ape: both hands must have at least 1 card total (excluding this card)
+    if (isDesign(cardId, 'ape')) {
+      const totalCards = (player.hand.length - 1) + opPlayer.hand.length; // -1 for the ape card itself
+      if (totalCards === 0) return fail('Cannot play Ape: no other cards in either hand');
+    }
+    // Lion: both players must have at least 1 utility total
+    if (isDesign(cardId, 'lion')) {
+      const totalUtils = player.utilities.length + opPlayer.utilities.length;
+      if (totalUtils === 0) return fail('Cannot play Lion: no utilities on either side');
+    }
+    // Snake: both players must have at least 1 utility total
+    if (isDesign(cardId, 'snake')) {
+      const totalUtils = player.utilities.length + opPlayer.utilities.length;
+      if (totalUtils === 0) return fail('Cannot play Snake: no utilities on either side');
+    }
+    // Cheetah: opponent must have at least 1 ware
+    if (isDesign(cardId, 'cheetah') && !opPlayer.market.some(w => w !== null)) {
+      return fail('Cannot play Cheetah: opponent has no wares');
+    }
+  }
+
+  // People card preconditions
+  if (cardDef.type === 'people') {
+    const opponent: 0 | 1 = state.currentPlayer === 0 ? 1 : 0;
+    // Drummer: discard pile must contain at least 1 utility
+    if (isDesign(cardId, 'drummer') && !state.discardPile.some(id => getCard(id).type === 'utility')) {
+      return fail('Cannot play Drummer: no utility cards in discard pile');
+    }
+    // Dancer: hand must have at least 1 other ware card, market must have >= 3 wares
+    if (isDesign(cardId, 'dancer')) {
+      const otherWareCards = player.hand.filter(id => id !== cardId && getCard(id).type === 'ware');
+      if (otherWareCards.length === 0) {
+        return fail('Cannot play Dancer: no ware cards in hand');
+      }
+      if (player.market.filter(w => w !== null).length < 3) {
+        return fail('Cannot play Dancer: need at least 3 wares in market');
+      }
+    }
+    // Traveling Merchant: need at least 2 wares in market for auction
+    if (isDesign(cardId, 'traveling_merchant') && player.market.filter(w => w !== null).length < 2) {
+      return fail('Cannot play Traveling Merchant: need at least 2 wares to auction');
+    }
+    // Shaman: need at least 1 ware in market to trade
+    if (isDesign(cardId, 'shaman') && !player.market.some(w => w !== null)) {
+      return fail('Cannot play Shaman: no wares in market to trade');
+    }
+    // Hyena: opponent must have at least 1 card in hand
+    if (isDesign(cardId, 'hyena') && state.players[opponent].hand.length === 0) {
+      return fail('Cannot play Hyena: opponent has no cards in hand');
+    }
+  }
+
   return ok;
 }
 
@@ -152,6 +222,7 @@ function validateActivateUtility(state: GameState, utilityIndex: number): Valida
   }
 
   const player = state.players[state.currentPlayer];
+  const opponent: 0 | 1 = state.currentPlayer === 0 ? 1 : 0;
 
   if (utilityIndex < 0 || utilityIndex >= player.utilities.length) {
     return fail(`Invalid utility index ${utilityIndex}`);
@@ -160,6 +231,31 @@ function validateActivateUtility(state: GameState, utilityIndex: number): Valida
   const utility = player.utilities[utilityIndex];
   if (utility.usedThisTurn) {
     return fail(`Utility "${utility.cardId}" already used this turn`);
+  }
+
+  // Utility-specific precondition checks
+  switch (utility.designId) {
+    case 'leopard_statue':
+      if (player.gold < 2) return fail('Cannot activate Leopard Statue: need at least 2g');
+      if (player.market.filter(s => s === null).length < 1) return fail('Cannot activate Leopard Statue: no empty market slots');
+      break;
+    case 'throne':
+      if (!state.players[opponent].market.some(w => w !== null)) return fail('Cannot activate Throne: opponent has no wares');
+      break;
+    case 'boat':
+      if (player.hand.length === 0) return fail('Cannot activate Boat: no cards in hand to discard');
+      if (player.market.filter(s => s === null).length < 1) return fail('Cannot activate Boat: no empty market slots');
+      break;
+    case 'weapons':
+      if (player.hand.length === 0) return fail('Cannot activate Weapons: no cards in hand to discard');
+      break;
+    case 'kettle':
+      if (player.hand.length === 0) return fail('Cannot activate Kettle: no cards in hand to discard');
+      break;
+    case 'mask_of_transformation':
+      if (player.hand.length === 0) return fail('Cannot activate Mask: no cards in hand to trade');
+      if (state.discardPile.length === 0) return fail('Cannot activate Mask: discard pile is empty');
+      break;
   }
 
   return ok;
@@ -233,16 +329,20 @@ export function getValidActions(state: GameState): GameAction[] {
         const cardDef = getCard(cardId);
         if (cardDef.type === 'ware') {
           // Ware cards produce two possible actions: buy and sell
-          actions.push({ type: 'PLAY_CARD', cardId, wareMode: 'buy' });
-          actions.push({ type: 'PLAY_CARD', cardId, wareMode: 'sell' });
+          const buyAction: GameAction = { type: 'PLAY_CARD', cardId, wareMode: 'buy' };
+          const sellAction: GameAction = { type: 'PLAY_CARD', cardId, wareMode: 'sell' };
+          if (validatePlayCard(state, cardId, 'buy').valid) actions.push(buyAction);
+          if (validatePlayCard(state, cardId, 'sell').valid) actions.push(sellAction);
         } else {
-          actions.push({ type: 'PLAY_CARD', cardId });
+          if (validatePlayCard(state, cardId).valid) {
+            actions.push({ type: 'PLAY_CARD', cardId });
+          }
         }
       }
 
       // Activate utilities
       for (let i = 0; i < player.utilities.length; i++) {
-        if (!player.utilities[i].usedThisTurn) {
+        if (validateActivateUtility(state, i).valid) {
           actions.push({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
         }
       }

@@ -2,7 +2,7 @@
 // Ware Cash Conversion Resolver - Dancer (discard ware card, return wares, get gold)
 // ============================================================================
 
-import type { GameState, PendingWareCashConversion, InteractionResponse, DeckCardId } from '../../types.ts';
+import type { GameState, PendingWareCashConversion, InteractionResponse } from '../../types.ts';
 import { getCard } from '../CardDatabase.ts';
 import { returnToSupply } from '../../market/WareSupply.ts';
 
@@ -14,6 +14,16 @@ export function resolveWareCashConversion(
   const activePlayer = state.currentPlayer;
 
   if (pending.step === 'SELECT_CARD') {
+    // Guard: no ware cards in hand — auto-resolve
+    const wareCardsInHand = state.players[activePlayer].hand.filter(id => getCard(id).type === 'ware');
+    if (wareCardsInHand.length === 0) {
+      return {
+        ...state,
+        pendingResolution: null,
+        log: [...state.log, { turn: state.turn, player: activePlayer, action: 'DANCER_CONVERSION', details: 'No ware cards in hand' }],
+      };
+    }
+
     // Step 1: Select a ware card from hand to discard
     if (response.type !== 'SELECT_CARD') {
       throw new Error('Expected SELECT_CARD response for Dancer card selection');
@@ -39,6 +49,16 @@ export function resolveWareCashConversion(
   }
 
   if (pending.step === 'SELECT_WARES') {
+    // Guard: not enough wares in market — auto-resolve (discard card, no gold)
+    const filledSlots = state.players[activePlayer].market.filter(w => w !== null);
+    if (filledSlots.length < 3) {
+      return {
+        ...state,
+        pendingResolution: null,
+        log: [...state.log, { turn: state.turn, player: activePlayer, action: 'DANCER_CONVERSION', details: 'Not enough wares in market (need 3)' }],
+      };
+    }
+
     // Step 2: Select 3 wares from market to return
     if (response.type !== 'SELECT_WARES') {
       throw new Error('Expected SELECT_WARES response for Dancer ware return');

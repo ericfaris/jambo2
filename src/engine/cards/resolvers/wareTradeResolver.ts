@@ -13,6 +13,15 @@ export function resolveWareTrade(
   response: InteractionResponse
 ): GameState {
   if (pending.step === 'SELECT_GIVE') {
+    // Guard: no wares in market — auto-resolve
+    if (!state.players[state.currentPlayer].market.some(w => w !== null)) {
+      return {
+        ...state,
+        pendingResolution: null,
+        log: [...state.log, { turn: state.turn, player: state.currentPlayer, action: 'SHAMAN_TRADE', details: 'No wares in market to trade' }],
+      };
+    }
+
     if (response.type !== 'SELECT_WARE_TYPE') {
       throw new Error('Expected SELECT_WARE_TYPE response for trade give step');
     }

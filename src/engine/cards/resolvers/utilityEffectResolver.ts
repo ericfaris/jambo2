@@ -64,12 +64,28 @@ function resolveDrums(
   _pending: PendingUtilityEffect,
   response: InteractionResponse
 ): GameState {
+  const cp = state.currentPlayer;
+  const market = state.players[cp].market;
+
+  // Guard: no wares in market — just draw a card
+  if (!market.some(w => w !== null)) {
+    let next = state;
+    const drawResult = drawFromDeck(next);
+    if (drawResult.card) {
+      next = drawResult.state;
+      next = withPlayer(next, cp, { hand: [...next.players[cp].hand, drawResult.card] });
+    } else {
+      next = drawResult.state;
+    }
+    next = { ...next, pendingResolution: null };
+    next = withLog(next, 'DRUMS_EFFECT', 'No wares to return, drew a card');
+    return next;
+  }
+
   if (response.type !== 'RETURN_WARE') {
     throw new Error('Expected RETURN_WARE response for Drums');
   }
 
-  const cp = state.currentPlayer;
-  const market = state.players[cp].market;
   const { wareIndex } = response;
 
   if (wareIndex < 0 || wareIndex >= market.length || market[wareIndex] === null) {
@@ -115,6 +131,13 @@ function resolveBoat(
   const cp = state.currentPlayer;
 
   if (pending.step === 'SELECT_CARD') {
+    // Guard: no cards in hand — auto-resolve (skip to no effect)
+    if (state.players[cp].hand.length === 0) {
+      let next: GameState = { ...state, pendingResolution: null };
+      next = withLog(next, 'BOAT_EFFECT', 'No cards in hand to discard');
+      return next;
+    }
+
     if (response.type !== 'SELECT_CARD') {
       throw new Error('Expected SELECT_CARD response for Boat');
     }
@@ -253,10 +276,18 @@ function resolveKettle(
   _pending: PendingUtilityEffect,
   response: InteractionResponse
 ): GameState {
+  const cp = state.currentPlayer;
+
+  // Guard: no cards in hand — auto-resolve
+  if (state.players[cp].hand.length === 0) {
+    let next: GameState = { ...state, pendingResolution: null };
+    next = withLog(next, 'KETTLE_EFFECT', 'No cards in hand to discard');
+    return next;
+  }
+
   if (response.type !== 'SELECT_CARDS') {
     throw new Error('Expected SELECT_CARDS response for Kettle');
   }
-  const cp = state.currentPlayer;
   const { cardIds } = response;
 
   if (cardIds.length < 1 || cardIds.length > 2) {
@@ -304,20 +335,22 @@ function resolveLeopardStatue(
   _pending: PendingUtilityEffect,
   response: InteractionResponse
 ): GameState {
+  const cp = state.currentPlayer;
+
+  // Guard: insufficient gold or no market space — auto-resolve
+  if (state.players[cp].gold < 2 || getEmptySlots(state, cp).length < 1) {
+    let next: GameState = { ...state, pendingResolution: null };
+    next = withLog(next, 'LEOPARD_STATUE_EFFECT', 'Cannot afford Leopard Statue effect');
+    return next;
+  }
+
   if (response.type !== 'SELECT_WARE_TYPE') {
     throw new Error('Expected SELECT_WARE_TYPE response for Leopard Statue');
   }
-  const cp = state.currentPlayer;
   const { wareType } = response;
 
-  if (state.players[cp].gold < 2) {
-    throw new Error('Not enough gold for Leopard Statue (need 2g)');
-  }
   if (state.wareSupply[wareType] < 1) {
     throw new Error(`No ${wareType} in supply`);
-  }
-  if (getEmptySlots(state, cp).length < 1) {
-    throw new Error('No empty market slots');
   }
 
   let next = withPlayer(state, cp, { gold: state.players[cp].gold - 2 });
@@ -338,10 +371,19 @@ function resolveWeapons(
   _pending: PendingUtilityEffect,
   response: InteractionResponse
 ): GameState {
+  const cp = state.currentPlayer;
+
+  // Guard: no cards in hand — auto-resolve (still get 2g)
+  if (state.players[cp].hand.length === 0) {
+    let next = withPlayer(state, cp, { gold: state.players[cp].gold + 2 });
+    next = { ...next, pendingResolution: null };
+    next = withLog(next, 'WEAPONS_EFFECT', 'No cards to discard, received 2g');
+    return next;
+  }
+
   if (response.type !== 'SELECT_CARD') {
     throw new Error('Expected SELECT_CARD response for Weapons');
   }
-  const cp = state.currentPlayer;
   const { cardId } = response;
 
   const hand = state.players[cp].hand;

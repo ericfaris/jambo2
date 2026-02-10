@@ -57,7 +57,8 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
     case 'WARE_TRADE': {
       if (pr.step === 'SELECT_GIVE') {
         const wareTypesInMarket = player.market.filter((w): w is WareType => w !== null);
-        if (wareTypesInMarket.length === 0) return null;
+        // Resolver auto-resolves when market empty; send dummy to trigger guard
+        if (wareTypesInMarket.length === 0) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' };
         return { type: 'SELECT_WARE_TYPE', wareType: pick(wareTypesInMarket) };
       }
       // SELECT_RECEIVE: pick from supply, exclude give type
@@ -86,7 +87,8 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
       const opponent: 0 | 1 = cp === 0 ? 1 : 0;
       const opMarket = state.players[opponent].market;
       const filledSlots = opMarket.map((w, i) => ({ w, i })).filter(s => s.w !== null);
-      if (filledSlots.length === 0) return null;
+      // Resolver auto-resolves when opponent has no wares; send dummy to trigger guard
+      if (filledSlots.length === 0) return { type: 'SELECT_WARE', wareIndex: 0 };
       return { type: 'SELECT_WARE', wareIndex: pick(filledSlots).i };
     }
 
@@ -95,27 +97,31 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
         const opponent: 0 | 1 = cp === 0 ? 1 : 0;
         const opMarket = state.players[opponent].market;
         const filledSlots = opMarket.map((w, i) => ({ w, i })).filter(s => s.w !== null);
-        if (filledSlots.length === 0) return null;
+        // Resolver auto-resolves when opponent has no wares; send dummy to trigger guard
+        if (filledSlots.length === 0) return { type: 'SELECT_WARE', wareIndex: 0 };
         return { type: 'SELECT_WARE', wareIndex: pick(filledSlots).i };
       }
       const mySlots = player.market.map((w, i) => ({ w, i })).filter(s => s.w !== null);
-      if (mySlots.length === 0) return null;
+      // Resolver auto-resolves when player has no wares; send dummy to trigger guard
+      if (mySlots.length === 0) return { type: 'SELECT_WARE', wareIndex: 0 };
       return { type: 'SELECT_WARE', wareIndex: pick(mySlots).i };
     }
 
     case 'UTILITY_THEFT_SINGLE': {
       const opponent: 0 | 1 = cp === 0 ? 1 : 0;
       const opUtils = state.players[opponent].utilities;
-      if (opUtils.length === 0) return null;
+      // Resolver auto-resolves when opponent has no utilities; send dummy to trigger guard
+      if (opUtils.length === 0) return { type: 'SELECT_UTILITY', utilityIndex: 0 };
       return { type: 'SELECT_UTILITY', utilityIndex: Math.floor(Math.random() * opUtils.length) };
     }
 
     case 'HAND_SWAP': {
       if (pr.step === 'TAKE') {
-        if (pr.revealedHand.length === 0) return null;
+        // Resolver auto-resolves when opponent hand empty; send dummy to trigger guard
+        if (pr.revealedHand.length === 0) return { type: 'SELECT_CARD', cardId: '' };
         return { type: 'SELECT_CARD', cardId: pick(pr.revealedHand) };
       }
-      if (player.hand.length === 0) return null;
+      if (player.hand.length === 0) return { type: 'SELECT_CARD', cardId: '' };
       return { type: 'SELECT_CARD', cardId: pick(player.hand) };
     }
 
@@ -126,6 +132,17 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
       return { type: 'OPPONENT_CHOICE', choice: Math.random() < 0.5 ? 0 : 1 };
 
     case 'AUCTION': {
+      // Initial step: select 2 wares to auction
+      if (pr.wares.length === 0) {
+        const filledSlots = player.market
+          .map((w, i) => ({ w, i }))
+          .filter(s => s.w !== null);
+        // Resolver auto-resolves when < 2 wares; send dummy to trigger guard
+        if (filledSlots.length < 2) return { type: 'SELECT_WARES', wareIndices: [0, 1] };
+        const selected = filledSlots.sort(() => Math.random() - 0.5).slice(0, 2);
+        return { type: 'SELECT_WARES', wareIndices: selected.map(s => s.i) };
+      }
+      // Bidding rounds
       const bidAmount = pr.currentBid + 1;
       const bidder = state.players[pr.nextBidder];
       // Only bid if we can afford it
@@ -148,14 +165,16 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
     case 'WARE_CASH_CONVERSION': {
       if (pr.step === 'SELECT_CARD') {
         const wareCards = player.hand.filter(id => getCard(id).type === 'ware');
-        if (wareCards.length === 0) return null;
+        // Resolver auto-resolves when no ware cards; send dummy to trigger guard
+        if (wareCards.length === 0) return { type: 'SELECT_CARD', cardId: '' };
         return { type: 'SELECT_CARD', cardId: pick(wareCards) };
       }
       if (pr.step === 'SELECT_WARES') {
         const filledSlots = player.market
           .map((w, i) => ({ w, i }))
           .filter(s => s.w !== null);
-        if (filledSlots.length < 3) return null;
+        // Resolver auto-resolves when < 3 wares; send dummy to trigger guard
+        if (filledSlots.length < 3) return { type: 'SELECT_WARES', wareIndices: [0, 1, 2] };
         const toReturn = filledSlots.sort(() => Math.random() - 0.5).slice(0, 3);
         return { type: 'SELECT_WARES', wareIndices: toReturn.map(s => s.i) };
       }
@@ -166,17 +185,21 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
       const filledSlots = player.market
         .map((w, i) => ({ w, i }))
         .filter(s => s.w !== null);
-      if (filledSlots.length === 0) return null;
+      // Sell at least 1 ware — validation should prevent empty, but send dummy for safety
+      if (filledSlots.length === 0) return { type: 'SELL_WARES', wareIndices: [] };
       const count = Math.min(1 + Math.floor(Math.random() * 3), filledSlots.length);
       const shuffled = filledSlots.sort(() => Math.random() - 0.5).slice(0, count);
       return { type: 'SELL_WARES', wareIndices: shuffled.map(s => s.i) };
     }
 
     case 'WARE_RETURN': {
-      const filledSlots = player.market
+      const opponent: 0 | 1 = cp === 0 ? 1 : 0;
+      const opMarket = state.players[opponent].market;
+      const filledSlots = opMarket
         .map((w, i) => ({ w, i }))
         .filter(s => s.w !== null);
-      if (filledSlots.length === 0) return null;
+      // Resolver auto-resolves when opponent has no wares; send dummy to trigger guard
+      if (filledSlots.length === 0) return { type: 'RETURN_WARE', wareIndex: 0 };
       return { type: 'RETURN_WARE', wareIndex: pick(filledSlots).i };
     }
 
@@ -185,7 +208,8 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
       const targetPlayer = state.players[target];
       const handSize = targetPlayer.hand.length;
       const discardCount = handSize - pr.discardTo;
-      if (discardCount <= 0) return null;
+      // Nothing to discard — send dummy to let resolver auto-resolve
+      if (discardCount <= 0) return { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [] };
       const indices = Array.from({ length: handSize }, (_, i) => i)
         .sort(() => Math.random() - 0.5)
         .slice(0, discardCount);
@@ -195,7 +219,8 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
     case 'DRAFT': {
       if (pr.draftMode === 'wares') {
         if (pr.availableWares.length === 0) return null;
-        return { type: 'SELECT_WARE_TYPE', wareType: pick(pr.availableWares) };
+        const wareIdx = Math.floor(Math.random() * pr.availableWares.length);
+        return { type: 'SELECT_WARE', wareIndex: wareIdx };
       }
       if (pr.availableCards && pr.availableCards.length > 0) {
         return { type: 'SELECT_CARD', cardId: pick(pr.availableCards) };
@@ -204,35 +229,60 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
     }
 
     case 'SUPPLIES_DISCARD': {
-      if (player.hand.length === 0) return null;
+      // Resolver auto-resolves when hand empty; send dummy to trigger guard
+      if (player.hand.length === 0) return { type: 'SELECT_CARD', cardId: '' };
       return { type: 'SELECT_CARD', cardId: pick(player.hand) };
     }
 
     case 'UTILITY_KEEP': {
       const responder = pr.step === 'ACTIVE_CHOOSE' ? cp : (cp === 0 ? 1 : 0);
       const utils = state.players[responder].utilities;
-      if (utils.length === 0) return null;
+      // Resolver auto-skips when no utilities; send dummy response to trigger it
+      if (utils.length === 0) return { type: 'SELECT_UTILITY', utilityIndex: 0 };
       return { type: 'SELECT_UTILITY', utilityIndex: Math.floor(Math.random() * utils.length) };
     }
 
     case 'CROCODILE_USE': {
       if (pr.step === 'SELECT_UTILITY') {
         const opUtils = state.players[pr.opponentPlayer].utilities;
-        if (opUtils.length === 0) return null;
+        // Resolver auto-resolves when opponent has no utilities; send dummy to trigger guard
+        if (opUtils.length === 0) return { type: 'SELECT_UTILITY', utilityIndex: 0 };
         return { type: 'SELECT_UTILITY', utilityIndex: Math.floor(Math.random() * opUtils.length) };
       }
       return null;
     }
 
     case 'UTILITY_EFFECT': {
+      // Drums: return 1 ware from own market
+      if (pr.utilityDesign === 'drums') {
+        const filledSlots = player.market
+          .map((w, i) => ({ w, i }))
+          .filter(s => s.w !== null);
+        // Resolver auto-resolves when market empty; send dummy to trigger guard
+        if (filledSlots.length === 0) return { type: 'RETURN_WARE', wareIndex: 0 };
+        return { type: 'RETURN_WARE', wareIndex: pick(filledSlots).i };
+      }
+      // Scale: pick from drawn cards (selectedCards), not from hand
+      if (pr.utilityDesign === 'scale' && pr.step === 'SELECT_CARD') {
+        if (pr.selectedCards && pr.selectedCards.length > 0) {
+          return { type: 'SELECT_CARD', cardId: pick(pr.selectedCards) };
+        }
+        // First call triggers the draw — send any valid response (it's ignored)
+        return { type: 'SELECT_CARD', cardId: player.hand[0] ?? '' };
+      }
       if (pr.step === 'SELECT_CARD') {
-        if (player.hand.length === 0) return null;
-        const maxCards = pr.utilityDesign === 'kettle' ? 2 : 1;
-        const count = Math.min(1 + Math.floor(Math.random() * maxCards), player.hand.length);
-        const cards = player.hand.slice().sort(() => Math.random() - 0.5).slice(0, count);
-        return count === 1
-          ? { type: 'SELECT_CARD', cardId: cards[0] }
-          : { type: 'SELECT_CARDS', cardIds: cards };
+        // Kettle: needs SELECT_CARDS response
+        if (pr.utilityDesign === 'kettle') {
+          // Resolver auto-resolves when hand empty; send dummy to trigger guard
+          if (player.hand.length === 0) return { type: 'SELECT_CARDS', cardIds: [] };
+          const count = Math.min(1 + Math.floor(Math.random() * 2), player.hand.length);
+          const cards = player.hand.slice().sort(() => Math.random() - 0.5).slice(0, count);
+          return { type: 'SELECT_CARDS', cardIds: cards };
+        }
+        // Boat/Weapons: needs SELECT_CARD response
+        // Resolver auto-resolves when hand empty; send dummy to trigger guard
+        if (player.hand.length === 0) return { type: 'SELECT_CARD', cardId: '' };
+        return { type: 'SELECT_CARD', cardId: pick(player.hand) };
       }
       if (pr.step === 'SELECT_WARE_TYPE') {
         const available = availableWareTypes(state);
@@ -243,7 +293,9 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
     }
 
     case 'DRAW_MODIFIER': {
-      if (player.hand.length === 0) return null;
+      // Mask of Transformation: need hand card to trade for top of discard
+      // No resolver guard for this — validation should prevent it, but send dummy for safety
+      if (player.hand.length === 0) return { type: 'SELECT_CARD', cardId: '' };
       return { type: 'SELECT_CARD', cardId: pick(player.hand) };
     }
 

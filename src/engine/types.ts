@@ -71,6 +71,7 @@ export interface CardDefinition {
   designId: CardDesignId;
   name: string;
   type: CardType;
+  description: string;
   interactionType: InteractionType;
   wares?: WareCardWares;
   flowSteps: string[];

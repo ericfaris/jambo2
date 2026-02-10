@@ -2,7 +2,7 @@
 // Card Resolver - Dispatches card play/activation to the correct resolver
 // ============================================================================
 
-import type { GameState, DeckCardId, InteractionResponse, PendingResolution } from '../types.ts';
+import type { GameState, DeckCardId, InteractionResponse, PendingResolution, WareType } from '../types.ts';
 import { getCard, isDesign } from './CardDatabase.ts';
 import { resolveWareTrade } from './resolvers/wareTradeResolver.ts';
 import { resolveActiveSelect } from './resolvers/activeSelectResolver.ts';
@@ -117,17 +117,50 @@ export function initializeResolution(
       };
 
     case 'DRAFT': {
-      // Determine draft mode from card design
-      let draftMode: 'wares' | 'cards' | 'utilities' = 'wares';
-      if (isDesign(cardId, 'ape')) draftMode = 'cards';
-      if (isDesign(cardId, 'lion')) draftMode = 'utilities';
+      const activePlayer = state.currentPlayer;
+      const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
+
+      // Elephant: pool wares from both markets
+      if (isDesign(cardId, 'elephant')) {
+        const activeWares = state.players[activePlayer].market.filter((w): w is WareType => w !== null);
+        const opponentWares = state.players[opponent].market.filter((w): w is WareType => w !== null);
+        return {
+          type: 'DRAFT',
+          sourceCard: cardId,
+          draftMode: 'wares',
+          availableWares: [...activeWares, ...opponentWares],
+          availableCards: [],
+          currentPicker: activePlayer,
+          picks: [[], []],
+          cardPicks: [[], []],
+        };
+      }
+
+      // Ape: pool hand cards from both players
+      if (isDesign(cardId, 'ape')) {
+        return {
+          type: 'DRAFT',
+          sourceCard: cardId,
+          draftMode: 'cards',
+          availableWares: [],
+          availableCards: [...state.players[activePlayer].hand, ...state.players[opponent].hand],
+          currentPicker: activePlayer,
+          picks: [[], []],
+          cardPicks: [[], []],
+        };
+      }
+
+      // Lion: pool utilities from both players
       return {
         type: 'DRAFT',
         sourceCard: cardId,
-        draftMode,
+        draftMode: 'utilities',
         availableWares: [],
-        availableCards: [],
-        currentPicker: state.currentPlayer,
+        availableCards: [
+          ...state.players[activePlayer].utilities.map(u => u.cardId),
+          ...state.players[opponent].utilities.map(u => u.cardId),
+        ],
+        currentPicker: activePlayer,
         picks: [[], []],
         cardPicks: [[], []],
       };

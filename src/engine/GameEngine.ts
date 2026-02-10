@@ -607,6 +607,22 @@ function initiateAnimalEffect(
       ...next,
       pendingResolution: pending,
     };
+
+    // Draft cards: clear the source pools now that items are captured in pending
+    if (pending.type === 'DRAFT') {
+      const emptyMarket = (p: 0 | 1) => next.players[p].market.map(() => null) as (WareType | null)[];
+      if (pending.draftMode === 'wares') {
+        next = withPlayer(next, 0, { market: emptyMarket(0) });
+        next = withPlayer(next, 1, { market: emptyMarket(1) });
+      } else if (pending.draftMode === 'cards') {
+        next = withPlayer(next, 0, { hand: [] });
+        next = withPlayer(next, 1, { hand: [] });
+      } else if (pending.draftMode === 'utilities') {
+        next = withPlayer(next, 0, { utilities: [] });
+        next = withPlayer(next, 1, { utilities: [] });
+      }
+    }
+
     next = withLog(next, 'PLAY_ANIMAL', `Played ${cardName} - awaiting resolution`);
   } else {
     next = discardCard(next, cardId);
@@ -908,15 +924,18 @@ export function handleEndTurn(state: GameState): GameState {
     return next;
   }
 
-  // 5. Switch player and increment turn
+  // 5. Log END_TURN before switching (so it's attributed to the current player/turn)
   const nextPlayer: 0 | 1 = cp === 0 ? 1 : 0;
+  next = withLog(next, 'END_TURN', `Turn ended. Player ${nextPlayer + 1}'s turn begins (turn ${next.turn + 1})`);
+
+  // 6. Switch player and increment turn
   next = {
     ...next,
     currentPlayer: nextPlayer,
     turn: next.turn + 1,
   };
 
-  // 6. Reset draw phase state
+  // 7. Reset draw phase state
   next = {
     ...next,
     phase: 'DRAW' as const,
@@ -925,13 +944,11 @@ export function handleEndTurn(state: GameState): GameState {
     keptCardThisDrawPhase: false,
   };
 
-  // 7. Set actions for next turn
+  // 8. Set actions for next turn
   next = {
     ...next,
     actionsLeft: CONSTANTS.MAX_ACTIONS,
   };
-
-  next = withLog(next, 'END_TURN', `Turn ended. Player ${nextPlayer}'s turn begins (turn ${next.turn})`);
 
   return next;
 }

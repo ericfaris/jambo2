@@ -10,13 +10,23 @@ export function resolveWareSellBulk(
   pending: PendingWareSellBulk,
   response: InteractionResponse
 ): GameState {
+  const activePlayer = state.currentPlayer;
+  const market = state.players[activePlayer].market;
+
+  // Guard: no wares in market — auto-resolve
+  if (!market.some(w => w !== null)) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, { turn: state.turn, player: activePlayer, action: 'PORTUGUESE_SELL', details: 'No wares to sell' }],
+    };
+  }
+
   if (response.type !== 'SELL_WARES') {
     throw new Error('Expected SELL_WARES response for Portuguese');
   }
 
   const { wareIndices } = response;
-  const activePlayer = state.currentPlayer;
-  const market = state.players[activePlayer].market;
 
   if (wareIndices.length === 0) {
     throw new Error('Must select at least 1 ware to sell');

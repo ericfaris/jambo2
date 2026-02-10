@@ -3,7 +3,7 @@
 // Used for state validation, save/load integrity, and debugging.
 // ============================================================================
 
-import type { GameState, WareType } from '../types.ts';
+import type { GameState } from '../types.ts';
 import { CONSTANTS, WARE_TYPES } from '../types.ts';
 
 export interface InvariantViolation {
@@ -188,7 +188,7 @@ function countAllCards(state: GameState): number {
 
   // Cards in pending resolution pools (draft available cards, scale auto-drawn cards, etc.)
   if (state.pendingResolution) {
-    const pending = state.pendingResolution as Record<string, unknown>;
+    const pending = state.pendingResolution as unknown as Record<string, unknown>;
     if (Array.isArray(pending.availableCards)) {
       for (const cardId of pending.availableCards) {
         if (!allCounted.has(cardId as string)) {

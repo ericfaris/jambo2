@@ -5,7 +5,6 @@
 import type {
   GameState,
   PlayerState,
-  DeckCardId,
   WareType,
   TurnModifiers,
 } from './types.ts';

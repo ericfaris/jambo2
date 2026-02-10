@@ -51,11 +51,23 @@ export function resolveSuppliesDiscard(
   _pending: PendingSuppliesDiscard,
   response: InteractionResponse
 ): GameState {
+  const cp = state.currentPlayer;
+
+  // Guard: no cards in hand — skip discard, just draw until ware
+  if (state.players[cp].hand.length === 0) {
+    let next = drawUntilWare(state, cp);
+    next = {
+      ...next,
+      pendingResolution: null,
+      log: [...next.log, { turn: state.turn, player: cp, action: 'SUPPLIES_DRAW', details: 'No cards to discard, drew until ware found' }],
+    };
+    return next;
+  }
+
   if (response.type !== 'SELECT_CARD') {
     throw new Error('Expected SELECT_CARD response for Supplies discard');
   }
 
-  const cp = state.currentPlayer;
   const { cardId } = response;
   const hand = state.players[cp].hand;
 

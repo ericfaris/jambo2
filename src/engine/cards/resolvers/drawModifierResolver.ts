@@ -25,7 +25,7 @@ export function resolveDrawModifier(
 ): GameState {
   const cp = state.currentPlayer;
 
-  // If discard pile is empty, no-op
+  // Guard: discard pile empty — no swap possible
   if (state.discardPile.length === 0) {
     return {
       ...state,
@@ -35,6 +35,20 @@ export function resolveDrawModifier(
         player: cp,
         action: 'DRAW_MODIFIER',
         details: 'Mask of Transformation: discard pile is empty, no swap possible',
+      }],
+    };
+  }
+
+  // Guard: hand empty — no card to trade
+  if (state.players[cp].hand.length === 0) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, {
+        turn: state.turn,
+        player: cp,
+        action: 'DRAW_MODIFIER',
+        details: 'Mask of Transformation: no cards in hand to swap',
       }],
     };
   }

@@ -13,6 +13,16 @@ export function resolveAuction(
 ): GameState {
   // Step 1: If wares haven't been selected yet, active player selects 2 wares to auction
   if (pending.wares.length === 0) {
+    // Guard: not enough wares to auction — auto-resolve
+    const filledSlots = state.players[state.currentPlayer].market.filter(w => w !== null);
+    if (filledSlots.length < 2) {
+      return {
+        ...state,
+        pendingResolution: null,
+        log: [...state.log, { turn: state.turn, player: state.currentPlayer, action: 'AUCTION_NO_WINNER', details: 'Not enough wares to auction (need 2)' }],
+      };
+    }
+
     if (response.type !== 'SELECT_WARES') {
       throw new Error('Expected SELECT_WARES to choose wares for auction');
     }
