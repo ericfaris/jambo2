@@ -413,7 +413,7 @@ const PEOPLE_DESIGNS: { design: CardDesignTemplate; copies: number }[] = [
       name: 'Tribal Elder',
       type: 'people',
       description: 'Choose: draw up to 5 cards, or force opponent to discard down to 3.',
-      interactionType: 'OPPONENT_SELECT',
+      interactionType: 'BINARY_CHOICE',
       flowSteps: ['Choose: draw up to 5 cards OR opponent discards to 3', 'Execute chosen option'],
       validation: [],
       uiPrompts: ['Draw to 5 cards OR Opponent discards to 3?'],

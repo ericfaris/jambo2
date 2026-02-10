@@ -176,32 +176,30 @@ describe('Elephant (Ware Draft)', () => {
     expect(s2.pendingResolution!.type).toBe('DRAFT');
     expect((s2.pendingResolution as any).draftMode).toBe('wares');
 
-    // First resolve initializes the draft (pools wares, clears markets)
-    const s3 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
-    // After init, available wares = [trinkets, hides, tea, silk]
-    // and it returns to ask for pick — the first resolve also initializes
-    const draft3 = s3.pendingResolution as any;
-    expect(draft3.availableWares.length).toBe(4);
+    // Pools populated upfront: [trinkets, hides, tea, silk] = 4 wares
+    const draft2 = s2.pendingResolution as any;
+    expect(draft2.availableWares.length).toBe(4);
+    expect(draft2.currentPicker).toBe(0); // P0 picks first
 
     // P0 picks first ware
+    const s3 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
+    const draft3 = s3.pendingResolution as any;
+    expect(draft3.availableWares.length).toBe(3);
+    expect(draft3.currentPicker).toBe(1); // P1's turn
+
+    // P1 picks
     const s4 = resolve(s3, { type: 'SELECT_WARE', wareIndex: 0 });
     const draft4 = s4.pendingResolution as any;
-    if (draft4) {
-      expect(draft4.currentPicker).toBe(1); // P1's turn
-      // P1 picks
-      const s5 = resolve(s4, { type: 'SELECT_WARE', wareIndex: 0 });
-      const draft5 = s5.pendingResolution as any;
-      if (draft5) {
-        // P0 picks again
-        const s6 = resolve(s5, { type: 'SELECT_WARE', wareIndex: 0 });
-        const draft6 = s6.pendingResolution as any;
-        if (draft6) {
-          // P1 picks last
-          const s7 = resolve(s6, { type: 'SELECT_WARE', wareIndex: 0 });
-          expect(s7.pendingResolution).toBeNull();
-        }
-      }
-    }
+    expect(draft4.availableWares.length).toBe(2);
+
+    // P0 picks
+    const s5 = resolve(s4, { type: 'SELECT_WARE', wareIndex: 0 });
+    const draft5 = s5.pendingResolution as any;
+    expect(draft5.availableWares.length).toBe(1);
+
+    // P1 picks last
+    const s6 = resolve(s5, { type: 'SELECT_WARE', wareIndex: 0 });
+    expect(s6.pendingResolution).toBeNull();
   });
 });
 
@@ -216,23 +214,25 @@ describe('Ape (Card Draft)', () => {
     expect(s2.pendingResolution!.type).toBe('DRAFT');
     expect((s2.pendingResolution as any).draftMode).toBe('cards');
 
-    // First resolve initializes (pools cards: [ware_3k_1, ware_3h_1, ware_3t_1])
-    // After ape_1 was played, P0 hand = [ware_3k_1], so pool = [ware_3k_1, ware_3h_1, ware_3t_1]
+    // Pool populated upfront: [ware_3k_1, ware_3h_1, ware_3t_1] (ape_1 played from hand)
+    const draft2 = s2.pendingResolution as any;
+    expect(draft2.availableCards.length).toBe(3);
+    expect(draft2.currentPicker).toBe(0); // P0 picks first
+
+    // P0 picks ware_3k_1
     const s3 = resolve(s2, { type: 'SELECT_CARD', cardId: 'ware_3k_1' });
     const draft3 = s3.pendingResolution as any;
-    expect(draft3.availableCards.length).toBe(3);
+    expect(draft3.availableCards.length).toBe(2);
+    expect(draft3.currentPicker).toBe(1); // P1's turn
 
-    // P0 picks
-    const s4 = resolve(s3, { type: 'SELECT_CARD', cardId: 'ware_3k_1' });
-    if (s4.pendingResolution) {
-      // P1 picks
-      const s5 = resolve(s4, { type: 'SELECT_CARD', cardId: (s4.pendingResolution as any).availableCards[0] });
-      if (s5.pendingResolution) {
-        // P0 picks last
-        const s6 = resolve(s5, { type: 'SELECT_CARD', cardId: (s5.pendingResolution as any).availableCards[0] });
-        expect(s6.pendingResolution).toBeNull();
-      }
-    }
+    // P1 picks
+    const s4 = resolve(s3, { type: 'SELECT_CARD', cardId: draft3.availableCards[0] });
+    const draft4 = s4.pendingResolution as any;
+    expect(draft4.availableCards.length).toBe(1);
+
+    // P0 picks last
+    const s5 = resolve(s4, { type: 'SELECT_CARD', cardId: draft4.availableCards[0] });
+    expect(s5.pendingResolution).toBeNull();
   });
 });
 
@@ -249,20 +249,22 @@ describe('Lion (Utility Draft)', () => {
     expect(s2.pendingResolution!.type).toBe('DRAFT');
     expect((s2.pendingResolution as any).draftMode).toBe('utilities');
 
-    // First resolve initializes
-    const s3 = resolve(s2, { type: 'SELECT_CARD', cardId: 'well_1' });
-    const draft3 = s3.pendingResolution as any;
-    expect(draft3.availableCards.length).toBe(2);
+    // Pool populated upfront: [well_1, drums_1]
+    const draft2 = s2.pendingResolution as any;
+    expect(draft2.availableCards.length).toBe(2);
+    expect(draft2.currentPicker).toBe(0); // P0 picks first
 
     // P0 picks well_1
-    const s4 = resolve(s3, { type: 'SELECT_CARD', cardId: 'well_1' });
-    if (s4.pendingResolution) {
-      // P1 picks drums_1
-      const s5 = resolve(s4, { type: 'SELECT_CARD', cardId: 'drums_1' });
-      expect(s5.pendingResolution).toBeNull();
-      expect(utilities(s5, 0).length).toBe(1);
-      expect(utilities(s5, 1).length).toBe(1);
-    }
+    const s3 = resolve(s2, { type: 'SELECT_CARD', cardId: 'well_1' });
+    const draft3 = s3.pendingResolution as any;
+    expect(draft3.availableCards.length).toBe(1);
+    expect(draft3.currentPicker).toBe(1); // P1's turn
+
+    // P1 picks drums_1
+    const s4 = resolve(s3, { type: 'SELECT_CARD', cardId: 'drums_1' });
+    expect(s4.pendingResolution).toBeNull();
+    expect(utilities(s4, 0).length).toBe(1);
+    expect(utilities(s4, 1).length).toBe(1);
   });
 });
 

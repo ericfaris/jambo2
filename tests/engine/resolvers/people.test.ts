@@ -89,8 +89,8 @@ describe('Psychic (Deck Peek)', () => {
   });
 });
 
-describe('Tribal Elder (Opponent Discard)', () => {
-  it('opponent discards to 3 cards', () => {
+describe('Tribal Elder (Binary Choice)', () => {
+  function setupTribalElder() {
     let s = toPlayPhase(createTestState());
     s = withHand(s, 0, ['tribal_elder_1']);
     s = withHand(s, 1, ['ware_3k_1', 'ware_3h_1', 'ware_3t_1', 'ware_3l_1', 'ware_3f_1']);
@@ -101,15 +101,65 @@ describe('Tribal Elder (Opponent Discard)', () => {
     s = removeFromDeck(s, 'ware_3l_1');
     s = removeFromDeck(s, 'ware_3f_1');
     s = withGold(s, 0, 20);
+    return s;
+  }
 
+  it('presents binary choice before resolving', () => {
+    const s = setupTribalElder();
     const s2 = act(s, { type: 'PLAY_CARD', cardId: 'tribal_elder_1' });
-    expect(s2.pendingResolution!.type).toBe('OPPONENT_DISCARD');
-    expect((s2.pendingResolution as any).discardTo).toBe(3);
+    expect(s2.pendingResolution!.type).toBe('BINARY_CHOICE');
+    const pr = s2.pendingResolution as any;
+    expect(pr.options).toHaveLength(2);
+  });
+
+  it('choice 1: opponent discards to 3 cards', () => {
+    const s = setupTribalElder();
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'tribal_elder_1' });
+    expect(s2.pendingResolution!.type).toBe('BINARY_CHOICE');
+
+    // Choose option 1: opponent discards to 3
+    const s3 = resolve(s2, { type: 'BINARY_CHOICE', choice: 1 });
+    expect(s3.pendingResolution!.type).toBe('OPPONENT_DISCARD');
+    expect((s3.pendingResolution as any).discardTo).toBe(3);
 
     // Opponent discards 2 cards (5 → 3)
-    const s3 = resolve(s2, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [0, 1] });
+    const s4 = resolve(s3, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [0, 1] });
+    expect(s4.pendingResolution).toBeNull();
+    expect(hand(s4, 1).length).toBe(3);
+  });
+
+  it('choice 0: active player draws up to 5 cards', () => {
+    let s = setupTribalElder();
+    // Active player has only 1 card (tribal elder) which gets discarded on play → 0 cards
+    // After draw-to-5, should have up to 5 cards
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'tribal_elder_1' });
+    expect(s2.pendingResolution!.type).toBe('BINARY_CHOICE');
+
+    const handBefore = hand(s2, 0).length; // 0 cards after playing tribal elder
+    // Choose option 0: draw to 5
+    const s3 = resolve(s2, { type: 'BINARY_CHOICE', choice: 0 });
     expect(s3.pendingResolution).toBeNull();
-    expect(hand(s3, 1).length).toBe(3);
+    // Should have drawn 5 cards (5 - 0 = 5)
+    expect(hand(s3, 0).length).toBe(5);
+  });
+
+  it('draw-to-5 does nothing when hand already has 5', () => {
+    let s = setupTribalElder();
+    // Give active player 4 extra cards so after playing tribal elder they have 4
+    s = withHand(s, 0, ['tribal_elder_1', 'ware_3s_1', 'ware_3s_2', 'guard_1', 'guard_2']);
+    s = removeFromDeck(s, 'ware_3s_1');
+    s = removeFromDeck(s, 'ware_3s_2');
+    s = removeFromDeck(s, 'guard_1');
+    s = removeFromDeck(s, 'guard_2');
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'tribal_elder_1' });
+    // After playing, hand has 4 cards
+    expect(hand(s2, 0).length).toBe(4);
+
+    // Choose draw to 5 — should draw 1
+    const s3 = resolve(s2, { type: 'BINARY_CHOICE', choice: 0 });
+    expect(s3.pendingResolution).toBeNull();
+    expect(hand(s3, 0).length).toBe(5);
   });
 });
 

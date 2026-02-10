@@ -219,8 +219,8 @@ describe('Leopard Statue (Pay 2g, pick ware)', () => {
   it('cannot use without enough gold', () => {
     let s = setupLeopardStatue();
     s = withGold(s, 0, 1);
-    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
-    expect(() => resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'salt' })).toThrow();
+    // Validation now catches this before resolver runs
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/need at least 2g/);
   });
 });
 

@@ -173,15 +173,14 @@ function validatePlayCard(
       const totalUtils = player.utilities.length + opPlayer.utilities.length;
       if (totalUtils === 0) return fail('Cannot play Snake: no utilities on either side');
     }
-    // Cheetah: opponent must have at least 1 ware
-    if (isDesign(cardId, 'cheetah') && !opPlayer.market.some(w => w !== null)) {
-      return fail('Cannot play Cheetah: opponent has no wares');
+    // Hyena: opponent must have at least 1 card in hand
+    if (isDesign(cardId, 'hyena') && opPlayer.hand.length === 0) {
+      return fail('Cannot play Hyena: opponent has no cards in hand');
     }
   }
 
   // People card preconditions
   if (cardDef.type === 'people') {
-    const opponent: 0 | 1 = state.currentPlayer === 0 ? 1 : 0;
     // Drummer: discard pile must contain at least 1 utility
     if (isDesign(cardId, 'drummer') && !state.discardPile.some(id => getCard(id).type === 'utility')) {
       return fail('Cannot play Drummer: no utility cards in discard pile');
@@ -203,10 +202,6 @@ function validatePlayCard(
     // Shaman: need at least 1 ware in market to trade
     if (isDesign(cardId, 'shaman') && !player.market.some(w => w !== null)) {
       return fail('Cannot play Shaman: no wares in market to trade');
-    }
-    // Hyena: opponent must have at least 1 card in hand
-    if (isDesign(cardId, 'hyena') && state.players[opponent].hand.length === 0) {
-      return fail('Cannot play Hyena: opponent has no cards in hand');
     }
   }
 

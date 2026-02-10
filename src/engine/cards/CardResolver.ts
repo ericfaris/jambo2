@@ -89,11 +89,6 @@ export function initializeResolution(
     }
 
     case 'OPPONENT_SELECT': {
-      const opponent: 0 | 1 = state.currentPlayer === 0 ? 1 : 0;
-      // Tribal Elder (opponent discards to 3)
-      if (isDesign(cardId, 'tribal_elder')) {
-        return { type: 'OPPONENT_DISCARD', sourceCard: cardId, targetPlayer: opponent, discardTo: 3 };
-      }
       // Snake (both players keep 1 utility, discard rest)
       if (isDesign(cardId, 'snake')) {
         return { type: 'UTILITY_KEEP', sourceCard: cardId, step: 'ACTIVE_CHOOSE' };
@@ -179,6 +174,13 @@ export function initializeResolution(
           type: 'BINARY_CHOICE',
           sourceCard: cardId,
           options: ['Pay 1g first', 'Discard 1 card from hand first'],
+        };
+      }
+      if (isDesign(cardId, 'tribal_elder')) {
+        return {
+          type: 'BINARY_CHOICE',
+          sourceCard: cardId,
+          options: ['Draw up to 5 cards', 'Opponent discards to 3'],
         };
       }
       return null;
