@@ -189,6 +189,8 @@ export function processAction(state: GameState, action: GameAction): GameState {
       return handleKeepCard(state);
     case 'DISCARD_DRAWN':
       return handleDiscardDrawn(state);
+    case 'SKIP_DRAW':
+      return handleSkipDraw(state);
     case 'PLAY_CARD':
       return handlePlayCard(state, action.cardId, action.wareMode);
     case 'ACTIVATE_UTILITY':
@@ -213,16 +215,15 @@ export function processAction(state: GameState, action: GameAction): GameState {
 // ---------------------------------------------------------------------------
 
 /**
- * Automatically draw the first card at the start of the draw phase.
+ * Skip the draw phase entirely and transition to PLAY phase.
  */
-export function startDrawPhase(state: GameState): GameState {
-  if (state.phase !== 'DRAW') {
-    throw new Error('Cannot start draw phase: not in DRAW phase');
-  }
-  if (state.drawsThisPhase > 0) {
-    throw new Error('Draw phase already started');
-  }
-  return handleDrawCard(state);
+export function handleSkipDraw(state: GameState): GameState {
+  let next: GameState = {
+    ...state,
+    phase: 'PLAY',
+  };
+  next = withLog(next, 'SKIP_DRAW', 'Skipped draw phase');
+  return next;
 }
 
 /**

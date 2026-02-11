@@ -41,6 +41,8 @@ export function validateAction(state: GameState, action: GameAction): Validation
       return validateKeepCard(state);
     case 'DISCARD_DRAWN':
       return validateDiscardDrawn(state);
+    case 'SKIP_DRAW':
+      return validateSkipDraw(state);
     case 'PLAY_CARD':
       return validatePlayCard(state, action.cardId, action.wareMode);
     case 'ACTIVATE_UTILITY':
@@ -95,6 +97,16 @@ function validateDiscardDrawn(state: GameState): ValidationResult {
   }
   if (state.drawnCard === null) {
     return fail('No card drawn to discard');
+  }
+  return ok;
+}
+
+function validateSkipDraw(state: GameState): ValidationResult {
+  if (state.phase !== 'DRAW') {
+    return fail('Can only skip draw during DRAW phase');
+  }
+  if (state.drawnCard !== null) {
+    return fail('Must keep or discard the current drawn card first');
   }
   return ok;
 }
@@ -195,9 +207,10 @@ function validatePlayCard(
         return fail('Cannot play Dancer: need at least 3 wares in market');
       }
     }
-    // Traveling Merchant: need at least 2 wares in market for auction
-    if (isDesign(cardId, 'traveling_merchant') && player.market.filter(w => w !== null).length < 2) {
-      return fail('Cannot play Traveling Merchant: need at least 2 wares to auction');
+    // Basket Maker: need 2g and 2 empty market slots
+    if (isDesign(cardId, 'basket_maker')) {
+      if (player.gold < 2) return fail('Cannot play Basket Maker: need at least 2g');
+      if (player.market.filter(w => w === null).length < 2) return fail('Cannot play Basket Maker: need at least 2 empty market slots');
     }
     // Shaman: need at least 1 ware in market to trade
     if (isDesign(cardId, 'shaman') && !player.market.some(w => w !== null)) {
@@ -236,6 +249,9 @@ function validateActivateUtility(state: GameState, utilityIndex: number): Valida
       break;
     case 'throne':
       if (!state.players[opponent].market.some(w => w !== null)) return fail('Cannot activate Throne: opponent has no wares');
+      break;
+    case 'drums':
+      if (!player.market.some(w => w !== null)) return fail('Cannot activate Drums: no wares in market to return');
       break;
     case 'boat':
       if (player.hand.length === 0) return fail('Cannot activate Boat: no cards in hand to discard');
@@ -314,6 +330,9 @@ export function getValidActions(state: GameState): GameAction[] {
     }
     if (validateDiscardDrawn(state).valid) {
       actions.push({ type: 'DISCARD_DRAWN' });
+    }
+    if (validateSkipDraw(state).valid) {
+      actions.push({ type: 'SKIP_DRAW' });
     }
   }
 

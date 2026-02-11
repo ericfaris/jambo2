@@ -71,7 +71,7 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
       // Need supply >= count and market space >= count
       const emptySlots = player.market.filter(s => s === null).length;
       const available = availableWareTypes(state).filter(w => state.wareSupply[w] >= pr.count);
-      if (available.length === 0 || emptySlots < pr.count) return null;
+      if (available.length === 0 || emptySlots < pr.count) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' }; // guard handles
       return { type: 'SELECT_WARE_TYPE', wareType: pick(available) };
     }
 
@@ -132,15 +132,12 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
       return { type: 'OPPONENT_CHOICE', choice: Math.random() < 0.5 ? 0 : 1 };
 
     case 'AUCTION': {
-      // Initial step: select 2 wares to auction
-      if (pr.wares.length === 0) {
-        const filledSlots = player.market
-          .map((w, i) => ({ w, i }))
-          .filter(s => s.w !== null);
-        // Resolver auto-resolves when < 2 wares; send dummy to trigger guard
-        if (filledSlots.length < 2) return { type: 'SELECT_WARES', wareIndices: [0, 1] };
-        const selected = filledSlots.sort(() => Math.random() - 0.5).slice(0, 2);
-        return { type: 'SELECT_WARES', wareIndices: selected.map(s => s.i) };
+      // Ware selection step: pick ware types from supply
+      if (pr.wares.length < 2) {
+        const wareTypes: import('../engine/types.ts').WareType[] = ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt'];
+        const available = wareTypes.filter(wt => state.wareSupply[wt] > 0);
+        if (available.length === 0) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' }; // guard handles
+        return { type: 'SELECT_WARE_TYPE', wareType: pick(available) };
       }
       // Bidding rounds
       const bidAmount = pr.currentBid + 1;
@@ -335,6 +332,10 @@ export function getRandomAiAction(state: GameState): GameAction | null {
       return Math.random() < 0.5
         ? { type: 'KEEP_CARD' }
         : { type: 'DISCARD_DRAWN' };
+    }
+    // 10% chance to skip draw when hand is full and no draws yet
+    if (state.drawsThisPhase === 0 && state.players[state.currentPlayer].hand.length >= CONSTANTS.MAX_HAND_SIZE && Math.random() < 0.1) {
+      return { type: 'SKIP_DRAW' };
     }
     if (tryAction(state, { type: 'DRAW_CARD' })) {
       return { type: 'DRAW_CARD' };

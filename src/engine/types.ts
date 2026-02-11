@@ -354,6 +354,7 @@ export type GameAction =
   | { type: 'DRAW_CARD' }
   | { type: 'KEEP_CARD' }
   | { type: 'DISCARD_DRAWN' }
+  | { type: 'SKIP_DRAW' }  // Skip draw phase entirely, transition to PLAY
   | { type: 'PLAY_CARD'; cardId: DeckCardId; wareMode?: 'buy' | 'sell' }
   | { type: 'ACTIVATE_UTILITY'; utilityIndex: number }
   | { type: 'DRAW_ACTION' }  // Action-phase draw (costs 1 action, must keep)
