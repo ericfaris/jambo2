@@ -64,8 +64,8 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
     return (
       <div
         style={{
-          width: small ? 60 : 90,
-          height: small ? 80 : 120,
+          width: small ? 72 : 108,
+          height: small ? 96 : 144,
           borderRadius: 8,
           background: 'linear-gradient(135deg, #2a3a5a 25%, #1a2a4a 75%)',
           border: '2px solid #3a4a6a',
@@ -93,8 +93,8 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
         title={tooltip}
         onClick={onClick}
         style={{
-          width: small ? 60 : 90,
-          height: small ? 80 : 120,
+          width: small ? 72 : 108,
+          height: small ? 96 : 144,
           borderRadius: 8,
           padding: pad,
           boxSizing: 'border-box',
