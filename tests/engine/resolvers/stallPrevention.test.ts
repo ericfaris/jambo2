@@ -159,15 +159,45 @@ describe('Shaman: requires wares in market', () => {
   });
 });
 
-describe('Traveling Merchant: requires >= 2 wares', () => {
-  it('blocks with only 1 ware', () => {
+describe('Traveling Merchant: wares come from supply', () => {
+  it('can be played even with empty market (wares come from supply)', () => {
     let s = toPlayPhase(createTestState());
     s = withHand(s, 0, ['traveling_merchant_1']);
     s = removeFromDeck(s, 'traveling_merchant_1');
     s = withGold(s, 0, 20);
-    s = withMarket(s, 0, ['trinkets', null, null, null, null, null]);
-    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5 } };
-    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' })).toThrow(/need at least 2 wares/);
+    s = withMarket(s, 0, [null, null, null, null, null, null]);
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' });
+    expect(s2.pendingResolution!.type).toBe('AUCTION');
+    expect((s2.pendingResolution as any).wares.length).toBe(0); // wares not yet selected
+  });
+});
+
+describe('Basket Maker: requires 2g and 2 empty market slots', () => {
+  it('blocks with insufficient gold', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['basket_maker_1']);
+    s = removeFromDeck(s, 'basket_maker_1');
+    s = withGold(s, 0, 1);
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'basket_maker_1' })).toThrow(/need at least 2g/);
+  });
+
+  it('blocks with fewer than 2 empty market slots', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['basket_maker_1']);
+    s = removeFromDeck(s, 'basket_maker_1');
+    s = withGold(s, 0, 20);
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', null]);
+    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5, hides: 5, tea: 5, silk: 5, fruit: 5 } };
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'basket_maker_1' })).toThrow(/need at least 2 empty market slots/);
+  });
+
+  it('allowed when 2g and 2+ empty slots', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['basket_maker_1']);
+    s = removeFromDeck(s, 'basket_maker_1');
+    s = withGold(s, 0, 20);
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'basket_maker_1' });
+    expect(s2.pendingResolution!.type).toBe('WARE_SELECT_MULTIPLE');
   });
 });
 
@@ -209,6 +239,28 @@ describe('Drummer: requires utility in discard pile', () => {
 // ============================================================================
 // Utility activation preconditions
 // ============================================================================
+
+describe('Drums: requires wares in market', () => {
+  it('blocks with empty market', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, []);
+    s = withGold(s, 0, 20);
+    s = withMarket(s, 0, [null, null, null, null, null, null]);
+    s = withUtility(s, 0, 'drums_1', 'drums');
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/no wares in market/);
+  });
+
+  it('allowed when market has wares', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, []);
+    s = withGold(s, 0, 20);
+    s = withMarket(s, 0, ['trinkets', null, null, null, null, null]);
+    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5 } };
+    s = withUtility(s, 0, 'drums_1', 'drums');
+    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    expect(s2.pendingResolution!.type).toBe('UTILITY_EFFECT');
+  });
+});
 
 describe('Boat: requires cards in hand and empty market slot', () => {
   it('blocks with empty hand', () => {

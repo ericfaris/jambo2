@@ -236,6 +236,48 @@ describe('Ape (Card Draft)', () => {
   });
 });
 
+describe('Ape draft alternates picker correctly when P1 plays', () => {
+  it('currentPicker alternates between both players', () => {
+    // Simulate P1 (AI) playing Ape — P0 (human) must still get picks
+    let s = toPlayPhase(createTestState());
+    // End P0's turn, advance to P1's turn
+    s = act(s, { type: 'END_TURN' });
+    s = act(s, { type: 'DRAW_CARD' });
+    s = act(s, { type: 'KEEP_CARD' });
+    // Now it's P1's PLAY phase
+    expect(s.currentPlayer).toBe(1);
+    s = withHand(s, 1, ['ape_1', 'ware_3k_1']);
+    s = withHand(s, 0, ['ware_3h_1', 'ware_3t_1']);
+    s = withGold(s, 1, 20);
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'ape_1' });
+    const draft2 = s2.pendingResolution as any;
+    expect(draft2.type).toBe('DRAFT');
+    expect(draft2.draftMode).toBe('cards');
+    // P1 played it, so P1 picks first
+    expect(draft2.currentPicker).toBe(1);
+    expect(draft2.availableCards.length).toBe(3);
+
+    // P1 picks
+    const s3 = resolve(s2, { type: 'SELECT_CARD', cardId: 'ware_3k_1' });
+    const draft3 = s3.pendingResolution as any;
+    // Now it's P0's turn to pick (human gets a turn)
+    expect(draft3.currentPicker).toBe(0);
+    expect(draft3.availableCards.length).toBe(2);
+
+    // P0 picks
+    const s4 = resolve(s3, { type: 'SELECT_CARD', cardId: draft3.availableCards[0] });
+    const draft4 = s4.pendingResolution as any;
+    // Back to P1
+    expect(draft4.currentPicker).toBe(1);
+    expect(draft4.availableCards.length).toBe(1);
+
+    // P1 picks last
+    const s5 = resolve(s4, { type: 'SELECT_CARD', cardId: draft4.availableCards[0] });
+    expect(s5.pendingResolution).toBeNull();
+  });
+});
+
 describe('Lion (Utility Draft)', () => {
   it('pool both utilities, alternating picks (max 3)', () => {
     let s = toPlayPhase(createTestState());

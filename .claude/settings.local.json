@@ -15,7 +15,24 @@
       "Bash(node:*)",
       "Bash(npm ls:*)",
       "Bash(cmd /c \"echo %CD%\")",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(cmd /c \"C: && cd C:\\\\Code\\\\jambo2 && npx vitest run\")",
+      "Bash(cmd /c \"cd /d C:\\\\Code\\\\jambo2 && npx vitest run 2>&1\")",
+      "Bash(npx vite build:*)",
+      "Bash(git status:*)",
+      "Bash(git -C \"C:\\\\code\\\\jambo2\" status)",
+      "Bash(git -C \"C:\\\\code\\\\jambo2\" diff)",
+      "Bash(git -C \"C:\\\\code\\\\jambo2\" log --oneline -5)",
+      "Bash(git -C \"C:\\\\code\\\\jambo2\" add src/engine/cards/CardDatabase.ts src/engine/cards/CardResolver.ts src/engine/cards/resolvers/binaryChoiceResolver.ts src/engine/validation/actionValidator.ts tests/engine/resolvers/animals.test.ts tests/engine/resolvers/people.test.ts tests/engine/resolvers/utilities.test.ts tests/engine/resolvers/stallPrevention.test.ts)",
+      "Bash(git -C \"C:\\\\code\\\\jambo2\" commit -m \"$\\(cat <<''EOF''\nfix: Tribal Elder binary choice, Hyena validation, stall prevention tests\n\nTribal Elder now presents a binary choice \\(draw to 5 / opponent discards to 3\\)\ninstead of auto-choosing opponent discard. Moved Hyena validation from people\nblock to animal block where it belongs. Fixed draft tests for upfront pool\ninitialization. Added 27 stall prevention unit tests covering all preconditions.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C \"C:\\\\code\\\\jambo2\" push)",
+      "Bash(dir:*)",
+      "Bash(git -C /c/code/jambo2 status)",
+      "Bash(git -C /c/code/jambo2 diff src/engine/types.ts src/engine/GameEngine.ts src/engine/validation/actionValidator.ts src/ui/ActionButtons.tsx src/ai/RandomAI.ts)",
+      "Bash(git -C /c/code/jambo2 log --oneline -5)",
+      "Bash(git -C /c/code/jambo2 add src/engine/types.ts src/engine/GameEngine.ts src/engine/validation/actionValidator.ts src/ui/ActionButtons.tsx src/ai/RandomAI.ts tests/engine/skipDraw.test.ts)",
+      "Bash(git -C /c/code/jambo2 commit -m \"$\\(cat <<''EOF''\nfeat: add SKIP_DRAW action to bypass draw phase\n\nAllow players to skip the draw phase entirely and go straight to the\nplay phase, preserving all 5 actions. Includes validation, AI support,\nUI button, and removes unused startDrawPhase dead code.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C /c/code/jambo2 push)"
     ]
   }
 }

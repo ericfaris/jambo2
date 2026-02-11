@@ -11,28 +11,33 @@ export function resolveWareSelectMultiple(
   pending: PendingWareSelectMultiple,
   response: InteractionResponse
 ): GameState {
+  const activePlayer = state.currentPlayer;
+  const { count } = pending;
+
+  // Guard: can't afford or no market space — auto-resolve with no effect
+  const emptySlots = getEmptySlots(state, activePlayer);
+  if (state.players[activePlayer].gold < 2 || emptySlots.length < count) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, {
+        turn: state.turn,
+        player: activePlayer,
+        action: 'BASKET_MAKER',
+        details: 'Cannot afford or no market space — no effect',
+      }],
+    };
+  }
+
   if (response.type !== 'SELECT_WARE_TYPE') {
     throw new Error('Expected SELECT_WARE_TYPE response for Basket Maker');
   }
 
   const { wareType } = response;
-  const activePlayer = state.currentPlayer;
-  const { count } = pending;
-
-  // Validate: pay 2g
-  if (state.players[activePlayer].gold < 2) {
-    throw new Error('Not enough gold (need 2g for Basket Maker)');
-  }
 
   // Validate: supply has enough
   if (!hasSupply(state, wareType, count)) {
     throw new Error(`Supply doesn't have ${count} ${wareType}`);
-  }
-
-  // Validate: market has room
-  const emptySlots = getEmptySlots(state, activePlayer);
-  if (emptySlots.length < count) {
-    throw new Error(`Not enough empty market slots (need ${count}, have ${emptySlots.length})`);
   }
 
   // Execute: pay gold, take from supply, add to market

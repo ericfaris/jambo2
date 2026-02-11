@@ -19,13 +19,13 @@ export function GameScreen() {
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
 
   // Is it the AI's turn to act?
-  const isAiTurn = (
-    state.phase !== 'GAME_OVER' && (
-      state.currentPlayer === 1 ||
-      (state.pendingGuardReaction !== null && state.pendingGuardReaction.targetPlayer === 1) ||
-      (state.pendingWareCardReaction !== null && state.pendingWareCardReaction.targetPlayer === 1) ||
-      (state.pendingResolution !== null && isAiResponder(state))
-    )
+  // When a pending interaction exists, the *responder* determines who acts —
+  // not currentPlayer (drafts, auctions, etc. alternate between players).
+  const isAiTurn = state.phase !== 'GAME_OVER' && (
+    state.pendingResolution !== null ? isAiResponder(state) :
+    state.pendingGuardReaction !== null ? state.pendingGuardReaction.targetPlayer === 1 :
+    state.pendingWareCardReaction !== null ? state.pendingWareCardReaction.targetPlayer === 1 :
+    state.currentPlayer === 1
   );
 
   // AI move effect — retries on error, gives up after 10 attempts per state
@@ -170,6 +170,9 @@ function isAiResponder(state: import('../engine/types.ts').GameState): boolean {
     case 'OPPONENT_CHOICE':
       return state.currentPlayer !== 1; // opponent of current player responds
     case 'AUCTION':
+      // Ware selection phase: active player picks from supply
+      if (pr.wares.length < 2) return state.currentPlayer === 1;
+      // Bidding phase: nextBidder responds
       return pr.nextBidder === 1;
     case 'DRAFT':
       return pr.currentPicker === 1;

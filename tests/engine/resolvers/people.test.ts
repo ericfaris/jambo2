@@ -237,16 +237,81 @@ describe('Basket Maker (Ware Select Multiple)', () => {
 });
 
 describe('Traveling Merchant (Auction)', () => {
-  it('initializes auction for ware selection', () => {
+  function setupMerchant() {
     let s = toPlayPhase(createTestState());
     s = withHand(s, 0, ['traveling_merchant_1']);
     s = removeFromDeck(s, 'traveling_merchant_1');
     s = withGold(s, 0, 20);
-    s = withMarket(s, 0, ['trinkets', 'hides', null, null, null, null]);
-    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5, hides: 5 } };
+    s = withGold(s, 1, 20);
+    return s;
+  }
 
+  it('initializes auction with empty wares (player picks from supply)', () => {
+    const s = setupMerchant();
     const s2 = act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' });
     expect(s2.pendingResolution!.type).toBe('AUCTION');
+    expect((s2.pendingResolution as any).wares).toEqual([]);
+  });
+
+  it('select 2 wares from supply, then bid', () => {
+    const s = setupMerchant();
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' });
+
+    // Pick first ware type from supply
+    const s3 = resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'silk' });
+    expect(s3.pendingResolution!.type).toBe('AUCTION');
+    expect((s3.pendingResolution as any).wares).toEqual(['silk']);
+    expect(s3.wareSupply.silk).toBe(6 - 1); // taken from supply
+
+    // Pick second ware type from supply
+    const s4 = resolve(s3, { type: 'SELECT_WARE_TYPE', wareType: 'tea' });
+    expect(s4.pendingResolution!.type).toBe('AUCTION');
+    const auction = s4.pendingResolution as any;
+    expect(auction.wares).toEqual(['silk', 'tea']);
+    expect(auction.currentBid).toBe(1); // bidding starts at 1g
+    expect(auction.currentBidder).toBe(0); // placing player starts
+    expect(s4.wareSupply.tea).toBe(6 - 1);
+  });
+
+  it('winner pays bid and receives wares', () => {
+    const s = setupMerchant();
+    let s2 = act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' });
+    // Select 2 wares
+    s2 = resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'silk' });
+    s2 = resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'tea' });
+    // Bidding: P0 starts at 1g (auto), P1 bids 2g
+    s2 = resolve(s2, { type: 'AUCTION_BID', amount: 2 });
+    // P0 passes — P1 wins at 2g
+    s2 = resolve(s2, { type: 'AUCTION_PASS' });
+    expect(s2.pendingResolution).toBeNull();
+    expect(gold(s2, 1)).toBe(20 - 2); // P1 paid 2g
+    expect(market(s2, 1).filter(w => w === 'silk').length).toBe(1);
+    expect(market(s2, 1).filter(w => w === 'tea').length).toBe(1);
+  });
+
+  it('first pass ends auction — opponent wins at opening bid', () => {
+    const s = setupMerchant();
+    let s2 = act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' });
+    s2 = resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'fruit' });
+    s2 = resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'fruit' });
+    expect(s2.wareSupply.fruit).toBe(6 - 2); // 2 taken from supply
+    // Bidding: P0 holds opening bid of 1g, P1 is nextBidder
+    // P1 passes → P0 wins at 1g
+    s2 = resolve(s2, { type: 'AUCTION_PASS' });
+    expect(s2.pendingResolution).toBeNull();
+    expect(gold(s2, 0)).toBe(20 - 1); // P0 paid 1g
+    expect(market(s2, 0).filter(w => w === 'fruit').length).toBe(2);
+  });
+
+  it('can pick 2 different ware types from supply', () => {
+    const s = setupMerchant();
+    let s2 = act(s, { type: 'PLAY_CARD', cardId: 'traveling_merchant_1' });
+    s2 = resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'hides' });
+    s2 = resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'salt' });
+    const auction = s2.pendingResolution as any;
+    expect(auction.wares).toEqual(['hides', 'salt']);
+    expect(s2.wareSupply.hides).toBe(6 - 1);
+    expect(s2.wareSupply.salt).toBe(6 - 1);
   });
 });
 

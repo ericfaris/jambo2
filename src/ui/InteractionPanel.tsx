@@ -167,13 +167,24 @@ function WareTradePanel({ pr, dispatch }: { state: GameState; pr: Extract<Pendin
   return <WareTypePicker prompt="Select ware type to receive" onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} exclude={pr.giveType} />;
 }
 
-function AuctionPanel({ pr, dispatch }: { pr: Extract<PendingResolution, { type: 'AUCTION' }>; state: GameState; dispatch: InteractionPanelProps['dispatch'] }) {
+function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, { type: 'AUCTION' }>; state: GameState; dispatch: InteractionPanelProps['dispatch'] }) {
+  // Ware selection phase: active player picks 2 ware types from supply
+  if (pr.wares.length < 2) {
+    const isMyPick = state.currentPlayer === 0;
+    if (!isMyPick) return <div style={{ color: 'var(--text-muted)' }}>Waiting for opponent to select wares for auction...</div>;
+    const prompt = pr.wares.length === 0
+      ? 'Pick first ware from supply for auction'
+      : `Pick second ware from supply (first: ${pr.wares[0]})`;
+    return <WareTypePicker prompt={prompt} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} />;
+  }
+
+  // Bidding phase
   const isMyBid = pr.nextBidder === 0;
   if (!isMyBid) return <div style={{ color: 'var(--text-muted)' }}>Waiting for opponent to bid... (Current: {pr.currentBid}g)</div>;
   return (
     <div>
       <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>
-        Current bid: {pr.currentBid}g. Your turn to bid or pass.
+        Auction: {pr.wares.join(' + ')}. Current bid: {pr.currentBid}g. Your turn to bid or pass.
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'AUCTION_BID', amount: pr.currentBid + 1 })}>
