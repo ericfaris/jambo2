@@ -28,6 +28,7 @@ const CARDS_WITH_IMAGES = new Set([
   'crocodile', 'parrot', 'hyena', 'snake', 'elephant', 'ape', 'lion', 'cheetah',
   'well', 'drums', 'throne', 'boat', 'scale',
   'mask_of_transformation', 'supplies', 'kettle', 'leopard_statue', 'weapons',
+  'ware_slk', 'ware_khl', 'ware_skf', 'ware_fht', 'ware_tsf', 'ware_lht',
 ]);
 
 const WARE_COLORS: Record<WareType, string> = {
@@ -135,38 +136,76 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
             draggable={false}
             onError={() => setImgError(true)}
           />
-          <div
-            onClick={(e) => { e.stopPropagation(); setShowMega(true); }}
-            style={{
+          {card.wares ? (
+            <div style={{
               position: 'absolute',
               bottom: 0,
               left: 0,
               right: 0,
-              background: 'rgba(255,255,255,0.85)',
-              padding: small ? '1px 2px' : '2px 3px',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{
-              fontSize: small ? 5 : 6,
-              fontWeight: 700,
-              color: '#1a1714',
-              lineHeight: 1,
-              textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: small ? 2 : 3,
+              background: 'rgba(0,0,0,0.35)',
             }}>
-              {card.name}
+              <img
+                src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
+                alt={`${card.wares.buyPrice}g`}
+                style={{ width: small ? 14 : 20, height: small ? 14 : 20 }}
+                draggable={false}
+              />
+              <div style={{ display: 'flex', gap: small ? 2 : 3 }}>
+                {card.wares.types.map((w, i) => (
+                  <div key={i} style={{
+                    width: small ? 12 : 16,
+                    height: small ? 12 : 16,
+                    borderRadius: small ? 3 : 4,
+                    background: WARE_COLORS[w],
+                    border: '1px solid rgba(0,0,0,0.3)',
+                  }} />
+                ))}
+              </div>
+              <img
+                src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
+                alt={`${card.wares.sellPrice}g`}
+                style={{ width: small ? 14 : 20, height: small ? 14 : 20 }}
+                draggable={false}
+              />
             </div>
-            {!small && (
+          ) : (
+            <div
+              onClick={(e) => { e.stopPropagation(); setShowMega(true); }}
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: 'rgba(255,255,255,0.85)',
+                padding: small ? '1px 2px' : '2px 3px',
+                cursor: 'pointer',
+              }}
+            >
               <div style={{
-                fontSize: 5,
-                color: '#4a4540',
-                lineHeight: 1.1,
+                fontSize: small ? 5 : 6,
+                fontWeight: 700,
+                color: '#1a1714',
+                lineHeight: 1,
                 textAlign: 'center',
               }}>
-                {card.description}
+                {card.name}
               </div>
-            )}
-          </div>
+              {!small && (
+                <div style={{
+                  fontSize: 5,
+                  color: '#4a4540',
+                  lineHeight: 1.1,
+                  textAlign: 'center',
+                }}>
+                  {card.description}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       {showMega && (
