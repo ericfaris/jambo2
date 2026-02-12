@@ -29,6 +29,9 @@ const CARDS_WITH_IMAGES = new Set([
   'well', 'drums', 'throne', 'boat', 'scale',
   'mask_of_transformation', 'supplies', 'kettle', 'leopard_statue', 'weapons',
   'ware_slk', 'ware_khl', 'ware_skf', 'ware_fht', 'ware_tsf', 'ware_lht',
+  'ware_2k1f', 'ware_2l1s', 'ware_2t1l', 'ware_2s1k', 'ware_2f1h', 'ware_2h1t',
+  'ware_3k', 'ware_3h', 'ware_3t', 'ware_3l', 'ware_3f', 'ware_3s',
+  'ware_6all',
 ]);
 
 const WARE_COLORS: Record<WareType, string> = {
@@ -137,6 +140,57 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
             onError={() => setImgError(true)}
           />
           {card.wares ? (
+            card.wares.types.length > 3 ? (
+            /* 6-ware layout: top row of 3 pips, bottom row with coins + 3 pips */
+            <div style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: small ? 1 : 2,
+              padding: small ? 2 : 3,
+              background: 'rgba(0,0,0,0.35)',
+            }}>
+              <div style={{ display: 'flex', gap: small ? 2 : 3, justifyContent: 'center' }}>
+                {card.wares.types.slice(0, 3).map((w, i) => (
+                  <div key={i} style={{
+                    width: small ? 12 : 16,
+                    height: small ? 12 : 16,
+                    borderRadius: small ? 3 : 4,
+                    background: WARE_COLORS[w],
+                    border: '1.5px solid rgba(0,0,0,0.6)',
+                  }} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <img
+                  src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
+                  alt={`${card.wares.buyPrice}g`}
+                  style={{ width: small ? 14 : 20, height: small ? 14 : 20 }}
+                  draggable={false}
+                />
+                <div style={{ display: 'flex', gap: small ? 2 : 3 }}>
+                  {card.wares.types.slice(3).map((w, i) => (
+                    <div key={i} style={{
+                      width: small ? 12 : 16,
+                      height: small ? 12 : 16,
+                      borderRadius: small ? 3 : 4,
+                      background: WARE_COLORS[w],
+                      border: '1.5px solid rgba(0,0,0,0.6)',
+                    }} />
+                  ))}
+                </div>
+                <img
+                  src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
+                  alt={`${card.wares.sellPrice}g`}
+                  style={{ width: small ? 14 : 20, height: small ? 14 : 20 }}
+                  draggable={false}
+                />
+              </div>
+            </div>
+            ) : (
             <div style={{
               position: 'absolute',
               bottom: 0,
@@ -161,7 +215,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
                     height: small ? 12 : 16,
                     borderRadius: small ? 3 : 4,
                     background: WARE_COLORS[w],
-                    border: '1px solid rgba(0,0,0,0.3)',
+                    border: '1.5px solid rgba(0,0,0,0.6)',
                   }} />
                 ))}
               </div>
@@ -172,6 +226,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
                 draggable={false}
               />
             </div>
+            )
           ) : (
             <div
               onClick={(e) => { e.stopPropagation(); setShowMega(true); }}
@@ -366,26 +421,20 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
 
 export function WareToken({ type, onClick, selected }: { type: WareType; onClick?: () => void; selected?: boolean }) {
   return (
-    <div
+    <img
+      src={`/assets/tokens/${type}.png`}
+      alt={WARE_LABELS[type]}
       onClick={onClick}
       style={{
         width: 32,
         height: 32,
-        borderRadius: 6,
-        background: WARE_COLORS[type],
-        border: `2px solid ${selected ? 'var(--gold)' : '#0003'}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: 700,
-        fontSize: 14,
-        color: '#000',
         cursor: onClick ? 'pointer' : 'default',
         flexShrink: 0,
+        outline: selected ? '2px solid var(--gold)' : 'none',
+        borderRadius: 4,
       }}
-    >
-      {WARE_LABELS[type]}
-    </div>
+      draggable={false}
+    />
   );
 }
 

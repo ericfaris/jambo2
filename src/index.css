@@ -9,12 +9,12 @@
   --text-muted: #8899aa;
 
   /* Ware type colors */
-  --ware-trinkets: #dab2ff;
-  --ware-hides: #A65E31;
-  --ware-tea: #5E903C;
-  --ware-silk: #c02323;
-  --ware-fruit: #eddb37;
-  --ware-salt: #f6f5f4;
+  --ware-trinkets: #c2a8e0;
+  --ware-hides: #c29f7a;
+  --ware-tea: #b1a64b;
+  --ware-silk: #d45a4d;
+  --ware-fruit: #f3c35b;
+  --ware-salt: #fafafa;
 
   /* Card type colors */
   --card-people: #4A90D9;
