@@ -9,10 +9,10 @@ interface OpponentAreaProps {
 export function OpponentArea({ player }: OpponentAreaProps) {
   return (
     <div style={{
-      background: 'var(--surface)',
+      background: 'linear-gradient(180deg, var(--surface) 0%, rgba(30,18,8,0.8) 100%)',
       borderRadius: 10,
       padding: 12,
-      border: '1px solid #3a4a6a',
+      border: '1px solid var(--border)',
     }}>
       <div style={{
         display: 'flex',
@@ -20,7 +20,7 @@ export function OpponentArea({ player }: OpponentAreaProps) {
         alignItems: 'center',
         marginBottom: 8,
       }}>
-        <span style={{ fontWeight: 700, fontSize: 14 }}>Opponent (AI)</span>
+        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15 }}>Opponent (AI)</span>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <span style={{ color: 'var(--gold)', fontWeight: 700 }}>
             {player.gold}g

@@ -16,9 +16,10 @@ export function GameLog({ log }: GameLogProps) {
 
   return (
     <div style={{
-      background: 'var(--surface)',
+      background: 'linear-gradient(180deg, #2d1c12 0%, #1e1208 100%)',
       borderRadius: 8,
-      border: '1px solid #3a4a6a',
+      border: '1px solid var(--border)',
+      boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.3)',
       height: 180,
       overflowY: 'auto',
       padding: 8,

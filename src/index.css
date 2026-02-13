@@ -1,14 +1,25 @@
 :root {
-  /* Game colors */
-  --market-brown: #8B4513;
-  --gold: #FFD700;
-  --bg: #1a1a2e;
-  --surface: #16213e;
-  --surface-light: #1f3460;
-  --text: #e0e0e0;
-  --text-muted: #8899aa;
+  /* Art-derived African market palette */
+  --bg: #1e1208;
+  --surface: #2d1c12;
+  --surface-light: #3d2a1a;
+  --surface-accent: #4a3522;
+  --text: #e8dcc8;
+  --text-muted: #a89070;
 
-  /* Ware type colors */
+  /* Gold & borders */
+  --gold: #d4a850;
+  --gold-dim: #b88a38;
+  --border: #5a4030;
+  --border-light: #7a5a3e;
+
+  /* Interactive */
+  --teal: #4a90a0;
+  --teal-hover: #5aa0b0;
+  --accent-red: #c04030;
+  --accent-green: #6a8a40;
+
+  /* Ware type colors (unchanged) */
   --ware-trinkets: #c2a8e0;
   --ware-hides: #c29f7a;
   --ware-tea: #b1a64b;
@@ -16,14 +27,18 @@
   --ware-fruit: #f3c35b;
   --ware-salt: #fafafa;
 
-  /* Card type colors */
-  --card-people: #4A90D9;
+  /* Card type colors (warmed) */
+  --card-people: #5a8ab0;
   --card-animal: #D4A574;
-  --card-utility: #7BC47F;
+  --card-utility: #6a9a50;
   --card-ware: #C9A84C;
   --card-stand: #8B7355;
 
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  /* Fonts */
+  --font-heading: 'Crimson Pro', Georgia, serif;
+  --font-body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+
+  font-family: var(--font-body);
   line-height: 1.4;
   color: var(--text);
   background-color: var(--bg);
@@ -39,6 +54,22 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(60,40,20,0.03) 0px,
+      rgba(60,40,20,0.03) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(60,40,20,0.02) 0px,
+      rgba(60,40,20,0.02) 1px,
+      transparent 1px,
+      transparent 6px
+    ),
+    var(--bg);
 }
 
 #root {
@@ -49,19 +80,20 @@ body {
 
 button {
   cursor: pointer;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
   padding: 6px 14px;
   font-size: 0.85rem;
   font-family: inherit;
   color: var(--text);
   background: var(--surface-light);
   transition: all 0.15s;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.3);
 }
 
 button:hover:not(:disabled) {
   border-color: var(--gold);
-  background: #2a4a7a;
+  background: var(--surface-accent);
 }
 
 button:disabled {
@@ -70,17 +102,33 @@ button:disabled {
 }
 
 button.primary {
-  background: #2d6a2d;
-  border-color: #4a9a4a;
+  background: var(--accent-green);
+  border-color: #7a9a4a;
 }
 button.primary:hover:not(:disabled) {
-  background: #3a8a3a;
+  background: #7a9a50;
 }
 
 button.danger {
-  background: #6a2d2d;
-  border-color: #9a4a4a;
+  background: #4a1a12;
+  border-color: #8a3a2a;
 }
 button.danger:hover:not(:disabled) {
-  background: #8a3a3a;
+  background: #c85a40;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-dim);
 }

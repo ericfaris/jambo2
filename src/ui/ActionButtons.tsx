@@ -105,7 +105,7 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: '#0008',
+      background: 'rgba(20,10,5,0.8)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -119,6 +119,7 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
           borderRadius: 12,
           padding: 20,
           border: '2px solid var(--gold)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -127,7 +128,7 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
         onClick={(e) => e.stopPropagation()}
       >
         <CardFace cardId={cardId} />
-        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 14, color: 'var(--text-muted)' }}>
           Choose action:
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

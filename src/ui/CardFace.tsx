@@ -32,6 +32,7 @@ const CARDS_WITH_IMAGES = new Set([
   'ware_2k1f', 'ware_2l1s', 'ware_2t1l', 'ware_2s1k', 'ware_2f1h', 'ware_2h1t',
   'ware_3k', 'ware_3h', 'ware_3t', 'ware_3l', 'ware_3f', 'ware_3s',
   'ware_6all',
+  'small_market_stand',
 ]);
 
 const WARE_COLORS: Record<WareType, string> = {
@@ -41,15 +42,6 @@ const WARE_COLORS: Record<WareType, string> = {
   silk: 'var(--ware-silk)',
   fruit: 'var(--ware-fruit)',
   salt: 'var(--ware-salt)',
-};
-
-const WARE_LABELS: Record<WareType, string> = {
-  trinkets: 'K',
-  hides: 'H',
-  tea: 'T',
-  silk: 'L',
-  fruit: 'F',
-  salt: 'S',
 };
 
 interface CardFaceProps {
@@ -71,17 +63,14 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
           width: small ? 72 : 108,
           height: small ? 96 : 144,
           borderRadius: 8,
-          background: 'linear-gradient(135deg, #2a3a5a 25%, #1a2a4a 75%)',
-          border: '2px solid #3a4a6a',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: small ? 16 : 24,
+          backgroundImage: 'url(/assets/cards/card_back.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          border: '2px solid var(--border)',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
           flexShrink: 0,
         }}
-      >
-        ?
-      </div>
+      />
     );
   }
 
@@ -105,8 +94,8 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
           backgroundImage: LINEN_BG,
           backgroundSize: LINEN_BG_SIZE,
           backgroundColor: LINEN_BASE,
-          border: `1px solid ${selected ? 'var(--gold)' : '#c8c2b8'}`,
-          boxShadow: selected ? '0 0 0 2px var(--gold)' : 'inset 0 1px 2px rgba(0,0,0,0.08)',
+          border: `1px solid ${selected ? 'var(--gold)' : '#a89880'}`,
+          boxShadow: selected ? '0 0 0 2px var(--gold)' : '0 2px 6px rgba(0,0,0,0.3), inset 0 1px 2px rgba(0,0,0,0.08)',
           cursor: onClick ? 'pointer' : 'default',
           display: 'flex',
           flexDirection: 'column',
@@ -142,17 +131,21 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
           {card.wares ? (
             card.wares.types.length > 3 ? (
             /* 6-ware layout: top row of 3 pips, bottom row with coins + 3 pips */
-            <div style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: small ? 1 : 2,
-              padding: small ? 2 : 3,
-              background: 'rgba(0,0,0,0.35)',
-            }}>
+            <div
+              onClick={(e) => { e.stopPropagation(); setShowMega(true); }}
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: small ? 1 : 2,
+                padding: small ? 2 : 3,
+                background: 'rgba(0,0,0,0.35)',
+                cursor: 'pointer',
+              }}
+            >
               <div style={{ display: 'flex', gap: small ? 2 : 3, justifyContent: 'center' }}>
                 {card.wares.types.slice(0, 3).map((w, i) => (
                   <div key={i} style={{
@@ -191,17 +184,21 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
               </div>
             </div>
             ) : (
-            <div style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: small ? 2 : 3,
-              background: 'rgba(0,0,0,0.35)',
-            }}>
+            <div
+              onClick={(e) => { e.stopPropagation(); setShowMega(true); }}
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: small ? 2 : 3,
+                background: 'rgba(0,0,0,0.35)',
+                cursor: 'pointer',
+              }}
+            >
               <img
                 src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
                 alt={`${card.wares.buyPrice}g`}
@@ -270,7 +267,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
             position: 'fixed',
             inset: 0,
             zIndex: 150,
-            background: '#000c',
+            background: 'rgba(20,10,5,0.85)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -285,7 +282,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
               backgroundImage: LINEN_BG,
               backgroundSize: LINEN_BG_SIZE,
               backgroundColor: LINEN_BASE,
-              border: '2px solid #c8c2b8',
+              border: '2px solid #a89880',
               boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               display: 'flex',
               flexDirection: 'column',
@@ -303,22 +300,8 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
               draggable={false}
             />
             <div style={{ padding: '0 4px 4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <span style={{
-                  background: headerColor,
-                  color: '#000',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  padding: '1px 6px',
-                  borderRadius: 4,
-                  letterSpacing: '0.5px',
-                }}>
-                  {card.type}
-                </span>
-                <span style={{ fontSize: 16, fontWeight: 700, color: '#1a1714' }}>
-                  {card.name}
-                </span>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1714', marginBottom: 4 }}>
+                {card.name}
               </div>
               <div style={{ fontSize: 13, color: '#4a4540', lineHeight: 1.4 }}>
                 {card.description}
@@ -338,8 +321,8 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
         width: small ? 60 : 90,
         height: small ? 80 : 120,
         borderRadius: 8,
-        border: `2px solid ${selected ? 'var(--gold)' : '#3a4a6a'}`,
-        background: selected ? '#2a3a5a' : 'var(--surface)',
+        border: `2px solid ${selected ? 'var(--gold)' : 'var(--border)'}`,
+        background: selected ? 'var(--surface-accent)' : 'var(--surface)',
         cursor: onClick ? 'pointer' : 'default',
         display: 'flex',
         flexDirection: 'column',
@@ -390,7 +373,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
       {card.wares && (
         <div style={{
           padding: small ? '2px 3px' : '3px 5px',
-          borderTop: '1px solid #3a4a6a',
+          borderTop: '1px solid var(--border)',
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
@@ -400,14 +383,11 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
             {card.wares.types.map((w, i) => (
               <span key={i} style={{
                 background: WARE_COLORS[w],
-                color: '#000',
                 borderRadius: 3,
-                padding: '0 3px',
-                fontWeight: 700,
-                fontSize: small ? 7 : 9,
-              }}>
-                {WARE_LABELS[w]}
-              </span>
+                width: small ? 10 : 14,
+                height: small ? 10 : 14,
+                display: 'inline-block',
+              }} />
             ))}
           </div>
           <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -423,7 +403,7 @@ export function WareToken({ type, onClick, selected }: { type: WareType; onClick
   return (
     <img
       src={`/assets/tokens/${type}.png`}
-      alt={WARE_LABELS[type]}
+      alt={type}
       onClick={onClick}
       style={{
         width: 32,
@@ -438,4 +418,4 @@ export function WareToken({ type, onClick, selected }: { type: WareType; onClick
   );
 }
 
-export { WARE_COLORS, WARE_LABELS };
+export { WARE_COLORS };

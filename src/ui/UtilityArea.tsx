@@ -33,14 +33,14 @@ export function UtilityArea({ utilities, onActivate, disabled, label }: UtilityA
               <div style={{
                 position: 'absolute',
                 inset: 0,
-                background: '#0008',
+                background: 'rgba(20,10,5,0.7)',
                 borderRadius: 8,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 10,
                 fontWeight: 700,
-                color: '#aaa',
+                color: '#a08060',
               }}>
                 USED
               </div>

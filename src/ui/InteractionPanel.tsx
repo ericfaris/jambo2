@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { GameState, PendingResolution, InteractionResponse, WareType, DeckCardId } from '../engine/types.ts';
 import { WARE_TYPES } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
-import { CardFace, WareToken, WARE_LABELS } from './CardFace.tsx';
+import { CardFace, WareToken } from './CardFace.tsx';
 import { MarketDisplay } from './MarketDisplay.tsx';
 
 interface InteractionPanelProps {
@@ -67,13 +67,14 @@ export function InteractionPanel({ state, dispatch }: InteractionPanelProps) {
 function PanelShell({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div style={{
-      background: '#1a2a4a',
+      background: 'linear-gradient(135deg, #3d2a1a 0%, #2d1c12 100%)',
       borderRadius: 10,
       padding: 14,
-      border: '2px solid var(--gold)',
+      border: '2px solid var(--gold-dim)',
       margin: '8px 0',
+      boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.3)',
     }}>
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: 'var(--gold)' }}>
+      <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, marginBottom: 8, color: 'var(--gold)' }}>
         {title}
       </div>
       {children}
@@ -143,7 +144,7 @@ function WareTypePicker({ prompt, onPick, exclude }: { prompt: string; onPick: (
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {types.map(wt => (
           <button key={wt} onClick={() => onPick(wt)} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <WareToken type={wt} /> {WARE_LABELS[wt]}
+            <WareToken type={wt} />
           </button>
         ))}
       </div>
@@ -174,17 +175,39 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
     if (!isMyPick) return <div style={{ color: 'var(--text-muted)' }}>Waiting for opponent to select wares for auction...</div>;
     const prompt = pr.wares.length === 0
       ? 'Pick first ware from supply for auction'
-      : `Pick second ware from supply (first: ${pr.wares[0]})`;
-    return <WareTypePicker prompt={prompt} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} />;
+      : 'Pick second ware from supply';
+    return (
+      <div>
+        {pr.wares.length === 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>First pick:</span>
+            <WareToken type={pr.wares[0]} />
+          </div>
+        )}
+        <WareTypePicker prompt={prompt} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} />
+      </div>
+    );
   }
 
   // Bidding phase
   const isMyBid = pr.nextBidder === 0;
-  if (!isMyBid) return <div style={{ color: 'var(--text-muted)' }}>Waiting for opponent to bid... (Current: {pr.currentBid}g)</div>;
+  if (!isMyBid) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Waiting for opponent to bid...</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {pr.wares.map((wt, i) => <WareToken key={i} type={wt} />)}
+        </div>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>(Current: {pr.currentBid}g)</span>
+      </div>
+    );
+  }
   return (
     <div>
-      <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>
-        Auction: {pr.wares.join(' + ')}. Current bid: {pr.currentBid}g. Your turn to bid or pass.
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Auction:</span>
+        {pr.wares.map((wt, i) => <WareToken key={i} type={wt} />)}
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current bid: {pr.currentBid}g. Your turn.</span>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'AUCTION_BID', amount: pr.currentBid + 1 })}>
@@ -435,7 +458,7 @@ function DraftPanel({ pr, dispatch }: { state: GameState; pr: Extract<PendingRes
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {pr.availableWares.map((wt, i) => (
             <button key={i} onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <WareToken type={wt} /> {WARE_LABELS[wt]}
+              <WareToken type={wt} />
             </button>
           ))}
         </div>

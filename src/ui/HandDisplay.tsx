@@ -14,7 +14,10 @@ export function HandDisplay({ hand, onPlayCard, disabled }: HandDisplayProps) {
       gap: 8,
       flexWrap: 'wrap',
       justifyContent: 'center',
-      padding: '8px 0',
+      padding: 10,
+      background: 'rgba(90,64,48,0.15)',
+      border: '1px dashed var(--border)',
+      borderRadius: 10,
     }}>
       {hand.length === 0 && (
         <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: 8 }}>

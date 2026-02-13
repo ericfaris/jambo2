@@ -83,12 +83,12 @@ export function GameScreen() {
       {/* Error banner — only show for human player errors */}
       {error && !isAiTurn && (
         <div style={{
-          background: '#6a2d2d',
-          border: '1px solid #9a4a4a',
+          background: '#4a1a12',
+          border: '1px solid #8a3a2a',
           borderRadius: 8,
           padding: '6px 12px',
           fontSize: 12,
-          color: '#ff8888',
+          color: '#ff9977',
         }}>
           {error}
         </div>
@@ -109,7 +109,7 @@ export function GameScreen() {
       <StatusBar state={state} />
 
       {/* Player board */}
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', background: 'rgba(90,64,48,0.3)', borderRadius: 10, padding: 10, border: '1px solid var(--border)' }}>
         <MarketDisplay
           market={state.players[0].market}
           label="Your Market"
@@ -127,7 +127,7 @@ export function GameScreen() {
 
       {/* Player hand */}
       <div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}>
           Your Hand ({state.players[0].hand.length} cards)
         </div>
         <HandDisplay

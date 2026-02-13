@@ -11,6 +11,10 @@ npx vite build       # Production build
 npm test             # Run Vitest tests (when tests exist)
 ```
 
+## Git Commits
+
+When committing, only use `git status` to see changes — **do NOT run `git diff`**. It wastes too many tokens on this codebase.
+
 ## Tech Stack
 
 - **React 19 + TypeScript**, Vite, Zustand 5, Zod 4, Tailwind CSS 4, Vitest 4
