@@ -104,6 +104,8 @@ Cards share the same art across all copies of a design. You need **one illustrat
 
 **Total: 52 image files** (51 card faces + 1 card back)
 
+**Current status:** 50 of 51 card faces done. Only `small_market_stand` is missing. All cards with images are listed in the `CARDS_WITH_IMAGES` set in `src/ui/CardFace.tsx`. Cards not in this set fall back to a text-only placeholder rendering.
+
 ### 1.2 Card Art Specifications
 
 ```
@@ -151,14 +153,16 @@ public/assets/cards/
 
 These appear in the market display as 32x32px squares.
 
-| File Name | Ware Type | Current Placeholder Color |
+| File Name | Ware Type | Color (CSS var) |
 |---|---|---|
-| `trinkets.png` | Trinkets (K) | #87CEEB (sky blue) |
-| `hides.png` | Hides (H) | #CD5C5C (indian red) |
-| `tea.png` | Tea (T) | #90EE90 (light green) |
-| `silk.png` | Silk (L) | #DDA0DD (plum) |
-| `fruit.png` | Fruit (F) | #FFA500 (orange) |
-| `salt.png` | Salt (S) | #E0E0E0 (light gray) |
+| `trinkets.png` | Trinkets (K) | `#c2a8e0` (soft purple) |
+| `hides.png` | Hides (H) | `#c29f7a` (warm tan) |
+| `tea.png` | Tea (T) | `#b1a64b` (olive gold) |
+| `silk.png` | Silk (L) | `#d45a4d` (muted red) |
+| `fruit.png` | Fruit (F) | `#f3c35b` (amber) |
+| `salt.png` | Salt (S) | `#fafafa` (near white) |
+
+All 6 token images are **done** and wired into the `WareToken` component.
 
 **Specs:**
 ```
@@ -166,14 +170,33 @@ Source file: 128 x 128 px
 Background:  Transparent PNG
 Style:       Iconic, easily recognizable at 32px
              Must be distinct from each other at small size
-             Should complement the existing color palette
 ```
 
-**Destination:** `public/assets/wares/`
+**Destination:** `public/assets/tokens/`
 
 ---
 
-## 3. Card Back (1 image)
+## 3. Coin Denominations (7 images)
+
+These appear overlaid on ware cards showing buy/sell prices.
+
+| File Name | Value | Used By |
+|---|---|---|
+| `coin_3.png` | 3g | 3-of-a-kind buy price |
+| `coin_4.png` | 4g | Pair+one buy price |
+| `coin_5.png` | 5g | Three-different buy price |
+| `coin_10.png` | 10g | 6-ware buy price / 3-of-a-kind sell price |
+| `coin_11.png` | 11g | Pair+one sell price |
+| `coin_12.png` | 12g | Three-different sell price |
+| `coin_18.png` | 18g | 6-ware sell price |
+
+All 7 coin images are **done** and rendered automatically via `coin_${price}.png` in `CardFace.tsx`.
+
+**Destination:** `public/assets/coins/`
+
+---
+
+## 4. Card Back (1 image)
 
 Displayed when opponent's cards are face-down and during deck display.
 
@@ -189,7 +212,7 @@ Style:       African/market theme, should look like a decorative card back
 
 ---
 
-## 4. Backgrounds (optional, 1-2 images)
+## 5. Backgrounds (optional, 1-2 images)
 
 The game board background. Currently solid `#1a1a2e` (dark navy).
 
@@ -205,7 +228,7 @@ Style:       Muted/dark African marketplace, must not compete with cards
 
 ---
 
-## 5. Audio (optional)
+## 6. Audio (optional)
 
 No audio is integrated yet. If you want to prepare SFX:
 
@@ -233,7 +256,7 @@ Normalize:   -3dB peak
 
 ---
 
-## 6. Asset Processing Workflow Checklist
+## 7. Asset Processing Workflow Checklist
 
 Work through this checklist for each batch of assets.
 
@@ -279,7 +302,8 @@ mogrify -resize 360x480! public/assets/cards/*.png
 ```bash
 # Batch optimize PNGs with pngquant (lossy, excellent quality)
 pngquant --quality=65-90 --ext .png --force public/assets/cards/*.png
-pngquant --quality=65-90 --ext .png --force public/assets/wares/*.png
+pngquant --quality=65-90 --ext .png --force public/assets/tokens/*.png
+pngquant --quality=65-90 --ext .png --force public/assets/coins/*.png
 ```
 
 ### Phase 4: Visual QA
@@ -301,7 +325,8 @@ Quick check: open the game with `npm run dev` and compare each card side-by-side
 
 - [ ] Copy card faces to `public/assets/cards/`
 - [ ] Copy card back to `public/assets/cards/card_back.png`
-- [ ] Copy ware tokens to `public/assets/wares/`
+- [ ] Copy ware tokens to `public/assets/tokens/`
+- [ ] Copy coins to `public/assets/coins/`
 - [ ] Copy backgrounds to `public/assets/backgrounds/`
 - [ ] Copy audio to `public/audio/`
 - [ ] Verify directory structure matches:
@@ -309,23 +334,35 @@ Quick check: open the game with `npm run dev` and compare each card side-by-side
 ```
 public/
   assets/
-    cards/
+    cards/           # 50 done, 1 remaining (small_market_stand)
       ware_6all.png
       ware_3k.png
-      ...all 51 card faces...
-      card_back.png
-    wares/
+      ...all 19 ware designs...
+      guard.png
+      ...all 13 people designs...
+      crocodile.png
+      ...all 8 animal designs...
+      well.png
+      ...all 10 utility designs...
+      card_back.png  # NOT YET CREATED
+    coins/           # ALL 7 DONE
+      coin_3.png
+      coin_4.png
+      coin_5.png
+      coin_10.png
+      coin_11.png
+      coin_12.png
+      coin_18.png
+    tokens/          # ALL 6 DONE
       trinkets.png
       hides.png
       tea.png
       silk.png
       fruit.png
       salt.png
-    backgrounds/
+    backgrounds/     # NOT YET CREATED
       main.jpg
-    components/       (reserved for future UI chrome)
-    tokens/           (reserved for future gold tokens)
-  audio/
+  audio/             # NOT YET CREATED
     card_draw.mp3
     card_play.mp3
     ...etc...
@@ -347,11 +384,12 @@ public/
 
 ## Summary: File Count
 
-| Category | Files | Location |
-|---|---|---|
-| Card faces | 51 | `public/assets/cards/` |
-| Card back | 1 | `public/assets/cards/` |
-| Ware tokens | 6 | `public/assets/wares/` |
-| Backgrounds | 1-2 | `public/assets/backgrounds/` |
-| Audio SFX | 0-9 | `public/audio/` |
-| **Total** | **59-69** | |
+| Category | Files | Done | Location |
+|---|---|---|---|
+| Card faces | 51 | 50 (missing: `small_market_stand`) | `public/assets/cards/` |
+| Card back | 1 | 0 | `public/assets/cards/` |
+| Coins | 7 | 7 | `public/assets/coins/` |
+| Ware tokens | 6 | 6 | `public/assets/tokens/` |
+| Backgrounds | 1-2 | 0 | `public/assets/backgrounds/` |
+| Audio SFX | 0-9 | 0 | `public/audio/` |
+| **Total** | **66-76** | **63** | |
