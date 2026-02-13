@@ -1,0 +1,446 @@
+// ============================================================================
+// Cast Mode — Player Screen
+// Private player view: hand, interaction panels, action buttons.
+// All actions sent via WebSocket.
+// ============================================================================
+
+import { useState, useCallback, useEffect } from 'react';
+import type { WebSocketGameState } from '../multiplayer/client.ts';
+import type { PublicGameState, PrivateGameState } from '../multiplayer/types.ts';
+import type { GameAction, DeckCardId, WareType } from '../engine/types.ts';
+import { getCard } from '../engine/cards/CardDatabase.ts';
+import { MarketDisplay } from './MarketDisplay.tsx';
+import { UtilityArea } from './UtilityArea.tsx';
+import { HandDisplay } from './HandDisplay.tsx';
+import { InteractionPanel } from './InteractionPanel.tsx';
+import { CardPlayDialog } from './ActionButtons.tsx';
+import { useAudioEvents } from './useAudioEvents.ts';
+
+interface PlayerScreenProps {
+  ws: WebSocketGameState;
+}
+
+export function PlayerScreen({ ws }: PlayerScreenProps) {
+  const pub = ws.publicState;
+  const priv = ws.privateState;
+  const slot = ws.playerSlot;
+  const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
+  const [drawModalOpen, setDrawModalOpen] = useState(false);
+  useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
+
+  // Auto-open draw modal when entering draw phase
+  useEffect(() => {
+    if (pub && pub.phase === 'DRAW' && pub.currentPlayer === slot && !drawModalOpen) {
+      setDrawModalOpen(true);
+    } else if (pub && pub.phase !== 'DRAW' && drawModalOpen) {
+      setDrawModalOpen(false);
+    }
+  }, [pub?.phase, pub?.currentPlayer, slot, drawModalOpen]);
+
+  if (!pub || !priv || slot === null) return null;
+
+  const dispatch = (action: GameAction) => ws.sendAction(action);
+  const isMyTurn = isWaitingForMe(pub, priv, slot);
+  const myPublic = pub.players[slot];
+
+  const hasPendingInteraction = !!(
+    priv.pendingResolution ||
+    (pub.pendingGuardReaction && pub.pendingGuardReaction.targetPlayer === slot) ||
+    (pub.pendingWareCardReaction && pub.pendingWareCardReaction.targetPlayer === slot)
+  );
+
+  const inPlayPhase = pub.phase === 'PLAY' && pub.currentPlayer === slot;
+  const actionsDisabled = !isMyTurn || (hasPendingInteraction && pub.phase !== 'DRAW');
+
+  const handlePlayCard = useCallback((cardId: DeckCardId) => {
+    if (!inPlayPhase || actionsDisabled) return;
+    const cardDef = getCard(cardId);
+    if (cardDef.type === 'ware') {
+      setWareDialog(cardId);
+    } else {
+      dispatch({ type: 'PLAY_CARD', cardId });
+    }
+  }, [inPlayPhase, actionsDisabled, dispatch]);
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10,
+      padding: '12px 16px',
+      minHeight: '100vh',
+      maxWidth: 600,
+      margin: '0 auto',
+    }}>
+      {/* Turn indicator - show player identity first */}
+      <TurnIndicator pub={pub} slot={slot} isMyTurn={isMyTurn} />
+
+      {/* Error */}
+      {ws.error && (
+        <div style={{
+          background: '#4a1a12',
+          border: '1px solid #8a3a2a',
+          borderRadius: 8,
+          padding: '8px 12px',
+          fontSize: 13,
+          color: '#ff9977',
+        }}
+          onClick={ws.clearError}
+        >
+          {ws.error}
+        </div>
+      )}
+
+      {/* Interaction panel */}
+      {hasPendingInteraction && (
+        <CastInteractionPanel pub={pub} priv={priv} slot={slot} dispatch={dispatch} />
+      )}
+
+      {/* Own market + utilities */}
+      <div style={{
+        display: 'flex',
+        gap: 12,
+        flexWrap: 'wrap',
+        background: 'rgba(90,64,48,0.3)',
+        borderRadius: 10,
+        padding: 12,
+        border: '1px solid var(--border)',
+      }}>
+        <MarketDisplay market={myPublic.market} label="Your Market" />
+        <UtilityArea
+          utilities={myPublic.utilities}
+          onActivate={(i) => dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i })}
+          disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
+          label="Your Utilities"
+        />
+      </div>
+
+      {/* Play phase: End Turn button */}
+      {inPlayPhase && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
+          <button
+            className="danger"
+            disabled={actionsDisabled}
+            onClick={() => dispatch({ type: 'END_TURN' })}
+          >
+            End Turn ({pub.actionsLeft} actions left)
+          </button>
+        </div>
+      )}
+
+      {/* Hand */}
+      <div>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600 }}>
+          Your Hand ({priv.hand.length} cards)
+        </div>
+        <HandDisplay
+          hand={priv.hand}
+          onPlayCard={handlePlayCard}
+          disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
+        />
+      </div>
+
+      {/* Ware dialog */}
+      {wareDialog && (
+        <CardPlayDialog
+          cardId={wareDialog}
+          onBuy={() => { dispatch({ type: 'PLAY_CARD', cardId: wareDialog, wareMode: 'buy' }); setWareDialog(null); }}
+          onSell={() => { dispatch({ type: 'PLAY_CARD', cardId: wareDialog, wareMode: 'sell' }); setWareDialog(null); }}
+          onCancel={() => setWareDialog(null)}
+        />
+      )}
+
+      {/* Connection indicator */}
+      <div style={{
+        position: 'fixed',
+        bottom: 8,
+        right: 12,
+        fontSize: 11,
+        color: ws.connected ? '#6a6' : '#a66',
+      }}>
+        {ws.connected ? 'Connected' : 'Reconnecting...'}
+      </div>
+
+      {/* Draw modal */}
+      {drawModalOpen && (
+        <DrawModal
+          pub={pub}
+          priv={priv}
+          dispatch={dispatch}
+          disabled={actionsDisabled}
+          onClose={() => setDrawModalOpen(false)}
+          slot={slot}
+        />
+      )}
+    </div>
+  );
+}
+
+// --- Sub-components ---
+
+function DrawModal({ pub, priv, dispatch, disabled, onClose, slot }: {
+  pub: PublicGameState;
+  priv: PrivateGameState;
+  dispatch: (action: GameAction) => void;
+  disabled: boolean;
+  onClose: () => void;
+  slot: 0 | 1;
+}) {
+  const [showCardBack, setShowCardBack] = useState(false);
+  
+  // Show modal if we have a drawn card OR if we're in draw phase (even without a drawn card yet)
+  const shouldShowModal = priv.drawnCard || (pub.phase === 'DRAW' && pub.currentPlayer === slot);
+  if (!shouldShowModal && !showCardBack) return null;
+
+  const card = priv.drawnCard ? getCard(priv.drawnCard) : null;
+
+  // CSS linen finish — fine crosshatch over off-white base
+  const LINEN_BG = [
+    'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+    'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+    'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+    'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+  ].join(', ');
+  const LINEN_BG_SIZE = '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px';
+  const LINEN_BASE = '#e8e4df';
+
+  const handleDiscard = () => {
+    dispatch({ type: 'DISCARD_DRAWN' });
+    setShowCardBack(true);
+  };
+
+  const handleDrawCard = () => {
+    dispatch({ type: 'DRAW_CARD' });
+    setShowCardBack(false);
+  };
+
+  const handleSkipDraw = () => {
+    dispatch({ type: 'SKIP_DRAW' });
+    setShowCardBack(false);
+    onClose();
+  };
+
+  return (
+    <div
+      className="overlay-fade"
+      onClick={() => {
+        setShowCardBack(false);
+        onClose();
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 150,
+        background: 'rgba(20,10,5,0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div
+        className="dialog-pop"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 380,
+          borderRadius: 14,
+          padding: 8,
+          backgroundImage: LINEN_BG,
+          backgroundSize: LINEN_BG_SIZE,
+          backgroundColor: LINEN_BASE,
+          border: '2px solid #a89880',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        {showCardBack || !priv.drawnCard ? (
+          <img
+            src="/assets/cards/card_back.png"
+            alt="Card back"
+            style={{
+              width: '100%',
+              borderRadius: 10,
+              display: 'block',
+            }}
+            draggable={false}
+          />
+        ) : (
+          <>
+            <img
+              src={`/assets/cards/${card!.designId}.png`}
+              alt={card!.name}
+              style={{
+                width: '100%',
+                borderRadius: 10,
+                display: 'block',
+              }}
+              draggable={false}
+            />
+            <div style={{ padding: '0 6px 6px' }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1714', marginBottom: 6 }}>
+                {card!.name}
+              </div>
+              <div style={{ fontSize: 15, color: '#4a4540', lineHeight: 1.4 }}>
+                {card!.description}
+              </div>
+            </div>
+          </>
+        )}
+        <div style={{
+          display: 'flex',
+          gap: 12,
+          justifyContent: 'center',
+          padding: '0 6px 6px',
+        }}>
+          {showCardBack || !priv.drawnCard ? (
+            <>
+              <button
+                className="primary"
+                disabled={disabled || pub.actionsLeft <= 0}
+                onClick={handleDrawCard}
+                style={{ flex: 1, padding: '12px' }}
+              >
+                Draw Card ({pub.actionsLeft} actions left)
+              </button>
+              <button
+                disabled={disabled}
+                onClick={handleSkipDraw}
+                style={{ flex: 1, padding: '12px' }}
+              >
+                Skip Draw Phase
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="primary"
+                disabled={disabled}
+                onClick={() => {
+                  dispatch({ type: 'KEEP_CARD' });
+                  setShowCardBack(false);
+                  onClose();
+                }}
+                style={{ flex: 1, padding: '12px' }}
+              >
+                Keep Card
+              </button>
+              <button
+                className="danger"
+                disabled={disabled}
+                onClick={handleDiscard}
+                style={{ flex: 1, padding: '12px' }}
+              >
+                Discard
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TurnIndicator({ pub, slot, isMyTurn }: {
+  pub: PublicGameState;
+  slot: 0 | 1;
+  isMyTurn: boolean;
+}) {
+  const phaseColor = pub.phase === 'DRAW' ? '#5a9ab0' : pub.phase === 'PLAY' ? '#7a9a4a' : '#c04030';
+
+  return (
+    <div style={{
+      textAlign: 'center',
+      padding: '8px 16px',
+      background: isMyTurn ? phaseColor + '25' : 'var(--surface)',
+      borderRadius: 8,
+      border: `1px solid ${isMyTurn ? phaseColor : 'var(--border)'}`,
+    }}>
+      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
+        You are Player {slot + 1} &middot; {pub.players[slot].gold}g
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        Turn {pub.turn}
+      </div>
+      <div style={{
+        fontWeight: 700,
+        fontSize: 16,
+        color: isMyTurn ? phaseColor : 'var(--text-muted)',
+      }}>
+        {isMyTurn ? (pub.phase === 'DRAW' ? 'Your Draw Phase' : pub.phase === 'PLAY' ? 'Your Play Phase' : 'Game Over')
+          : pub.phase === 'GAME_OVER' ? 'Game Over' : "Opponent's Turn"}
+      </div>
+      {pub.endgame && (
+        <div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>
+          {pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Wraps InteractionPanel for cast mode by constructing a synthetic GameState
+ * from the public + private data. InteractionPanel expects a full GameState.
+ */
+function CastInteractionPanel({ pub, priv, slot, dispatch }: {
+  pub: PublicGameState;
+  priv: PrivateGameState;
+  slot: 0 | 1;
+  dispatch: (action: GameAction) => void;
+}) {
+  // Build a minimal synthetic GameState that InteractionPanel can work with.
+  // It only reads: pendingResolution, pendingGuardReaction, pendingWareCardReaction,
+  // currentPlayer, players[cp].hand, players[cp].market, players[opp].market,
+  // players[opp].utilities, wareSupply, discardPile
+  const syntheticState = {
+    currentPlayer: pub.currentPlayer,
+    phase: pub.phase,
+    pendingResolution: priv.pendingResolution,
+    pendingGuardReaction: pub.pendingGuardReaction?.targetPlayer === slot ? pub.pendingGuardReaction : null,
+    pendingWareCardReaction: pub.pendingWareCardReaction?.targetPlayer === slot ? pub.pendingWareCardReaction : null,
+    wareSupply: pub.wareSupply,
+    discardPile: pub.discardPile,
+    players: [
+      { ...pub.players[0], hand: slot === 0 ? priv.hand : [] as DeckCardId[] },
+      { ...pub.players[1], hand: slot === 1 ? priv.hand : [] as DeckCardId[] },
+    ] as [
+      { gold: number; market: (WareType | null)[]; utilities: typeof pub.players[0]['utilities']; hand: DeckCardId[]; smallMarketStands: number },
+      { gold: number; market: (WareType | null)[]; utilities: typeof pub.players[1]['utilities']; hand: DeckCardId[]; smallMarketStands: number },
+    ],
+    log: pub.log,
+    turnModifiers: pub.turnModifiers,
+    endgame: pub.endgame,
+  };
+
+  // InteractionPanel expects GameState — cast as any since we're providing a subset
+  return (
+    <InteractionPanel
+      state={syntheticState as import('../engine/types.ts').GameState}
+      dispatch={dispatch}
+    />
+  );
+}
+
+// --- Helpers ---
+
+function isWaitingForMe(
+  pub: PublicGameState,
+  priv: PrivateGameState,
+  slot: 0 | 1,
+): boolean {
+  if (pub.phase === 'GAME_OVER') return false;
+
+  // Guard reaction
+  if (pub.pendingGuardReaction?.targetPlayer === slot) return true;
+  // Ware card reaction
+  if (pub.pendingWareCardReaction?.targetPlayer === slot) return true;
+  // Resolution
+  if (priv.pendingResolution && pub.waitingOnPlayer === slot) return true;
+  // Normal turn
+  if (!pub.pendingGuardReaction && !pub.pendingWareCardReaction && !pub.pendingResolutionType) {
+    return pub.currentPlayer === slot;
+  }
+
+  return pub.waitingOnPlayer === slot;
+}
