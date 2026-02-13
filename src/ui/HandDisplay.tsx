@@ -6,9 +6,10 @@ interface HandDisplayProps {
   hand: DeckCardId[];
   onPlayCard?: (cardId: DeckCardId) => void;
   disabled?: boolean;
+  cardError?: {cardId: DeckCardId, message: string} | null;
 }
 
-export function HandDisplay({ hand, onPlayCard, disabled }: HandDisplayProps) {
+export function HandDisplay({ hand, onPlayCard, disabled, cardError }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -124,12 +125,35 @@ export function HandDisplay({ hand, onPlayCard, disabled }: HandDisplayProps) {
             marginLeft: index === 0 ? 0 : spacing,
             flexShrink: 0,
             zIndex: index,
+            position: 'relative',
           }}
         >
           <CardFace
             cardId={cardId}
             onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
           />
+          {cardError && cardError.cardId === cardId && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 0, 0, 0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: 14,
+              fontWeight: 600,
+              textAlign: 'center',
+              padding: 8,
+              borderRadius: 8,
+              zIndex: 10,
+            }}>
+              {cardError.message}
+            </div>
+          )}
         </div>
       ))}
     </div>

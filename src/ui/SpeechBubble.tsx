@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 
 interface SpeechBubbleProps {
   message: string;
@@ -9,10 +9,12 @@ interface SpeechBubbleProps {
 export function SpeechBubble({ message, visible, onHide }: SpeechBubbleProps) {
   useEffect(() => {
     if (visible) {
-      const timer = setTimeout(onHide, 4000); // Auto-hide after 4 seconds
+      const isTurnDone = message === "My turn is done, your move!";
+      const timeout = isTurnDone ? 2000 : 4000; // Faster fade for turn done message
+      const timer = setTimeout(onHide, timeout);
       return () => clearTimeout(timer);
     }
-  }, [visible, onHide]);
+  }, [visible, onHide, message]);
 
   if (!visible || !message) return null;
 
@@ -39,9 +41,9 @@ export function SpeechBubble({ message, visible, onHide }: SpeechBubbleProps) {
         position: 'absolute',
         top: '50%',
         left: '50%',
-        transform: 'translate(-50%, -50%)',
+        transform: 'translate(-50%, calc(-50% + 25px))',
         color: 'black',
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: 600,
         textAlign: 'center',
         maxWidth: 200,

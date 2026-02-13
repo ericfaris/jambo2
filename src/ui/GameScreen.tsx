@@ -3,6 +3,7 @@ import { useGameStore } from '../hooks/useGameStore.ts';
 import { getRandomAiAction } from '../ai/RandomAI.ts';
 import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
+import { validatePlayCard } from '../engine/validation/actionValidator.ts';
 import type { DeckCardId } from '../engine/types.ts';
 import { CONSTANTS } from '../engine/types.ts';
 import { OpponentArea } from './OpponentArea.tsx';
@@ -21,6 +22,7 @@ export function GameScreen() {
   const [showLog, setShowLog] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawModalOpen, setDrawModalOpen] = useState(false);
+  const [cardError, setCardError] = useState<{cardId: DeckCardId, message: string} | null>(null);
   const [aiMessage, setAiMessage] = useState<string>('');
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +52,20 @@ export function GameScreen() {
     state.currentPlayer === 1
   );
 
+  const getFriendlyErrorMessage = (reason: string) => {
+    if (reason.includes('PLAY phase')) {
+      return 'You can only play cards during your turn.';
+    }
+    if (reason.includes('No actions remaining')) {
+      return "You've used all your actions this turn.";
+    }
+    if (reason.includes('not in hand')) {
+      return 'This card is not in your hand.';
+    }
+    // Default friendly message
+    return 'This card cannot be played right now.';
+  };
+
   // Handle playing a card from hand
   const handlePlayCard = useCallback((cardId: DeckCardId) => {
     const card = getCard(cardId);
@@ -57,10 +73,18 @@ export function GameScreen() {
       // For ware cards, show buy/sell dialog
       setWareDialog(cardId);
     } else {
-      // For other cards, play directly
+      // For other cards, validate first
+      const validation = validatePlayCard(state, cardId);
+      if (!validation.valid) {
+        const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Invalid play');
+        setCardError({ cardId, message: friendlyMessage });
+        return;
+      }
+      // Clear any previous error
+      setCardError(null);
       dispatch({ type: 'PLAY_CARD', cardId });
     }
-  }, [dispatch]);
+  }, [dispatch, state]);
 
   // AI move effect
   const aiAttemptRef = useRef(0);
@@ -230,6 +254,7 @@ export function GameScreen() {
             hand={state.players[0].hand}
             onPlayCard={handlePlayCard}
             disabled={actionsDisabled || state.phase !== 'PLAY' || state.actionsLeft <= 0}
+            cardError={cardError}
           />
         </div>
 

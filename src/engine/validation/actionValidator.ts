@@ -111,7 +111,7 @@ function validateSkipDraw(state: GameState): ValidationResult {
   return ok;
 }
 
-function validatePlayCard(
+export function validatePlayCard(
   state: GameState,
   cardId: DeckCardId,
   wareMode?: 'buy' | 'sell'
