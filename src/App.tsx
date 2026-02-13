@@ -1,7 +1,7 @@
-import { GameScreen } from './ui/GameScreen.tsx';
+import { Router } from './ui/Router.tsx';
 
 function App() {
-  return <GameScreen />;
+  return <Router />;
 }
 
 export default App;

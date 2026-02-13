@@ -401,6 +401,7 @@ export const CONSTANTS = {
   GUARD_REACTION_TIMEOUT_MS: 2000,
   TOTAL_CARDS_IN_GAME: 110,
   INITIAL_HAND_SIZE: 5,
+  AI_ACTION_DELAY_MS: 3000,  // 3 seconds between AI actions
 } as const;
 
 // --- Ware Supply Initial Counts ---

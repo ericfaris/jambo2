@@ -273,16 +273,7 @@ function validateActivateUtility(state: GameState, utilityIndex: number): Valida
 }
 
 function validateDrawAction(state: GameState): ValidationResult {
-  if (state.phase !== 'PLAY') {
-    return fail('Can only draw-as-action during PLAY phase');
-  }
-  if (state.actionsLeft <= 0) {
-    return fail('No actions remaining');
-  }
-  if (state.deck.length === 0 && state.discardPile.length === 0) {
-    return fail('No cards available to draw');
-  }
-  return ok;
+  return fail('Drawing cards is only allowed during DRAW phase');
 }
 
 function validateEndTurn(state: GameState): ValidationResult {

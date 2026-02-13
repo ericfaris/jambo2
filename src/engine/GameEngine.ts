@@ -182,32 +182,55 @@ export function processAction(state: GameState, action: GameAction): GameState {
     throw new Error(`Invalid action ${action.type}: ${validation.reason}`);
   }
 
+  let next: GameState;
   switch (action.type) {
     case 'DRAW_CARD':
-      return handleDrawCard(state);
+      next = handleDrawCard(state);
+      break;
     case 'KEEP_CARD':
-      return handleKeepCard(state);
+      next = handleKeepCard(state);
+      break;
     case 'DISCARD_DRAWN':
-      return handleDiscardDrawn(state);
+      next = handleDiscardDrawn(state);
+      break;
     case 'SKIP_DRAW':
-      return handleSkipDraw(state);
+      next = handleSkipDraw(state);
+      break;
     case 'PLAY_CARD':
-      return handlePlayCard(state, action.cardId, action.wareMode);
+      next = handlePlayCard(state, action.cardId, action.wareMode);
+      break;
     case 'ACTIVATE_UTILITY':
-      return handleActivateUtility(state, action.utilityIndex);
+      next = handleActivateUtility(state, action.utilityIndex);
+      break;
     case 'DRAW_ACTION':
-      return handleDrawAction(state);
+      next = handleDrawAction(state);
+      break;
     case 'END_TURN':
-      return handleEndTurn(state);
+      next = handleEndTurn(state);
+      break;
     case 'RESOLVE_INTERACTION':
-      return handleResolveInteraction(state, action.response);
+      next = handleResolveInteraction(state, action.response);
+      break;
     case 'GUARD_REACTION':
-      return handleGuardReaction(state, action.play);
+      next = handleGuardReaction(state, action.play);
+      break;
     case 'WARE_CARD_REACTION':
-      return handleWareCardReaction(state, action.play);
+      next = handleWareCardReaction(state, action.play);
+      break;
     default:
       throw new Error(`Unknown action type`);
   }
+
+  // Auto-end turn when no actions left and no pending interactions
+  if (next.actionsLeft === 0 &&
+      next.phase === 'PLAY' &&
+      !next.pendingResolution &&
+      !next.pendingGuardReaction &&
+      !next.pendingWareCardReaction) {
+    next = handleEndTurn(next);
+  }
+
+  return next;
 }
 
 // ---------------------------------------------------------------------------

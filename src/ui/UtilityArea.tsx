@@ -12,13 +12,13 @@ export function UtilityArea({ utilities, onActivate, disabled, label }: UtilityA
   return (
     <div>
       {label && (
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 14, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600 }}>
           {label}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {utilities.length === 0 && (
-          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 12, padding: 4 }}>
+          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 14, padding: 6 }}>
             No utilities
           </div>
         )}
@@ -30,7 +30,7 @@ export function UtilityArea({ utilities, onActivate, disabled, label }: UtilityA
               onClick={!disabled && onActivate && !u.usedThisTurn ? () => onActivate(i) : undefined}
             />
             {u.usedThisTurn && (
-              <div style={{
+              <div className="overlay-fade" style={{
                 position: 'absolute',
                 inset: 0,
                 background: 'rgba(20,10,5,0.7)',
@@ -38,7 +38,7 @@ export function UtilityArea({ utilities, onActivate, disabled, label }: UtilityA
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 10,
+                fontSize: 13,
                 fontWeight: 700,
                 color: '#a08060',
               }}>

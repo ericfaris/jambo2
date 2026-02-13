@@ -179,7 +179,6 @@ Full card reference: `docs/CARD_REFERENCE.md`
 
 **Phase 2 — Action Phase** (5 actions total, shared with draws):
 Each costs 1 action:
-- **Draw a card** (must keep, no look/discard option)
 - **Play a Ware card** (buy or sell — player chooses)
 - **Play a People card** (one-time effect, discarded after)
 - **Play an Animal card** (attack — opponent may play Guard to cancel)

@@ -333,10 +333,6 @@ export function getRandomAiAction(state: GameState): GameAction | null {
         ? { type: 'KEEP_CARD' }
         : { type: 'DISCARD_DRAWN' };
     }
-    // 10% chance to skip draw when hand is full and no draws yet
-    if (state.drawsThisPhase === 0 && state.players[state.currentPlayer].hand.length >= CONSTANTS.MAX_HAND_SIZE && Math.random() < 0.1) {
-      return { type: 'SKIP_DRAW' };
-    }
     if (tryAction(state, { type: 'DRAW_CARD' })) {
       return { type: 'DRAW_CARD' };
     }
@@ -345,10 +341,6 @@ export function getRandomAiAction(state: GameState): GameAction | null {
 
   // Play phase
   if (state.phase === 'PLAY') {
-    if (state.actionsLeft <= 0) {
-      return { type: 'END_TURN' };
-    }
-
     const roll = Math.random();
     const cp = state.currentPlayer;
     const player = state.players[cp];
@@ -398,12 +390,6 @@ export function getRandomAiAction(state: GameState): GameAction | null {
         const action: GameAction = { type: 'ACTIVATE_UTILITY', utilityIndex: i };
         if (tryAction(state, action) && safeExec(state, action)) return action;
       }
-    }
-
-    // 15% draw action
-    if (roll < 0.75) {
-      const action: GameAction = { type: 'DRAW_ACTION' };
-      if (tryAction(state, action)) return action;
     }
 
     return { type: 'END_TURN' };

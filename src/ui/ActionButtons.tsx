@@ -1,90 +1,23 @@
+import { useState } from 'react';
 import type { GameState, DeckCardId } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
-import { CardFace } from './CardFace.tsx';
+import { WARE_COLORS } from './CardFace.tsx';
 
 interface ActionButtonsProps {
   state: GameState;
-  dispatch: (action: import('../engine/types.ts').GameAction) => void;
-  disabled: boolean;
 }
 
-export function ActionButtons({ state, dispatch, disabled }: ActionButtonsProps) {
+export function ActionButtons({ state }: ActionButtonsProps) {
   const isMyTurn = state.currentPlayer === 0;
-  const canAct = isMyTurn && !disabled;
 
-  // Draw phase buttons
+  // Draw phase buttons - removed, now handled by modal
   if (state.phase === 'DRAW' && isMyTurn) {
-    return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 8,
-        padding: '8px 0',
-      }}>
-        {state.drawnCard ? (
-          <>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
-              You drew:
-            </div>
-            <CardFace cardId={state.drawnCard} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              <button
-                className="primary"
-                disabled={!canAct}
-                onClick={() => dispatch({ type: 'KEEP_CARD' })}
-              >
-                Keep Card
-              </button>
-              <button
-                className="danger"
-                disabled={!canAct}
-                onClick={() => dispatch({ type: 'DISCARD_DRAWN' })}
-              >
-                Discard
-              </button>
-            </div>
-          </>
-        ) : (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              className="primary"
-              disabled={!canAct || state.keptCardThisDrawPhase || state.actionsLeft <= 0}
-              onClick={() => dispatch({ type: 'DRAW_CARD' })}
-            >
-              Draw Card ({state.actionsLeft} actions left)
-            </button>
-            <button
-              disabled={!canAct}
-              onClick={() => dispatch({ type: 'SKIP_DRAW' })}
-            >
-              Skip Draw Phase
-            </button>
-          </div>
-        )}
-      </div>
-    );
+    return null;
   }
 
   // Play phase buttons
   if (state.phase === 'PLAY' && isMyTurn) {
-    return (
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        justifyContent: 'center',
-        padding: '8px 0',
-        flexWrap: 'wrap',
-      }}>
-        <button
-          className="danger"
-          disabled={!canAct}
-          onClick={() => dispatch({ type: 'END_TURN' })}
-        >
-          End Turn
-        </button>
-      </div>
-    );
+    return null;
   }
 
   return null;
@@ -101,45 +34,302 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
   const card = getCard(cardId);
   if (!card.wares) return null;
 
+  const LINEN_BG = [
+    'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+    'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+    'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+    'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+  ].join(', ');
+  const LINEN_BG_SIZE = '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px';
+  const LINEN_BASE = '#e8e4df';
+
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(20,10,5,0.8)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 100,
-    }}
-    onClick={onCancel}
+    <div
+      className="overlay-fade"
+      onClick={onCancel}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 150,
+        background: 'rgba(20,10,5,0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
       <div
+        className="dialog-pop"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'var(--surface)',
-          borderRadius: 12,
-          padding: 20,
-          border: '2px solid var(--gold)',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          width: 380,
+          borderRadius: 14,
+          padding: 8,
+          backgroundImage: LINEN_BG,
+          backgroundSize: LINEN_BG_SIZE,
+          backgroundColor: LINEN_BASE,
+          border: '2px solid #a89880',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          gap: 12,
+          gap: 10,
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        <CardFace cardId={cardId} />
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 14, color: 'var(--text-muted)' }}>
-          Choose action:
+        <img
+          src={`/assets/cards/${card.designId}.png`}
+          alt={card.name}
+          style={{
+            width: '100%',
+            borderRadius: 10,
+            display: 'block',
+          }}
+          draggable={false}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '2px 0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onBuy}>
+            <img
+              src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
+              alt={`${card.wares.buyPrice}g`}
+              style={{ width: 56, height: 56 }}
+              draggable={false}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 180 }}>
+            {card.wares.types.map((wareType, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  background: WARE_COLORS[wareType],
+                  border: '2px solid rgba(0,0,0,0.6)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                }}
+                title={wareType}
+              />
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={onSell}>
+            <img
+              src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
+              alt={`${card.wares.sellPrice}g`}
+              style={{ width: 56, height: 56 }}
+              draggable={false}
+            />
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="primary" onClick={onBuy}>
-            Buy ({card.wares.buyPrice}g)
-          </button>
-          <button className="primary" onClick={onSell}>
-            Sell ({card.wares.sellPrice}g)
-          </button>
+      </div>
+    </div>
+  );
+}
+
+export function DrawModal({ state, dispatch, disabled, onClose }: {
+  state: GameState;
+  dispatch: (action: import('../engine/types.ts').GameAction) => void;
+  disabled: boolean;
+  onClose: () => void;
+}) {
+  const [showCardBack, setShowCardBack] = useState(false);
+  
+  // Show modal if we have a drawn card OR if we're in draw phase (even without a drawn card yet)
+  const shouldShowModal = state.drawnCard || (state.phase === 'DRAW' && state.currentPlayer === 0);
+  if (!shouldShowModal && !showCardBack) return null;
+
+  const canAct = state.currentPlayer === 0 && !disabled;
+
+  // CSS linen finish — fine crosshatch over off-white base
+  const LINEN_BG = [
+    'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+    'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+    'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+    'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+  ].join(', ');
+  const LINEN_BG_SIZE = '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px';
+  const LINEN_BASE = '#e8e4df';
+
+  const handleDiscard = () => {
+    dispatch({ type: 'DISCARD_DRAWN' });
+    setShowCardBack(true);
+  };
+
+  const handleDrawCard = () => {
+    dispatch({ type: 'DRAW_CARD' });
+    setShowCardBack(false);
+  };
+
+  const handleSkipDraw = () => {
+    dispatch({ type: 'SKIP_DRAW' });
+    setShowCardBack(false);
+    onClose();
+  };
+
+  return (
+    <div
+      className="overlay-fade"
+      onClick={() => {
+        setShowCardBack(false);
+        onClose();
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 150,
+        background: 'rgba(20,10,5,0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div
+        className="dialog-pop"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 380,
+          borderRadius: 14,
+          padding: 8,
+          backgroundImage: LINEN_BG,
+          backgroundSize: LINEN_BG_SIZE,
+          backgroundColor: LINEN_BASE,
+          border: '2px solid #a89880',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        {showCardBack || !state.drawnCard ? (
+          <img
+            src="/assets/cards/card_back.png"
+            alt="Card back"
+            style={{
+              width: '100%',
+              borderRadius: 10,
+              display: 'block',
+            }}
+            draggable={false}
+          />
+        ) : (
+          <>
+            <img
+              src={`/assets/cards/${getCard(state.drawnCard!).designId}.png`}
+              alt={getCard(state.drawnCard!).name}
+              style={{
+                width: '100%',
+                borderRadius: 10,
+                display: 'block',
+              }}
+              draggable={false}
+            />
+            <div style={{ padding: '0 6px 6px' }}>
+              {getCard(state.drawnCard!).wares ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '2px 0' }}>
+                  <img
+                    src={`/assets/coins/coin_${getCard(state.drawnCard!).wares!.buyPrice}.png`}
+                    alt={`${getCard(state.drawnCard!).wares!.buyPrice}g`}
+                    style={{ width: 56, height: 56 }}
+                    draggable={false}
+                  />
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 180 }}>
+                    {getCard(state.drawnCard!).wares!.types.map((wareType, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: '50%',
+                          background: WARE_COLORS[wareType],
+                          border: '2px solid rgba(0,0,0,0.6)',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                        }}
+                        title={wareType}
+                      />
+                    ))}
+                  </div>
+                  <img
+                    src={`/assets/coins/coin_${getCard(state.drawnCard!).wares!.sellPrice}.png`}
+                    alt={`${getCard(state.drawnCard!).wares!.sellPrice}g`}
+                    style={{ width: 56, height: 56 }}
+                    draggable={false}
+                  />
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1714', marginBottom: 6 }}>
+                    {getCard(state.drawnCard!).name}
+                  </div>
+                  <div style={{ fontSize: 15, color: '#4a4540', lineHeight: 1.4 }}>
+                    {getCard(state.drawnCard!).description}
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+        <div style={{
+          display: 'flex',
+          gap: 12,
+          justifyContent: 'center',
+          padding: '0 6px 6px',
+        }}>
+          {showCardBack || !state.drawnCard ? (
+            <>
+              <button
+                className="primary"
+                disabled={!canAct || state.keptCardThisDrawPhase || state.actionsLeft <= 0}
+                onClick={handleDrawCard}
+                style={{ flex: 1, padding: '12px' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <div>Draw Card</div>
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          backgroundColor: i < state.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
+                          border: '2px solid var(--gold)',
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </button>
+              <button
+                disabled={!canAct}
+                onClick={handleSkipDraw}
+                style={{ flex: 1, padding: '12px' }}
+              >
+                Skip Draw Phase
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="primary"
+                disabled={!canAct}
+                onClick={() => {
+                  dispatch({ type: 'KEEP_CARD' });
+                  setShowCardBack(false);
+                  onClose();
+                }}
+                style={{ flex: 1, padding: '12px' }}
+              >
+                Keep Card
+              </button>
+              <button
+                className="danger"
+                disabled={!canAct}
+                onClick={handleDiscard}
+                style={{ flex: 1, padding: '12px' }}
+              >
+                Discard
+              </button>
+            </>
+          )}
         </div>
-        <button onClick={onCancel} style={{ fontSize: 11 }}>Cancel</button>
       </div>
     </div>
   );

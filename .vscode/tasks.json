@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Start Jambo Server",
+      "label": "Start Vite Dev Server",
       "type": "npm",
       "script": "dev",
       "problemMatcher": [],
@@ -13,7 +13,36 @@
       },
       "presentation": {
         "reveal": "always",
-        "panel": "dedicated"
+        "panel": "dedicated",
+        "group": "jambo"
+      }
+    },
+    {
+      "label": "Start WebSocket Server",
+      "type": "npm",
+      "script": "server",
+      "problemMatcher": [],
+      "isBackground": true,
+      "runOptions": {
+        "instanceLimit": 1,
+        "reevaluateOnRerun": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "jambo"
+      }
+    },
+    {
+      "label": "Start Jambo",
+      "dependsOn": [
+        "Start Vite Dev Server",
+        "Start WebSocket Server"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
       }
     }
   ]

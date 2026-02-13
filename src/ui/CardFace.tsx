@@ -49,10 +49,12 @@ interface CardFaceProps {
   onClick?: () => void;
   selected?: boolean;
   small?: boolean;
+  large?: boolean;
+  extraLarge?: boolean;
   faceDown?: boolean;
 }
 
-export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFaceProps) {
+export function CardFace({ cardId, onClick, selected, small, large, extraLarge, faceDown }: CardFaceProps) {
   const [imgError, setImgError] = useState(false);
   const [showMega, setShowMega] = useState(false);
 
@@ -60,9 +62,9 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
     return (
       <div
         style={{
-          width: small ? 72 : 108,
-          height: small ? 96 : 144,
-          borderRadius: 8,
+          width: small ? 96 : extraLarge ? 364 : large ? 180 : 140,
+          height: small ? 128 : extraLarge ? 485 : large ? 240 : 187,
+          borderRadius: 10,
           backgroundImage: 'url(/assets/cards/card_back.png)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
@@ -80,15 +82,15 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
   const tooltip = `${card.name} — ${card.description}`;
 
   if (hasImage) {
-    const pad = small ? 1 : 2;
+    const pad = small ? 2 : large ? 4 : 3;
     return (<>
       <div
         title={tooltip}
         onClick={onClick}
         style={{
-          width: small ? 72 : 108,
-          height: small ? 96 : 144,
-          borderRadius: 8,
+          width: small ? 96 : large ? 180 : 140,
+          height: small ? 128 : large ? 240 : 187,
+          borderRadius: 10,
           padding: pad,
           boxSizing: 'border-box',
           backgroundImage: LINEN_BG,
@@ -114,7 +116,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
           flex: 1,
           position: 'relative',
           overflow: 'hidden',
-          borderRadius: 4,
+          borderRadius: 6,
         }}>
           <img
             src={`/assets/cards/${card.designId}.png`}
@@ -140,18 +142,18 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
                 right: 0,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: small ? 1 : 2,
-                padding: small ? 2 : 3,
+                gap: small ? 2 : 3,
+                padding: small ? 3 : 4,
                 background: 'rgba(0,0,0,0.35)',
                 cursor: 'pointer',
               }}
             >
-              <div style={{ display: 'flex', gap: small ? 2 : 3, justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: small ? 3 : 4, justifyContent: 'center' }}>
                 {card.wares.types.slice(0, 3).map((w, i) => (
                   <div key={i} style={{
-                    width: small ? 12 : 16,
-                    height: small ? 12 : 16,
-                    borderRadius: small ? 3 : 4,
+                    width: small ? 16 : 20,
+                    height: small ? 16 : 20,
+                    borderRadius: small ? 4 : 5,
                     background: WARE_COLORS[w],
                     border: '1.5px solid rgba(0,0,0,0.6)',
                   }} />
@@ -161,15 +163,15 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
                 <img
                   src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
                   alt={`${card.wares.buyPrice}g`}
-                  style={{ width: small ? 14 : 20, height: small ? 14 : 20 }}
+                  style={{ width: small ? 18 : 26, height: small ? 18 : 26 }}
                   draggable={false}
                 />
-                <div style={{ display: 'flex', gap: small ? 2 : 3 }}>
+                <div style={{ display: 'flex', gap: small ? 3 : 4 }}>
                   {card.wares.types.slice(3).map((w, i) => (
                     <div key={i} style={{
-                      width: small ? 12 : 16,
-                      height: small ? 12 : 16,
-                      borderRadius: small ? 3 : 4,
+                      width: small ? 16 : 20,
+                      height: small ? 16 : 20,
+                      borderRadius: small ? 4 : 5,
                       background: WARE_COLORS[w],
                       border: '1.5px solid rgba(0,0,0,0.6)',
                     }} />
@@ -178,7 +180,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
                 <img
                   src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
                   alt={`${card.wares.sellPrice}g`}
-                  style={{ width: small ? 14 : 20, height: small ? 14 : 20 }}
+                  style={{ width: small ? 18 : 26, height: small ? 18 : 26 }}
                   draggable={false}
                 />
               </div>
@@ -194,7 +196,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: small ? 2 : 3,
+                padding: small ? 3 : 4,
                 background: 'rgba(0,0,0,0.35)',
                 cursor: 'pointer',
               }}
@@ -202,15 +204,15 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
               <img
                 src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
                 alt={`${card.wares.buyPrice}g`}
-                style={{ width: small ? 14 : 20, height: small ? 14 : 20 }}
+                style={{ width: small ? 18 : 26, height: small ? 18 : 26 }}
                 draggable={false}
               />
-              <div style={{ display: 'flex', gap: small ? 2 : 3 }}>
+              <div style={{ display: 'flex', gap: small ? 3 : 4 }}>
                 {card.wares.types.map((w, i) => (
                   <div key={i} style={{
-                    width: small ? 12 : 16,
-                    height: small ? 12 : 16,
-                    borderRadius: small ? 3 : 4,
+                    width: small ? 16 : 20,
+                    height: small ? 16 : 20,
+                    borderRadius: small ? 4 : 5,
                     background: WARE_COLORS[w],
                     border: '1.5px solid rgba(0,0,0,0.6)',
                   }} />
@@ -219,7 +221,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
               <img
                 src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
                 alt={`${card.wares.sellPrice}g`}
-                style={{ width: small ? 14 : 20, height: small ? 14 : 20 }}
+                style={{ width: small ? 18 : 26, height: small ? 18 : 26 }}
                 draggable={false}
               />
             </div>
@@ -233,12 +235,12 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
                 left: 0,
                 right: 0,
                 background: 'rgba(255,255,255,0.85)',
-                padding: small ? '1px 2px' : '2px 3px',
+                padding: small ? '2px 3px' : '3px 4px',
                 cursor: 'pointer',
               }}
             >
               <div style={{
-                fontSize: small ? 5 : 6,
+                fontSize: small ? 7 : 8,
                 fontWeight: 700,
                 color: '#1a1714',
                 lineHeight: 1,
@@ -248,7 +250,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
               </div>
               {!small && (
                 <div style={{
-                  fontSize: 5,
+                  fontSize: 7,
                   color: '#4a4540',
                   lineHeight: 1.1,
                   textAlign: 'center',
@@ -262,6 +264,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
       </div>
       {showMega && (
         <div
+          className="overlay-fade"
           onClick={() => setShowMega(false)}
           style={{
             position: 'fixed',
@@ -274,11 +277,12 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
           }}
         >
           <div
+            className="dialog-pop"
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: 300,
-              borderRadius: 12,
-              padding: 6,
+              width: 380,
+              borderRadius: 14,
+              padding: 8,
               backgroundImage: LINEN_BG,
               backgroundSize: LINEN_BG_SIZE,
               backgroundColor: LINEN_BASE,
@@ -286,7 +290,7 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
               boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               display: 'flex',
               flexDirection: 'column',
-              gap: 8,
+              gap: 10,
             }}
           >
             <img
@@ -294,16 +298,16 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
               alt={card.name}
               style={{
                 width: '100%',
-                borderRadius: 8,
+                borderRadius: 10,
                 display: 'block',
               }}
               draggable={false}
             />
-            <div style={{ padding: '0 4px 4px' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1714', marginBottom: 4 }}>
+            <div style={{ padding: '0 6px 6px' }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1714', marginBottom: 6 }}>
                 {card.name}
               </div>
-              <div style={{ fontSize: 13, color: '#4a4540', lineHeight: 1.4 }}>
+              <div style={{ fontSize: 15, color: '#4a4540', lineHeight: 1.4 }}>
                 {card.description}
               </div>
             </div>
@@ -318,9 +322,9 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
       title={tooltip}
       onClick={onClick}
       style={{
-        width: small ? 60 : 90,
-        height: small ? 80 : 120,
-        borderRadius: 8,
+        width: small ? 80 : extraLarge ? 364 : large ? 150 : 116,
+        height: small ? 107 : extraLarge ? 485 : large ? 200 : 155,
+        borderRadius: 10,
         border: `2px solid ${selected ? 'var(--gold)' : 'var(--border)'}`,
         background: selected ? 'var(--surface-accent)' : 'var(--surface)',
         cursor: onClick ? 'pointer' : 'default',
@@ -337,11 +341,11 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
         (e.currentTarget as HTMLDivElement).style.transform = '';
       }}
     >
-      {/* Header bar with type color — only for ware/stand cards */}
+      {/* Header bar with type color */}
       <div style={{
         background: headerColor,
-        padding: small ? '2px 4px' : '3px 6px',
-        fontSize: small ? 8 : 10,
+        padding: small ? '3px 5px' : '4px 8px',
+        fontSize: small ? 10 : 12,
         fontWeight: 700,
         textTransform: 'uppercase',
         color: '#000',
@@ -356,8 +360,8 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
       {/* Card name */}
       <div style={{
         flex: 1,
-        padding: small ? 3 : 5,
-        fontSize: small ? 8 : 11,
+        padding: small ? 4 : 6,
+        fontSize: small ? 10 : 13,
         fontWeight: 600,
         lineHeight: 1.2,
         display: 'flex',
@@ -372,20 +376,20 @@ export function CardFace({ cardId, onClick, selected, small, faceDown }: CardFac
       {/* Wares section for ware cards */}
       {card.wares && (
         <div style={{
-          padding: small ? '2px 3px' : '3px 5px',
+          padding: small ? '3px 4px' : '4px 6px',
           borderTop: '1px solid var(--border)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 2,
-          fontSize: small ? 7 : 9,
+          gap: 3,
+          fontSize: small ? 9 : 11,
         }}>
-          <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
             {card.wares.types.map((w, i) => (
               <span key={i} style={{
                 background: WARE_COLORS[w],
-                borderRadius: 3,
-                width: small ? 10 : 14,
-                height: small ? 10 : 14,
+                borderRadius: 4,
+                width: small ? 14 : 18,
+                height: small ? 14 : 18,
                 display: 'inline-block',
               }} />
             ))}
@@ -406,12 +410,12 @@ export function WareToken({ type, onClick, selected }: { type: WareType; onClick
       alt={type}
       onClick={onClick}
       style={{
-        width: 32,
-        height: 32,
+        width: 42,
+        height: 42,
         cursor: onClick ? 'pointer' : 'default',
         flexShrink: 0,
         outline: selected ? '2px solid var(--gold)' : 'none',
-        borderRadius: 4,
+        borderRadius: 5,
       }}
       draggable={false}
     />

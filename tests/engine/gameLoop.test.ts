@@ -57,14 +57,16 @@ describe('Draw Phase', () => {
     expect(s3.drawsThisPhase).toBe(2);
   });
 
-  it('5 discards auto-transitions to PLAY phase with 0 actions', () => {
+  it('5 discards auto-transitions to PLAY phase and auto-ends turn', () => {
     let s = createTestState();
     for (let i = 0; i < 5; i++) {
       s = act(s, { type: 'DRAW_CARD' });
       s = act(s, { type: 'DISCARD_DRAWN' });
     }
-    expect(s.phase).toBe('PLAY');
-    expect(s.actionsLeft).toBe(0); // all 5 actions spent drawing
+    expect(s.phase).toBe('DRAW'); // Turn auto-ended, back to DRAW for next player
+    expect(s.actionsLeft).toBe(5); // Reset for next player
+    expect(s.currentPlayer).toBe(1); // Switched to opponent
+    expect(s.turn).toBe(2); // Turn incremented
   });
 
   it('cannot play card during DRAW phase', () => {
@@ -97,14 +99,15 @@ describe('Play Phase — Card Play', () => {
     expect(hand(s2, 0).length).toBe(handBefore + 1);
   });
 
-  it('cannot act with 0 actions left', () => {
+  it('auto-ends turn when actions exhausted', () => {
     let s = toPlayPhase(createTestState());
     // toPlayPhase spent 1, spend remaining 4 via DRAW_ACTION
     for (let i = 0; i < 4; i++) {
       s = act(s, { type: 'DRAW_ACTION' });
     }
-    expect(s.actionsLeft).toBe(0);
-    expect(() => act(s, { type: 'DRAW_ACTION' })).toThrow();
+    expect(s.phase).toBe('DRAW'); // Turn auto-ended, back to DRAW for next player
+    expect(s.actionsLeft).toBe(5); // Reset for next player
+    expect(s.currentPlayer).toBe(1); // Switched to opponent
   });
 });
 

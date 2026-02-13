@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameStore } from '../hooks/useGameStore.ts';
 import { getRandomAiAction } from '../ai/RandomAI.ts';
+import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import type { DeckCardId } from '../engine/types.ts';
+import { CONSTANTS } from '../engine/types.ts';
 import { OpponentArea } from './OpponentArea.tsx';
 import { CenterRow } from './CenterRow.tsx';
-import { StatusBar } from './StatusBar.tsx';
 import { MarketDisplay } from './MarketDisplay.tsx';
 import { UtilityArea } from './UtilityArea.tsx';
 import { HandDisplay } from './HandDisplay.tsx';
-import { ActionButtons, CardPlayDialog } from './ActionButtons.tsx';
+import { ActionButtons, CardPlayDialog, DrawModal } from './ActionButtons.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
 import { GameLog } from './GameLog.tsx';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
@@ -17,10 +18,31 @@ import { EndgameOverlay } from './EndgameOverlay.tsx';
 export function GameScreen() {
   const { state, dispatch, error, newGame } = useGameStore();
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
+  const [showLog, setShowLog] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [drawModalOpen, setDrawModalOpen] = useState(false);
+  const [aiMessage, setAiMessage] = useState<string>('');
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [menuOpen]);
 
   // Is it the AI's turn to act?
-  // When a pending interaction exists, the *responder* determines who acts —
-  // not currentPlayer (drafts, auctions, etc. alternate between players).
+  const isAiResponder = (state: GameState) => {
+    if (!state.pendingResolution) return false;
+    // For now, assume AI responds to all pending resolutions when it's player 1
+    return state.currentPlayer === 1;
+  };
+
   const isAiTurn = state.phase !== 'GAME_OVER' && (
     state.pendingResolution !== null ? isAiResponder(state) :
     state.pendingGuardReaction !== null ? state.pendingGuardReaction.targetPlayer === 1 :
@@ -28,7 +50,19 @@ export function GameScreen() {
     state.currentPlayer === 1
   );
 
-  // AI move effect — retries on error, gives up after 10 attempts per state
+  // Handle playing a card from hand
+  const handlePlayCard = useCallback((cardId: DeckCardId) => {
+    const card = getCard(cardId);
+    if (card.type === 'ware') {
+      // For ware cards, show buy/sell dialog
+      setWareDialog(cardId);
+    } else {
+      // For other cards, play directly
+      dispatch({ type: 'PLAY_CARD', cardId });
+    }
+  }, [dispatch]);
+
+  // AI move effect
   const aiAttemptRef = useRef(0);
   const prevStateRef = useRef(state);
 
@@ -47,22 +81,28 @@ export function GameScreen() {
       aiAttemptRef.current++;
       const action = getRandomAiAction(state);
       if (action) {
+        // Set AI message before dispatching action
+        const message = getAiActionDescription(action, state);
+        setAiMessage(message);
         dispatch(action);
       }
-    }, 400);
+    }, CONSTANTS.AI_ACTION_DELAY_MS);
 
     return () => clearTimeout(timer);
   }, [isAiTurn, state, dispatch, error]);
 
-  const handlePlayCard = useCallback((cardId: DeckCardId) => {
-    if (state.phase !== 'PLAY' || state.currentPlayer !== 0) return;
-    const cardDef = getCard(cardId);
-    if (cardDef.type === 'ware') {
-      setWareDialog(cardId);
-    } else {
-      dispatch({ type: 'PLAY_CARD', cardId });
+  // Auto-open draw modal when entering draw phase
+  useEffect(() => {
+    if (state.phase === 'DRAW' && state.currentPlayer === 0 && !drawModalOpen) {
+      setDrawModalOpen(true);
+    } else if (state.phase !== 'DRAW' && drawModalOpen) {
+      setDrawModalOpen(false);
     }
-  }, [state.phase, state.currentPlayer, dispatch]);
+  }, [state.phase, state.currentPlayer, drawModalOpen]);
+
+  const handleAiMessageHide = useCallback(() => {
+    setAiMessage('');
+  }, []);
 
   const hasPendingInteraction = !!(
     state.pendingResolution ||
@@ -75,70 +115,237 @@ export function GameScreen() {
   return (
     <div style={{
       display: 'flex',
-      flexDirection: 'column',
-      gap: 8,
-      padding: '12px 16px',
+      gap: 16,
+      padding: '16px 20px',
       minHeight: '100vh',
+      position: 'relative',
     }}>
-      {/* Error banner — only show for human player errors */}
-      {error && !isAiTurn && (
+      {/* Main game area */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        minWidth: 0,
+      }}>
+        {/* Error banner */}
+        {error && !isAiTurn && (
+          <div style={{
+            background: '#4a1a12',
+            border: '1px solid #8a3a2a',
+            borderRadius: 8,
+            padding: '8px 16px',
+            fontSize: 14,
+            color: '#ff9977',
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* Opponent area */}
         <div style={{
-          background: '#4a1a12',
-          border: '1px solid #8a3a2a',
-          borderRadius: 8,
-          padding: '6px 12px',
-          fontSize: 12,
-          color: '#ff9977',
+          ...(state.currentPlayer === 1 && {
+            boxShadow: '0 0 20px rgba(212, 168, 80, 0.4), inset 0 0 20px rgba(212, 168, 80, 0.1)',
+            border: '2px solid rgba(212, 168, 80, 0.6)',
+            borderRadius: 12,
+          })
         }}>
-          {error}
+          <OpponentArea
+            player={state.players[1]}
+            aiMessage={aiMessage}
+            onMessageHide={handleAiMessageHide}
+          />
+        </div>
+
+        {/* Center row */}
+        <div>
+          <CenterRow state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} />
+        </div>
+
+        {/* Interaction panel */}
+        {hasPendingInteraction && !isAiTurn && (
+          <InteractionPanel state={state} dispatch={dispatch} />
+        )}
+
+        {/* Player sections */}
+        <div style={{
+          ...(state.currentPlayer === 0 && {
+            boxShadow: '0 0 20px rgba(212, 168, 80, 0.4), inset 0 0 20px rgba(212, 168, 80, 0.1)',
+            borderRadius: 12,
+            padding: '12px',
+            background: 'rgba(90,64,48,0.1)',
+          })
+        }}>
+          {/* Player board */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+            background: 'rgba(90,64,48,0.3)',
+            borderRadius: 10,
+            padding: 14,
+            border: '1px solid var(--border)',
+            marginBottom: 10,
+          }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+            {(state.turnModifiers.buyDiscount > 0 || state.turnModifiers.sellBonus > 0) && (
+              <span style={{ fontSize: 13, color: '#6a8a40', fontWeight: 600 }}>
+                {state.turnModifiers.buyDiscount > 0 && `Buy -${state.turnModifiers.buyDiscount}g `}
+                {state.turnModifiers.sellBonus > 0 && `Sell +${state.turnModifiers.sellBonus}g`}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+            <MarketDisplay
+              market={state.players[0].market}
+              label="Your Market"
+            />
+            <UtilityArea
+              utilities={state.players[0].utilities}
+              onActivate={(i) => dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i })}
+              disabled={actionsDisabled || state.phase !== 'PLAY' || state.actionsLeft <= 0}
+              label="Your Utilities"
+            />
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', minHeight: 120 }}>
+              <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 28, textShadow: '0 0 8px rgba(212,168,80,0.4)' }}>
+                {state.players[0].gold}g
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <ActionButtons 
+          state={state}
+        />
+
+          {/* Player hand */}
+          <div style={{
+            marginBottom: 10,
+          }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600 }}>
+            Your Hand ({state.players[0].hand.length} cards)
+          </div>
+          <HandDisplay
+            hand={state.players[0].hand}
+            onPlayCard={handlePlayCard}
+            disabled={actionsDisabled || state.phase !== 'PLAY' || state.actionsLeft <= 0}
+          />
+        </div>
+
+        {/* End Turn button */}
+        {state.phase === 'PLAY' && state.currentPlayer === 0 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: 16,
+          }}>
+            <button
+              onClick={() => dispatch({ type: 'END_TURN' })}
+              style={{
+                background: 'linear-gradient(135deg, #c04030 0%, #a03020 50%, #c04030 100%)',
+                border: '2px solid #ff6b5a',
+                borderRadius: 8,
+                padding: '12px 24px',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: 16,
+                cursor: 'pointer',
+                boxShadow: '0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                animation: 'shimmer 2s ease-in-out infinite alternate',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 0 30px rgba(192, 64, 48, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.3)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = '0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              End Turn
+            </button>
+          </div>
+        )}
+        </div>
+      </div>
+
+      {/* Right sidebar — Game log */}
+      {showLog && (
+        <div style={{
+          width: 280,
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+        }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', fontWeight: 600 }}>
+            Game Log
+          </div>
+          <GameLog log={state.log} />
         </div>
       )}
 
-      {/* Opponent area */}
-      <OpponentArea player={state.players[1]} />
+      {/* Settings hamburger menu */}
+      <div ref={menuRef} style={{ position: 'fixed', top: 12, right: 16, zIndex: 50 }}>
+        <button
+          onClick={() => setMenuOpen(prev => !prev)}
+          style={{
+            width: 42,
+            height: 42,
+            padding: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            background: menuOpen ? 'var(--surface-accent)' : 'var(--surface-light)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 8,
+          }}
+          title="Settings"
+        >
+          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
+          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
+          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
+        </button>
 
-      {/* Center row */}
-      <CenterRow state={state} />
-
-      {/* Interaction panel */}
-      {hasPendingInteraction && !isAiTurn && (
-        <InteractionPanel state={state} dispatch={dispatch} />
-      )}
-
-      {/* Status bar */}
-      <StatusBar state={state} />
-
-      {/* Player board */}
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', background: 'rgba(90,64,48,0.3)', borderRadius: 10, padding: 10, border: '1px solid var(--border)' }}>
-        <MarketDisplay
-          market={state.players[0].market}
-          label="Your Market"
-        />
-        <UtilityArea
-          utilities={state.players[0].utilities}
-          onActivate={(i) => dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i })}
-          disabled={actionsDisabled || state.phase !== 'PLAY' || state.actionsLeft <= 0}
-          label="Your Utilities"
-        />
+        {menuOpen && (
+          <div className="dialog-pop" style={{
+            position: 'absolute',
+            top: 42,
+            right: 0,
+            background: 'var(--surface)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 10,
+            padding: 12,
+            minWidth: 220,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--gold)', marginBottom: 12 }}>
+              Settings
+            </div>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              cursor: 'pointer',
+              fontSize: 15,
+              color: 'var(--text)',
+            }}>
+              Show Game Log
+              <input
+                type="checkbox"
+                checked={showLog}
+                onChange={() => setShowLog(prev => !prev)}
+                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+              />
+            </label>
+          </div>
+        )}
       </div>
-
-      {/* Action buttons (draw phase / play phase controls) */}
-      <ActionButtons state={state} dispatch={dispatch} disabled={actionsDisabled} />
-
-      {/* Player hand */}
-      <div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}>
-          Your Hand ({state.players[0].hand.length} cards)
-        </div>
-        <HandDisplay
-          hand={state.players[0].hand}
-          onPlayCard={handlePlayCard}
-          disabled={actionsDisabled || state.phase !== 'PLAY' || state.actionsLeft <= 0}
-        />
-      </div>
-
-      {/* Game log */}
-      <GameLog log={state.log} />
 
       {/* Ware buy/sell dialog */}
       {wareDialog && (
@@ -150,10 +357,39 @@ export function GameScreen() {
         />
       )}
 
+      {/* Draw modal */}
+      {drawModalOpen && (
+        <DrawModal
+          state={state}
+          dispatch={dispatch}
+          disabled={actionsDisabled}
+          onClose={() => setDrawModalOpen(false)}
+        />
+      )}
+
       {/* Endgame overlay */}
       <EndgameOverlay state={state} onNewGame={() => newGame()} />
     </div>
   );
+}
+
+// Add shimmering animation CSS
+const shimmerKeyframes = `
+  @keyframes shimmer {
+    0% {
+      box-shadow: 0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    100% {
+      box-shadow: 0 0 25px rgba(255, 107, 90, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+  }
+`;
+
+// Inject the keyframes into the document head
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = shimmerKeyframes;
+  document.head.appendChild(style);
 }
 
 /**
@@ -168,11 +404,9 @@ function isAiResponder(state: import('../engine/types.ts').GameState): boolean {
     case 'OPPONENT_DISCARD':
       return pr.targetPlayer === 1;
     case 'OPPONENT_CHOICE':
-      return state.currentPlayer !== 1; // opponent of current player responds
+      return state.currentPlayer !== 1;
     case 'AUCTION':
-      // Ware selection phase: active player picks from supply
       if (pr.wares.length < 2) return state.currentPlayer === 1;
-      // Bidding phase: nextBidder responds
       return pr.nextBidder === 1;
     case 'DRAFT':
       return pr.currentPicker === 1;
@@ -180,7 +414,6 @@ function isAiResponder(state: import('../engine/types.ts').GameState): boolean {
       return (pr.step === 'ACTIVE_CHOOSE' && state.currentPlayer === 1) ||
              (pr.step === 'OPPONENT_CHOOSE' && state.currentPlayer === 0);
     default:
-      // Most resolutions are handled by the current player
       return state.currentPlayer === 1;
   }
 }
