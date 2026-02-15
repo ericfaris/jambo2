@@ -201,6 +201,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
 
   const hasPendingInteraction = !!(
     priv.pendingResolution ||
+    pub.pendingResolutionType ||
     (pub.pendingGuardReaction && pub.pendingGuardReaction.targetPlayer === slot) ||
     (pub.pendingWareCardReaction && pub.pendingWareCardReaction.targetPlayer === slot)
   );
@@ -864,10 +865,24 @@ function CastInteractionPanel({ pub, priv, slot, dispatch, onMegaView }: {
   };
 
   // InteractionPanel expects GameState — cast as any since we're providing a subset
+  if (!syntheticState.pendingResolution && pub.pendingResolutionType) {
+    return (
+      <div className="panel-slide" style={{ maxWidth: 460, margin: '0 auto', width: '100%' }}>
+        <div className="dialog-pop" style={{ borderRadius: 14, padding: 12 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Resolving {pub.pendingResolutionType}...</div>
+            <div className="ui-helper-text">Waiting for opponent action.</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <InteractionPanel
       state={syntheticState as import('../engine/types.ts').GameState}
       dispatch={dispatch}
+      viewerPlayer={slot}
       onMegaView={onMegaView}
     />
   );

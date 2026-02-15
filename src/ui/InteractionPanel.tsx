@@ -9,6 +9,7 @@ import { formatResolutionBreadcrumb } from './uiHints.ts';
 interface InteractionPanelProps {
   state: GameState;
   dispatch: (action: import('../engine/types.ts').GameAction) => void;
+  viewerPlayer?: 0 | 1;
   onMegaView?: (cardId: DeckCardId) => void;
 }
 
@@ -154,13 +155,13 @@ function SelectableCardArea({
   );
 }
 
-export function InteractionPanel({ state, dispatch, onMegaView }: InteractionPanelProps) {
+export function InteractionPanel({ state, dispatch, viewerPlayer = 0, onMegaView }: InteractionPanelProps) {
   // Guard reaction
   if (state.pendingGuardReaction) {
     const animalCard = getCard(state.pendingGuardReaction.animalCard);
-    const isMyReaction = state.pendingGuardReaction.targetPlayer === 0;
+    const isMyReaction = state.pendingGuardReaction.targetPlayer === viewerPlayer;
     if (!isMyReaction) return <PanelShell title="Waiting: opponent deciding Guard reaction" />;
-    const guardCardId = findHandCardByDesign(state, 0, 'guard');
+    const guardCardId = findHandCardByDesign(state, viewerPlayer, 'guard');
     return (
       <PanelShell title={`${animalCard.name} played! Play Guard to cancel?`} sourceCardId={state.pendingGuardReaction.animalCard} onMegaView={onMegaView}>
         <ReactionDecisionPanel
@@ -177,9 +178,9 @@ export function InteractionPanel({ state, dispatch, onMegaView }: InteractionPan
 
   // Ware card reaction
   if (state.pendingWareCardReaction) {
-    const isMyReaction = state.pendingWareCardReaction.targetPlayer === 0;
+    const isMyReaction = state.pendingWareCardReaction.targetPlayer === viewerPlayer;
     if (!isMyReaction) return <PanelShell title="Waiting: opponent deciding Rain Maker reaction" />;
-    const rainMakerCardId = findHandCardByDesign(state, 0, 'rain_maker');
+    const rainMakerCardId = findHandCardByDesign(state, viewerPlayer, 'rain_maker');
     const opponentWareCard = getCard(state.pendingWareCardReaction.wareCardId);
     return (
       <PanelShell
@@ -221,7 +222,7 @@ export function InteractionPanel({ state, dispatch, onMegaView }: InteractionPan
       onMegaView={onMegaView}
       compactSourceCard={compactSourceCard}
     >
-      <ResolutionContent state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />
+      <ResolutionContent state={state} pr={pr} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={onMegaView} />
     </PanelShell>
   );
 }
@@ -451,7 +452,7 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
   );
 }
 
-function ResolutionContent({ state, pr, dispatch, onMegaView }: { state: GameState; pr: PendingResolution; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+function ResolutionContent({ state, pr, dispatch, viewerPlayer, onMegaView }: { state: GameState; pr: PendingResolution; dispatch: InteractionPanelProps['dispatch']; viewerPlayer: 0 | 1; onMegaView?: (cardId: DeckCardId) => void }) {
   switch (pr.type) {
     case 'WARE_TRADE':
       return <WareTradePanel state={state} pr={pr} dispatch={dispatch} />;
@@ -463,7 +464,7 @@ function ResolutionContent({ state, pr, dispatch, onMegaView }: { state: GameSta
     case 'OPPONENT_CHOICE':
       return <BinaryChoicePanel options={pr.options} onChoice={(c) => resolve(dispatch, { type: 'OPPONENT_CHOICE', choice: c })} />;
     case 'AUCTION':
-      return <AuctionPanel pr={pr} state={state} dispatch={dispatch} />;
+      return <AuctionPanel pr={pr} state={state} viewerPlayer={viewerPlayer} dispatch={dispatch} />;
     case 'DECK_PEEK':
       return <DeckPeekPanel pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'DISCARD_PICK':
@@ -483,13 +484,13 @@ function ResolutionContent({ state, pr, dispatch, onMegaView }: { state: GameSta
     case 'HAND_SWAP':
       return <HandSwapPanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'OPPONENT_DISCARD':
-      return <OpponentDiscardPanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
+      return <OpponentDiscardPanel state={state} pr={pr} viewerPlayer={viewerPlayer} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'DRAFT':
-      return <DraftPanel pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
+      return <DraftPanel pr={pr} viewerPlayer={viewerPlayer} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'SUPPLIES_DISCARD':
       return <SuppliesDiscardPanel state={state} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'UTILITY_KEEP':
-      return <UtilityKeepPanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
+      return <UtilityKeepPanel state={state} pr={pr} viewerPlayer={viewerPlayer} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'CROCODILE_USE':
       return <CrocodilePanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'UTILITY_EFFECT':
@@ -537,10 +538,10 @@ function WareTradePanel({ pr, dispatch }: { state: GameState; pr: Extract<Pendin
   return <WareTypePicker prompt="Select ware type to receive" onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} exclude={pr.giveType} />;
 }
 
-function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, { type: 'AUCTION' }>; state: GameState; dispatch: InteractionPanelProps['dispatch'] }) {
+function AuctionPanel({ pr, state, viewerPlayer, dispatch }: { pr: Extract<PendingResolution, { type: 'AUCTION' }>; state: GameState; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch'] }) {
   // Ware selection phase: active player picks 2 ware types from supply
   if (pr.wares.length < 2) {
-    const isMyPick = state.currentPlayer === 0;
+    const isMyPick = state.currentPlayer === viewerPlayer;
     if (!isMyPick) return <div className="ui-helper-text">Step 1/2: waiting for opponent to select auction wares...</div>;
     const prompt = pr.wares.length === 0
       ? 'Pick first ware from supply for auction'
@@ -559,7 +560,7 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
   }
 
   // Bidding phase
-  const isMyBid = pr.nextBidder === 0;
+  const isMyBid = pr.nextBidder === viewerPlayer;
   if (!isMyBid) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -802,7 +803,7 @@ function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
   );
 }
 
-function OpponentDiscardPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'OPPONENT_DISCARD' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'OPPONENT_DISCARD' }>; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const [selected, setSelected] = useState<number[]>([]);
   const target = state.players[pr.targetPlayer];
   const discardCount = target.hand.length - pr.discardTo;
@@ -821,7 +822,7 @@ function OpponentDiscardPanel({ state, pr, dispatch, onMegaView }: { state: Game
     );
   }
 
-  if (pr.targetPlayer !== 0) {
+  if (pr.targetPlayer !== viewerPlayer) {
     return <div className="ui-helper-text">Opponent is choosing cards to discard...</div>;
   }
 
@@ -850,8 +851,8 @@ function OpponentDiscardPanel({ state, pr, dispatch, onMegaView }: { state: Game
   );
 }
 
-function DraftPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'DRAFT' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
-  const isMyPick = pr.currentPicker === 0;
+function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'DRAFT' }>; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+  const isMyPick = pr.currentPicker === viewerPlayer;
 
   if (!isMyPick) {
     return <div className="ui-helper-text">Waiting for opponent to pick...</div>;
@@ -914,11 +915,11 @@ function SuppliesDiscardPanel({ state, dispatch, onMegaView }: { state: GameStat
   );
 }
 
-function UtilityKeepPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'UTILITY_KEEP' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+function UtilityKeepPanel({ state, pr, viewerPlayer, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'UTILITY_KEEP' }>; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const cp = state.currentPlayer;
   const responder = pr.step === 'ACTIVE_CHOOSE' ? cp : (cp === 0 ? 1 : 0);
 
-  if (responder !== 0) {
+  if (responder !== viewerPlayer) {
     return <div className="ui-helper-text">Waiting: opponent chooses utility to keep.</div>;
   }
 

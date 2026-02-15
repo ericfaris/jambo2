@@ -146,6 +146,11 @@ function getWaitingPlayer(state: GameState): 0 | 1 | null {
       // Opponent of current player makes the choice
       return state.currentPlayer === 0 ? 1 : 0;
     case 'AUCTION':
+      // Traveling Merchant first requires the current player to pick 2 wares,
+      // then bidding alternates by nextBidder.
+      if (pr.wares.length < 2) {
+        return state.currentPlayer;
+      }
       return pr.nextBidder;
     case 'DRAFT':
       return pr.currentPicker;

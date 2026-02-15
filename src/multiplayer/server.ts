@@ -274,6 +274,9 @@ function isWaitingForPlayer(state: GameState, slot: PlayerSlot): boolean {
       case 'OPPONENT_CHOICE':
         return state.currentPlayer !== slot;
       case 'AUCTION':
+        if (pr.wares.length < 2) {
+          return state.currentPlayer === slot;
+        }
         return pr.nextBidder === slot;
       case 'DRAFT':
         return pr.currentPicker === slot;

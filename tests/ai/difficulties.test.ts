@@ -4,7 +4,7 @@ import { getEasyAiAction } from '../../src/ai/difficulties/EasyAI.ts';
 import { getMediumAiAction } from '../../src/ai/difficulties/MediumAI.ts';
 import { getHardAiAction } from '../../src/ai/difficulties/HardAI.ts';
 import { getAiActionByDifficulty } from '../../src/ai/difficulties/index.ts';
-import { createTestState, toPlayPhase, withGold, withHand, withMarket } from '../helpers/testHelpers.ts';
+import { createTestState, toPlayPhase, withGold, withHand, withMarket, withUtility } from '../helpers/testHelpers.ts';
 
 describe('AI difficulties baseline', () => {
   it('returns valid PLAY actions for all difficulty levels', () => {
@@ -96,5 +96,29 @@ describe('AI difficulties baseline', () => {
 
     const action = getMediumAiAction(state, () => 0.1);
     expect(action).toEqual({ type: 'KEEP_CARD' });
+  });
+
+  it('does not choose utility play when utility area is full', () => {
+    let state = toPlayPhase(createTestState(2026));
+    state = withUtility(state, 0, 'well_1', 'well');
+    state = withUtility(state, 0, 'drums_1', 'drums');
+    state = withUtility(state, 0, 'throne_1', 'throne');
+    state = withHand(state, 0, ['drums_3']);
+
+    const easy = getEasyAiAction(state, () => 0.1);
+    const medium = getMediumAiAction(state, () => 0.1);
+    const hard = getHardAiAction(state, () => 0.1);
+
+    expect(easy).not.toEqual({ type: 'PLAY_CARD', cardId: 'drums_3' });
+    expect(medium).not.toEqual({ type: 'PLAY_CARD', cardId: 'drums_3' });
+    expect(hard).not.toEqual({ type: 'PLAY_CARD', cardId: 'drums_3' });
+
+    expect(easy).not.toBeNull();
+    expect(medium).not.toBeNull();
+    expect(hard).not.toBeNull();
+
+    expect(validateAction(state, easy!).valid).toBe(true);
+    expect(validateAction(state, medium!).valid).toBe(true);
+    expect(validateAction(state, hard!).valid).toBe(true);
   });
 });

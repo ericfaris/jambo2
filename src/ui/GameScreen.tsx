@@ -952,7 +952,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
       {/* Resolve mega view */}
       {hasPendingInteraction && !isAiTurn && (
         <ResolveMegaView verticalAlign="center">
-          <InteractionPanel state={state} dispatch={dispatch} onMegaView={setMegaCardId} />
+          <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={0} onMegaView={setMegaCardId} />
         </ResolveMegaView>
       )}
 
