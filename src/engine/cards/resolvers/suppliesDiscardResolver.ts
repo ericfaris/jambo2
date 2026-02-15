@@ -29,9 +29,13 @@ function withPlayer(
  */
 export function drawUntilWare(state: GameState, player: 0 | 1): GameState {
   let next = state;
-  while (next.deck.length > 0 || next.discardPile.length > 0) {
+  const maxAttempts = next.deck.length + next.discardPile.length;
+  let attempts = 0;
+
+  while ((next.deck.length > 0 || next.discardPile.length > 0) && attempts < maxAttempts) {
     const result = drawFromDeck(next);
     if (!result.card) break;
+    attempts++;
     next = result.state;
     const card = getCard(result.card);
     if (card.type === 'ware') {

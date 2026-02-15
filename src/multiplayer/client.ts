@@ -15,6 +15,7 @@ import type {
   AudioEvent,
 } from './types.ts';
 import type { GameAction } from '../engine/types.ts';
+import type { AIDifficulty } from '../ai/difficulties/index.ts';
 
 export interface WebSocketGameState {
   connected: boolean;
@@ -29,7 +30,7 @@ export interface WebSocketGameState {
   gameOver: boolean;
   playerJoined: PlayerSlot | null;
   playerDisconnected: PlayerSlot | null;
-  createRoom: (mode: RoomMode) => void;
+  createRoom: (mode: RoomMode, aiDifficulty?: AIDifficulty) => void;
   joinRoom: (code: string, role: ConnectionRole) => void;
   sendAction: (action: GameAction) => void;
   clearError: () => void;
@@ -144,8 +145,8 @@ export function useWebSocketGame(): WebSocketGameState {
     };
   }, [connect]);
 
-  const createRoom = useCallback((mode: RoomMode) => {
-    sendRaw({ type: 'CREATE_ROOM', mode });
+  const createRoom = useCallback((mode: RoomMode, aiDifficulty?: AIDifficulty) => {
+    sendRaw({ type: 'CREATE_ROOM', mode, aiDifficulty });
   }, [sendRaw]);
 
   const joinRoom = useCallback((code: string, role: ConnectionRole) => {

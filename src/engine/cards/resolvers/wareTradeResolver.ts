@@ -44,12 +44,28 @@ export function resolveWareTrade(
   }
 
   if (pending.step === 'SELECT_RECEIVE') {
+    const giveType = pending.giveType!;
+    const count = pending.giveCount!;
+
+    // Guard: no valid receive type available for required count — auto-resolve
+    const hasAnyValidReceive = WARE_TYPES.some(w => w !== giveType && hasSupply(state, w, count));
+    if (!hasAnyValidReceive) {
+      return {
+        ...state,
+        pendingResolution: null,
+        log: [...state.log, {
+          turn: state.turn,
+          player: state.currentPlayer,
+          action: 'SHAMAN_TRADE',
+          details: `No valid receive type for ${count} ${giveType}; trade cancelled`,
+        }],
+      };
+    }
+
     if (response.type !== 'SELECT_WARE_TYPE') {
       throw new Error('Expected SELECT_WARE_TYPE response for trade receive step');
     }
     const receiveType = response.wareType;
-    const giveType = pending.giveType!;
-    const count = pending.giveCount!;
 
     // Validate: can't trade for same type
     if (receiveType === giveType) {

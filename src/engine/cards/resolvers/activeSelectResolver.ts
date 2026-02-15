@@ -39,6 +39,15 @@ function resolveThrone(
   const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
 
   if (pending.step === 'STEAL') {
+    // Guard: active player's market is full — cannot receive stolen ware
+    if (!state.players[activePlayer].market.some(w => w === null)) {
+      return {
+        ...state,
+        pendingResolution: null,
+        log: [...state.log, { turn: state.turn, player: activePlayer, action: 'THRONE_SWAP', details: 'Your market is full; cannot steal a ware' }],
+      };
+    }
+
     // Guard: opponent has no wares — auto-resolve
     if (!state.players[opponent].market.some(w => w !== null)) {
       return {
@@ -137,6 +146,15 @@ function resolveParrot(
 ): GameState {
   const activePlayer = state.currentPlayer;
   const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
+
+  // Guard: active player's market is full — cannot receive stolen ware
+  if (!state.players[activePlayer].market.some(w => w === null)) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, { turn: state.turn, player: activePlayer, action: 'PARROT_STEAL', details: 'Your market is full; cannot steal a ware' }],
+    };
+  }
 
   // Guard: opponent has no wares — auto-resolve
   if (!state.players[opponent].market.some(w => w !== null)) {

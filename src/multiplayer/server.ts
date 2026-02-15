@@ -7,7 +7,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { createInitialState } from '../engine/GameState.ts';
 import { processAction } from '../engine/GameEngine.ts';
-import { getRandomAiAction } from '../ai/RandomAI.ts';
+import { getAiActionByDifficulty } from '../ai/difficulties/index.ts';
 import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { extractPublicState, extractPrivateState } from './stateSplitter.ts';
@@ -21,6 +21,7 @@ import type {
   PlayerSlot,
   AudioEvent,
 } from './types.ts';
+import type { AIDifficulty } from '../ai/difficulties/index.ts';
 
 // --- Room ---
 
@@ -33,6 +34,7 @@ interface Connection {
 interface Room {
   code: string;
   mode: RoomMode;
+  aiDifficulty: AIDifficulty;
   state: GameState | null;
   connections: Connection[];
   lastActivity: number;
@@ -157,7 +159,7 @@ function scheduleAiTurn(room: Room): void {
     // Re-check — state may have changed
     if (!isWaitingForPlayer(room.state, aiSlot)) return;
 
-    const action = getRandomAiAction(room.state);
+    const action = getAiActionByDifficulty(room.state, room.aiDifficulty);
     if (!action) return;
 
     try {
@@ -251,11 +253,12 @@ function tryStartGame(room: Room): void {
 
 // --- Message Handlers ---
 
-function handleCreateRoom(ws: WebSocket, mode: RoomMode): void {
+function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficulty = 'medium'): void {
   const code = generateRoomCode();
   const room: Room = {
     code,
     mode,
+    aiDifficulty,
     state: null,
     connections: [{ ws, role: 'tv', playerSlot: null }],
     lastActivity: Date.now(),
@@ -263,7 +266,7 @@ function handleCreateRoom(ws: WebSocket, mode: RoomMode): void {
   rooms.set(code, room);
   send(ws, { type: 'ROOM_CREATED', code });
   send(ws, { type: 'JOINED', playerSlot: null, mode });
-  console.log(`[Room ${code}] Created (${mode} mode), TV auto-joined`);
+  console.log(`[Room ${code}] Created (${mode} mode, ai=${aiDifficulty}), TV auto-joined`);
 }
 
 function handleJoinRoom(ws: WebSocket, code: string, role: ConnectionRole): void {
@@ -427,7 +430,7 @@ wss.on('connection', (ws: WebSocket) => {
       const msg = JSON.parse(data.toString()) as ClientMessage;
       switch (msg.type) {
         case 'CREATE_ROOM':
-          handleCreateRoom(ws, msg.mode);
+          handleCreateRoom(ws, msg.mode, msg.aiDifficulty ?? 'medium');
           break;
         case 'JOIN_ROOM':
           handleJoinRoom(ws, msg.code, msg.role);

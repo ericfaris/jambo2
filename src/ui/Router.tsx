@@ -10,6 +10,7 @@ import { TVScreen } from './TVScreen.tsx';
 import { PlayerScreen } from './PlayerScreen.tsx';
 import { MainMenu } from './screens/MainMenu.tsx';
 import { useWebSocketGame } from '../multiplayer/client.ts';
+import type { AIDifficulty } from '../ai/difficulties/index.ts';
 
 type Route = 'local' | 'tv' | 'play';
 type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings';
@@ -24,6 +25,7 @@ function getRoute(): Route {
 export function Router() {
   const [route, setRoute] = useState<Route>(getRoute);
   const [screen, setScreen] = useState<Screen>('menu');
+  const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>('medium');
 
   useEffect(() => {
     const onHashChange = () => setRoute(getRoute());
@@ -37,10 +39,10 @@ export function Router() {
 
   if (route === 'local') {
     if (screen === 'menu') {
-      return <MainMenu onSelectOption={handleMenuSelect} />;
+      return <MainMenu onSelectOption={handleMenuSelect} aiDifficulty={aiDifficulty} onChangeAiDifficulty={setAiDifficulty} />;
     }
     if (screen === 'solo') {
-      return <GameScreen onBackToMenu={() => setScreen('menu')} />;
+      return <GameScreen onBackToMenu={() => setScreen('menu')} aiDifficulty={aiDifficulty} />;
     }
     // Placeholder for other screens
     return (
@@ -58,15 +60,15 @@ export function Router() {
     );
   }
 
-  return <CastRouter route={route} />;
+  return <CastRouter route={route} aiDifficulty={aiDifficulty} />;
 }
 
-function CastRouter({ route }: { route: 'tv' | 'play' }) {
+function CastRouter({ route, aiDifficulty }: { route: 'tv' | 'play'; aiDifficulty: AIDifficulty }) {
   const ws = useWebSocketGame();
 
   // Show lobby until game state arrives
   if (!ws.publicState) {
-    return <CastLobby ws={ws} role={route === 'tv' ? 'tv' : 'player'} />;
+    return <CastLobby ws={ws} role={route === 'tv' ? 'tv' : 'player'} aiDifficulty={aiDifficulty} />;
   }
 
   if (route === 'tv') {

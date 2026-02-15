@@ -6,21 +6,24 @@
 import { useState } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { ConnectionRole, RoomMode } from '../multiplayer/types.ts';
+import type { AIDifficulty } from '../ai/difficulties/index.ts';
 
 interface CastLobbyProps {
   ws: WebSocketGameState;
   role: ConnectionRole;
+  aiDifficulty: AIDifficulty;
 }
 
-export function CastLobby({ ws, role }: CastLobbyProps) {
+export function CastLobby({ ws, role, aiDifficulty }: CastLobbyProps) {
   if (role === 'tv') {
-    return <TVLobby ws={ws} />;
+    return <TVLobby ws={ws} aiDifficulty={aiDifficulty} />;
   }
   return <PlayerLobby ws={ws} />;
 }
 
-function TVLobby({ ws }: { ws: WebSocketGameState }) {
+function TVLobby({ ws, aiDifficulty }: { ws: WebSocketGameState; aiDifficulty: AIDifficulty }) {
   const [mode, setMode] = useState<RoomMode | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<AIDifficulty>(aiDifficulty);
 
   if (!ws.connected) {
     return (
@@ -40,11 +43,29 @@ function TVLobby({ ws }: { ws: WebSocketGameState }) {
         <div style={{ fontSize: 16, color: 'var(--text-muted)', marginBottom: 32 }}>
           Choose game mode:
         </div>
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
+          <span>AI Difficulty:</span>
+          <select
+            value={selectedDifficulty}
+            onChange={(event) => setSelectedDifficulty(event.target.value as AIDifficulty)}
+            style={{
+              background: 'var(--surface-light)',
+              color: 'var(--text)',
+              border: '1px solid var(--border-light)',
+              borderRadius: 8,
+              padding: '6px 8px',
+            }}
+          >
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
         <div style={{ display: 'flex', gap: 16 }}>
-          <LobbyButton onClick={() => { setMode('ai'); ws.createRoom('ai'); }}>
+          <LobbyButton onClick={() => { setMode('ai'); ws.createRoom('ai', selectedDifficulty); }}>
             Human vs AI
           </LobbyButton>
-          <LobbyButton onClick={() => { setMode('pvp'); ws.createRoom('pvp'); }}>
+          <LobbyButton onClick={() => { setMode('pvp'); ws.createRoom('pvp', selectedDifficulty); }}>
             Human vs Human
           </LobbyButton>
         </div>

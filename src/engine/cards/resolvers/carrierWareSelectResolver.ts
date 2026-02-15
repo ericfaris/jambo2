@@ -16,12 +16,28 @@ export function resolveCarrierWareSelect(
   pending: PendingCarrierWareSelect,
   response: InteractionResponse
 ): GameState {
+  const target = pending.targetPlayer;
+
+  // Guard: no market space for target — auto-resolve
+  const emptySlots = getEmptySlots(state, target).length;
+  if (emptySlots === 0) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, {
+        turn: state.turn,
+        player: state.currentPlayer,
+        action: 'CARRIER_WARES',
+        details: `Player ${target} has no empty market slots`,
+      }],
+    };
+  }
+
   if (response.type !== 'SELECT_WARE_TYPE') {
     throw new Error('Expected SELECT_WARE_TYPE response for Carrier ware selection');
   }
 
   const { wareType } = response;
-  const target = pending.targetPlayer;
 
   // Validate supply has at least 2
   const available = state.wareSupply[wareType];
@@ -31,7 +47,6 @@ export function resolveCarrierWareSelect(
   }
 
   // Validate market space
-  const emptySlots = getEmptySlots(state, target).length;
   const toAdd = Math.min(count, emptySlots);
   if (toAdd === 0) {
     throw new Error('No empty market slots');

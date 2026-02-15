@@ -13,6 +13,7 @@ import type {
   UtilityState,
   DeckCardId,
 } from '../engine/types.ts';
+import type { AIDifficulty } from '../ai/difficulties/index.ts';
 
 // --- Room & Connection ---
 
@@ -23,7 +24,7 @@ export type PlayerSlot = 0 | 1;
 // --- Client → Server Messages ---
 
 export type ClientMessage =
-  | { type: 'CREATE_ROOM'; mode: RoomMode }
+  | { type: 'CREATE_ROOM'; mode: RoomMode; aiDifficulty?: AIDifficulty }
   | { type: 'JOIN_ROOM'; code: string; role: ConnectionRole }
   | { type: 'GAME_ACTION'; action: GameAction };
 

@@ -71,12 +71,21 @@ export function resolveHandSwap(
   }
 
   if (pending.step === 'GIVE') {
+    const activeHand = state.players[cp].hand;
+    const giveOptions = activeHand.filter(id => id !== pending.takenCard);
+
+    // Guard: no valid card to give — auto-resolve
+    if (giveOptions.length === 0) {
+      let next: GameState = { ...state, pendingResolution: null };
+      next = withLog(next, 'HYENA_SWAP', `Took ${pending.takenCard}; no eligible card to give`);
+      return next;
+    }
+
     // Active player selects 1 card from own hand to give to opponent
     if (response.type !== 'SELECT_CARD') {
       throw new Error('Expected SELECT_CARD response for Hyena give step');
     }
     const { cardId } = response;
-    const activeHand = state.players[cp].hand;
     if (!activeHand.includes(cardId)) {
       throw new Error(`Card ${cardId} not in hand`);
     }

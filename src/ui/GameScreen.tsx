@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { useGameStore } from '../hooks/useGameStore.ts';
-import { getRandomAiAction } from '../ai/RandomAI.ts';
+import { getAiActionByDifficulty } from '../ai/difficulties/index.ts';
+import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { validatePlayCard, validateActivateUtility } from '../engine/validation/actionValidator.ts';
@@ -59,7 +60,7 @@ function isDevMode(): boolean {
   return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 }
 
-export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
+export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty }) {
   const { state, dispatch, error, newGame, exportReplay, importReplay } = useGameStore();
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
   const [showLog, setShowLog] = useState(() => getInitialShowLog());
@@ -260,7 +261,7 @@ export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
 
     const timer = setTimeout(() => {
       aiAttemptRef.current++;
-      const action = getRandomAiAction(state);
+      const action = getAiActionByDifficulty(state, aiDifficulty);
       if (action) {
         // Set AI message before dispatching action
         const message = getAiActionDescription(action, state);
@@ -270,7 +271,7 @@ export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [isAiTurn, state, dispatch, error]);
+  }, [isAiTurn, state, dispatch, error, aiDifficulty]);
 
   // Auto-open draw modal when entering draw phase
   useEffect(() => {

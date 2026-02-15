@@ -163,6 +163,14 @@ function resolveBoat(
   }
 
   if (pending.step === 'SELECT_WARE_TYPE') {
+    // Guard: no market space or no available supply — auto-resolve
+    const hasAnySupply = Object.values(state.wareSupply).some(v => v > 0);
+    if (getEmptySlots(state, cp).length < 1 || !hasAnySupply) {
+      let next: GameState = { ...state, pendingResolution: null };
+      next = withLog(next, 'BOAT_EFFECT', 'Cannot receive ware (no market space or supply)');
+      return next;
+    }
+
     if (response.type !== 'SELECT_WARE_TYPE') {
       throw new Error('Expected SELECT_WARE_TYPE response for Boat');
     }

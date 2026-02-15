@@ -211,8 +211,13 @@ export function validatePlayCard(
       return fail('Cannot play Crocodile: opponent has no utilities');
     }
     // Parrot: opponent must have at least 1 ware
-    if (isDesign(cardId, 'parrot') && !opPlayer.market.some(w => w !== null)) {
-      return fail('Cannot play Parrot: opponent has no wares');
+    if (isDesign(cardId, 'parrot')) {
+      if (!opPlayer.market.some(w => w !== null)) {
+        return fail('Cannot play Parrot: opponent has no wares');
+      }
+      if (!player.market.some(w => w === null)) {
+        return fail('Cannot play Parrot: your market has no empty slots');
+      }
     }
     // Elephant: both markets must have at least 1 ware total
     if (isDesign(cardId, 'elephant')) {
@@ -237,6 +242,9 @@ export function validatePlayCard(
     // Hyena: opponent must have at least 1 card in hand
     if (isDesign(cardId, 'hyena') && opPlayer.hand.length === 0) {
       return fail('Cannot play Hyena: opponent has no cards in hand');
+    }
+    if (isDesign(cardId, 'hyena') && player.hand.length <= 1) {
+      return fail('Cannot play Hyena: need another card in hand to give');
     }
   }
 

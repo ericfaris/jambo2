@@ -9,6 +9,20 @@ export function resolveDeckPeek(
   pending: PendingDeckPeek,
   response: InteractionResponse
 ): GameState {
+  // Guard: no revealed cards to pick from — auto-resolve
+  if (pending.revealedCards.length === 0) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, {
+        turn: state.turn,
+        player: state.currentPlayer,
+        action: 'PSYCHIC_PEEK',
+        details: 'No cards available to peek',
+      }],
+    };
+  }
+
   if (response.type !== 'DECK_PEEK_PICK') {
     throw new Error('Expected DECK_PEEK_PICK response');
   }

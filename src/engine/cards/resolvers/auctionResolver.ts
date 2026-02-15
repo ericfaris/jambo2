@@ -109,6 +109,25 @@ export function resolveAuction(
 
     // One player passed — other wins the auction
     const winner = pending.currentBidder;
+
+    const winnerEmptySlots = state.players[winner].market.filter(slot => slot === null).length;
+    if (winnerEmptySlots < pending.wares.length) {
+      let newState = state;
+      for (const ware of pending.wares) {
+        newState = returnToSupply(newState, ware, 1);
+      }
+      return {
+        ...newState,
+        pendingResolution: null,
+        log: [...newState.log, {
+          turn: state.turn,
+          player: state.currentPlayer,
+          action: 'AUCTION_NO_WINNER',
+          details: `Winner market space insufficient (${winnerEmptySlots}/${pending.wares.length}); wares returned to supply`,
+        }],
+      };
+    }
+
     const winnerGold = state.players[winner].gold - pending.currentBid;
 
     const newPlayers = [...state.players] as [typeof state.players[0], typeof state.players[1]];

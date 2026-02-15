@@ -83,7 +83,19 @@ export function resolveCrocodileUse(
     }
 
     // For other utilities, initialize their effect resolution
-    const innerPending = initializeResolution(next, selectedUtility.cardId);
+    let innerPending: ReturnType<typeof initializeResolution> = null;
+    try {
+      innerPending = initializeResolution(next, selectedUtility.cardId);
+    } catch (error) {
+      next = { ...next, pendingResolution: null };
+      next = withLog(
+        next,
+        'CROCODILE_USE',
+        `Used opponent's ${selectedUtility.designId} (skipped: ${(error as Error).message})`,
+      );
+      return next;
+    }
+
     if (innerPending) {
       next = { ...next, pendingResolution: innerPending };
       next = withLog(next, 'CROCODILE_USE', `Using opponent's ${selectedUtility.designId}`);
