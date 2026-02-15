@@ -85,25 +85,36 @@ describe('Draw Phase', () => {
 describe('Play Phase — Card Play', () => {
   it('playing a card decrements actionsLeft', () => {
     let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['small_market_stand_1']);
+    s = withGold(s, 0, 20);
     // toPlayPhase spends 1 action drawing, so 4 remain
     expect(s.actionsLeft).toBe(4);
-    const s2 = act(s, { type: 'DRAW_ACTION' });
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'small_market_stand_1' });
     expect(s2.actionsLeft).toBe(3);
   });
 
-  it('DRAW_ACTION costs 1 action and adds card to hand', () => {
+  it('PLAY_CARD costs 1 action and removes card from hand', () => {
     const s = toPlayPhase(createTestState());
-    const handBefore = hand(s, 0).length;
-    const s2 = act(s, { type: 'DRAW_ACTION' });
+    const s1 = withHand(s, 0, ['small_market_stand_1']);
+    const sReady = withGold(s1, 0, 20);
+    const handBefore = hand(sReady, 0).length;
+    const s2 = act(sReady, { type: 'PLAY_CARD', cardId: 'small_market_stand_1' });
     expect(s2.actionsLeft).toBe(s.actionsLeft - 1);
-    expect(hand(s2, 0).length).toBe(handBefore + 1);
+    expect(hand(s2, 0).length).toBe(handBefore - 1);
   });
 
   it('auto-ends turn when actions exhausted', () => {
     let s = toPlayPhase(createTestState());
-    // toPlayPhase spent 1, spend remaining 4 via DRAW_ACTION
+    s = withHand(s, 0, [
+      'small_market_stand_1',
+      'small_market_stand_2',
+      'small_market_stand_3',
+      'small_market_stand_4',
+    ]);
+    s = withGold(s, 0, 30);
+    // toPlayPhase spent 1, spend remaining 4 via PLAY_CARD
     for (let i = 0; i < 4; i++) {
-      s = act(s, { type: 'DRAW_ACTION' });
+      s = act(s, { type: 'PLAY_CARD', cardId: `small_market_stand_${i + 1}` });
     }
     expect(s.phase).toBe('DRAW'); // Turn auto-ended, back to DRAW for next player
     expect(s.actionsLeft).toBe(5); // Reset for next player
@@ -185,13 +196,19 @@ describe('End Turn', () => {
   it('no bonus with fewer than 2 actions', () => {
     let s = toPlayPhase(createTestState());
     s = withGold(s, 0, 20);
+    s = withHand(s, 0, [
+      'small_market_stand_1',
+      'small_market_stand_2',
+      'small_market_stand_3',
+    ]);
     // 4 actions left after draw+keep, spend 3 to get down to 1
-    for (let i = 0; i < 3; i++) {
-      s = act(s, { type: 'DRAW_ACTION' });
-    }
+    s = act(s, { type: 'PLAY_CARD', cardId: 'small_market_stand_1' });
+    s = act(s, { type: 'PLAY_CARD', cardId: 'small_market_stand_2' });
+    s = act(s, { type: 'PLAY_CARD', cardId: 'small_market_stand_3' });
     expect(s.actionsLeft).toBe(1);
+    const goldBeforeEndTurn = gold(s, 0);
     const s2 = act(s, { type: 'END_TURN' });
-    expect(gold(s2, 0)).toBe(20); // no bonus
+    expect(gold(s2, 0)).toBe(goldBeforeEndTurn); // no bonus
   });
 
   it('turn modifiers reset', () => {
