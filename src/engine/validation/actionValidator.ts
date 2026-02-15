@@ -303,6 +303,7 @@ export function validateActivateUtility(state: GameState, utilityIndex: number):
     case 'leopard_statue':
       if (player.gold < 2) return fail('Cannot activate Leopard Statue: need at least 2g');
       if (player.market.filter(s => s === null).length < 1) return fail('Cannot activate Leopard Statue: no empty market slots');
+      if (!Object.values(state.wareSupply).some(v => v > 0)) return fail('Cannot activate Leopard Statue: no wares available in supply');
       break;
     case 'throne':
       if (!state.players[opponent].market.some(w => w !== null)) return fail('Cannot activate Throne: opponent has no wares');

@@ -331,6 +331,16 @@ describe('Leopard Statue: requires 2g and empty market slot', () => {
     s = withUtility(s, 0, 'leopard_statue_1', 'leopard_statue');
     expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/no empty market slots/);
   });
+
+  it('blocks when ware supply is empty', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, []);
+    s = withGold(s, 0, 20);
+    s = withMarket(s, 0, ['trinkets', null, null, null, null, null]);
+    s = { ...s, wareSupply: { trinkets: 0, hides: 0, tea: 0, silk: 0, fruit: 0, salt: 0 } };
+    s = withUtility(s, 0, 'leopard_statue_1', 'leopard_statue');
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/no wares available in supply/);
+  });
 });
 
 describe('Mask of Transformation: requires hand cards and discard pile', () => {

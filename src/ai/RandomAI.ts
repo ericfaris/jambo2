@@ -338,7 +338,7 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
       }
       if (pr.step === 'SELECT_WARE_TYPE') {
         const available = availableWareTypes(state);
-        if (available.length === 0) return null;
+        if (available.length === 0) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' };
         return { type: 'SELECT_WARE_TYPE', wareType: pick(available, rng) };
       }
       return null;

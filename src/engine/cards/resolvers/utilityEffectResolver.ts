@@ -345,10 +345,11 @@ function resolveLeopardStatue(
 ): GameState {
   const cp = state.currentPlayer;
 
-  // Guard: insufficient gold or no market space — auto-resolve
-  if (state.players[cp].gold < 2 || getEmptySlots(state, cp).length < 1) {
+  // Guard: insufficient gold, no market space, or no available supply — auto-resolve
+  const hasAnySupply = Object.values(state.wareSupply).some(v => v > 0);
+  if (state.players[cp].gold < 2 || getEmptySlots(state, cp).length < 1 || !hasAnySupply) {
     let next: GameState = { ...state, pendingResolution: null };
-    next = withLog(next, 'LEOPARD_STATUE_EFFECT', 'Cannot afford Leopard Statue effect');
+    next = withLog(next, 'LEOPARD_STATUE_EFFECT', 'Cannot receive ware from Leopard Statue');
     return next;
   }
 

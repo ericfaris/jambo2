@@ -952,6 +952,16 @@ function UtilityKeepPanel({ state, pr, dispatch, onMegaView }: { state: GameStat
 function CrocodilePanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'CROCODILE_USE' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   if (pr.step === 'SELECT_UTILITY') {
     const opUtils = state.players[pr.opponentPlayer].utilities;
+    if (opUtils.length === 0) {
+      return (
+        <div>
+          <div className="ui-prompt-text">Opponent has no utilities to use.</div>
+          <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: 0 })} style={{ margin: '8px auto 0', display: 'block' }}>
+            Continue
+          </button>
+        </div>
+      );
+    }
     return (
       <div>
         <div className="ui-prompt-text">
