@@ -347,6 +347,7 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
     case 'DRAW_MODIFIER': {
       // Mask of Transformation: need hand card to trade for top of discard
       // No resolver guard for this — validation should prevent it, but send dummy for safety
+      if (state.discardPile.length === 0) return { type: 'SELECT_CARD', cardId: '' };
       if (player.hand.length === 0) return { type: 'SELECT_CARD', cardId: '' };
       return { type: 'SELECT_CARD', cardId: pick(player.hand, rng) };
     }
@@ -580,6 +581,9 @@ function getFallbackInteractionResponses(state: GameState): InteractionResponse[
 
     case 'DRAW_MODIFIER': {
       const hand = state.players[cp].hand;
+      if (state.discardPile.length === 0) {
+        return [{ type: 'SELECT_CARD', cardId: '' }];
+      }
       return hand.length > 0
         ? hand.map(cardId => ({ type: 'SELECT_CARD', cardId }))
         : [{ type: 'SELECT_CARD', cardId: '' }];

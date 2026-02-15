@@ -143,6 +143,23 @@ function broadcastState(room: Room, audioEvent: AudioEvent | null, aiMessage: st
   }
 }
 
+function sendStateToConnection(room: Room, conn: Connection, audioEvent: AudioEvent | null = null, aiMessage: string | null = null): void {
+  if (!room.state) return;
+
+  const publicState = extractPublicState(room.state);
+  const privateState = conn.playerSlot !== null
+    ? extractPrivateState(room.state, conn.playerSlot)
+    : null;
+
+  send(conn.ws, {
+    type: 'GAME_STATE',
+    public: publicState,
+    private: privateState,
+    audioEvent,
+    aiMessage,
+  });
+}
+
 // --- AI Loop ---
 
 function scheduleAiTurn(room: Room): void {
@@ -353,6 +370,7 @@ function handleGameAction(ws: WebSocket, action: GameAction): void {
   // Verify it's this player's turn to act
   if (!isWaitingForPlayer(room.state, conn.playerSlot)) {
     send(ws, { type: 'ERROR', message: 'Not your turn' });
+    sendStateToConnection(room, conn);
     return;
   }
 
@@ -375,6 +393,7 @@ function handleGameAction(ws: WebSocket, action: GameAction): void {
     }
   } catch (e) {
     send(ws, { type: 'ERROR', message: (e as Error).message });
+    sendStateToConnection(room, conn);
   }
 }
 

@@ -61,7 +61,16 @@ export function resolveDrawModifier(
   const hand = state.players[cp].hand;
 
   if (!hand.includes(cardId)) {
-    throw new Error(`Card ${cardId} not in hand`);
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, {
+        turn: state.turn,
+        player: cp,
+        action: 'DRAW_MODIFIER',
+        details: `Mask of Transformation: selected card ${cardId} is no longer in hand`,
+      }],
+    };
   }
 
   // Take top card from discard pile

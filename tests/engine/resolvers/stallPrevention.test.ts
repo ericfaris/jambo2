@@ -361,6 +361,35 @@ describe('Mask of Transformation: requires hand cards and discard pile', () => {
     s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
     expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/discard pile is empty/);
   });
+
+  it('auto-resolves if hand becomes empty before response', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['ware_3k_1']);
+    s = withGold(s, 0, 20);
+    s = withDiscard(s, ['ware_3h_1']);
+    s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
+
+    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    expect(s2.pendingResolution?.type).toBe('DRAW_MODIFIER');
+
+    const s3 = withHand(s2, 0, []);
+    const s4 = resolve(s3, { type: 'SELECT_CARD', cardId: 'ware_3k_1' });
+    expect(s4.pendingResolution).toBeNull();
+  });
+
+  it('auto-resolves stale card selection instead of throwing', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['ware_3k_1']);
+    s = withGold(s, 0, 20);
+    s = withDiscard(s, ['ware_3h_1']);
+    s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
+
+    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    expect(s2.pendingResolution?.type).toBe('DRAW_MODIFIER');
+
+    const s3 = resolve(s2, { type: 'SELECT_CARD', cardId: 'ware_3t_1' });
+    expect(s3.pendingResolution).toBeNull();
+  });
 });
 
 // ============================================================================
