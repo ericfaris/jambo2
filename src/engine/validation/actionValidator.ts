@@ -132,6 +132,12 @@ export function validatePlayCard(
 
   const cardDef = getCard(cardId);
 
+  // Reaction-only cards cannot be played as normal PLAY_CARD actions.
+  // They are only valid through their dedicated reaction flows.
+  if (isDesign(cardId, 'guard') || isDesign(cardId, 'rain_maker')) {
+    return fail(`Cannot play ${cardDef.name} during PLAY phase: it is a reaction card`);
+  }
+
   // Ware cards require wareMode
   if (cardDef.type === 'ware') {
     if (!wareMode) {

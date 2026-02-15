@@ -141,3 +141,21 @@ describe('Rain Maker Reaction', () => {
     expect(() => processAction(s, { type: 'WARE_CARD_REACTION', play: true })).toThrow();
   });
 });
+
+describe('Reaction-only card play restrictions', () => {
+  it('cannot play Guard as a normal PLAY_CARD action', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['guard_1']);
+    s = removeFromDeck(s, 'guard_1');
+
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'guard_1' })).toThrow();
+  });
+
+  it('cannot play Rain Maker as a normal PLAY_CARD action', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['rain_maker_1']);
+    s = removeFromDeck(s, 'rain_maker_1');
+
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'rain_maker_1' })).toThrow();
+  });
+});
