@@ -1,6 +1,6 @@
 # Architecture
 
-_Last reviewed: 2026-02-15_
+Last reviewed: 2026-02-15
 
 ## Layers
 

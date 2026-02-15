@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { createInitialState } from '../src/engine/GameState.ts';
 import { processAction } from '../src/engine/GameEngine.ts';
 import type { GameState } from '../src/engine/types.ts';

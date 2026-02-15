@@ -1,6 +1,6 @@
 # Serialization and Validation
 
-_Last reviewed: 2026-02-15_
+Last reviewed: 2026-02-15
 
 ## Goals
 
