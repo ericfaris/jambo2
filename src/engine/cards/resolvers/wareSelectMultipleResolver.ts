@@ -29,6 +29,27 @@ export function resolveWareSelectMultiple(
     };
   }
 
+  // Guard: no ware type has sufficient supply — auto-resolve with no effect
+  const hasAnyValidSupply =
+    hasSupply(state, 'trinkets', count) ||
+    hasSupply(state, 'hides', count) ||
+    hasSupply(state, 'tea', count) ||
+    hasSupply(state, 'silk', count) ||
+    hasSupply(state, 'fruit', count) ||
+    hasSupply(state, 'salt', count);
+  if (!hasAnyValidSupply) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, {
+        turn: state.turn,
+        player: activePlayer,
+        action: 'BASKET_MAKER',
+        details: 'No ware type has enough supply — no effect',
+      }],
+    };
+  }
+
   if (response.type !== 'SELECT_WARE_TYPE') {
     throw new Error('Expected SELECT_WARE_TYPE response for Basket Maker');
   }

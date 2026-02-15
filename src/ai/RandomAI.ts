@@ -206,12 +206,12 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
     }
 
     case 'DECK_PEEK': {
-      if (pr.revealedCards.length === 0) return null;
+      if (pr.revealedCards.length === 0) return { type: 'DECK_PEEK_PICK', cardIndex: 0 };
       return { type: 'DECK_PEEK_PICK', cardIndex: Math.floor(rng() * pr.revealedCards.length) };
     }
 
     case 'DISCARD_PICK': {
-      if (pr.eligibleCards.length === 0) return null;
+      if (pr.eligibleCards.length === 0) return { type: 'DISCARD_PICK', cardId: '' };
       return { type: 'DISCARD_PICK', cardId: pick(pr.eligibleCards, rng) };
     }
 
@@ -270,14 +270,14 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
 
     case 'DRAFT': {
       if (pr.draftMode === 'wares') {
-        if (pr.availableWares.length === 0) return null;
+        if (pr.availableWares.length === 0) return { type: 'SELECT_WARE', wareIndex: 0 };
         const wareIdx = Math.floor(rng() * pr.availableWares.length);
         return { type: 'SELECT_WARE', wareIndex: wareIdx };
       }
       if (pr.availableCards && pr.availableCards.length > 0) {
         return { type: 'SELECT_CARD', cardId: pick(pr.availableCards, rng) };
       }
-      return null;
+      return { type: 'SELECT_CARD', cardId: '' };
     }
 
     case 'SUPPLIES_DISCARD': {

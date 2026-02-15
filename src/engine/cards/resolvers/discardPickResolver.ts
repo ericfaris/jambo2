@@ -9,6 +9,20 @@ export function resolveDiscardPick(
   pending: PendingDiscardPick,
   response: InteractionResponse
 ): GameState {
+  // Guard: no eligible cards remain — auto-resolve
+  if (pending.eligibleCards.length === 0) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, {
+        turn: state.turn,
+        player: state.currentPlayer,
+        action: 'DRUMMER_PICK',
+        details: 'No eligible discard cards available',
+      }],
+    };
+  }
+
   if (response.type !== 'DISCARD_PICK') {
     throw new Error('Expected DISCARD_PICK response');
   }

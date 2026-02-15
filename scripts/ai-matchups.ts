@@ -13,9 +13,14 @@ interface MatchSummary {
   p0Wins: number;
   p1Wins: number;
   ties: number;
+  p0WinRate: number;
+  p1WinRate: number;
+  decisiveSkew: number;
+  skewFlag: 'none' | 'moderate' | 'high';
   avgTurns: number;
   avgGoldP0: number;
   avgGoldP1: number;
+  avgGoldDelta: number;
   stalls: number;
   stallReasons: Record<string, number>;
 }
@@ -202,10 +207,19 @@ function runMatchup(p0: AIDifficulty, p1: AIDifficulty, games: number, seedBase:
     p0Wins,
     p1Wins,
     ties,
+    p0WinRate: Number((p0Wins / games).toFixed(4)),
+    p1WinRate: Number((p1Wins / games).toFixed(4)),
+    decisiveSkew: Number((Math.abs(p0Wins - p1Wins) / games).toFixed(4)),
+    skewFlag: Math.abs(p0Wins - p1Wins) / games >= 0.2
+      ? 'high'
+      : Math.abs(p0Wins - p1Wins) / games >= 0.1
+        ? 'moderate'
+        : 'none',
     stalls,
     avgTurns: Number((totalTurns / games).toFixed(2)),
     avgGoldP0: Number((totalGoldP0 / games).toFixed(2)),
     avgGoldP1: Number((totalGoldP1 / games).toFixed(2)),
+    avgGoldDelta: Number(((totalGoldP0 - totalGoldP1) / games).toFixed(2)),
     stallReasons,
   };
 

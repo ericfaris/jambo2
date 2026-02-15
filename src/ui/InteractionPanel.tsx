@@ -159,7 +159,7 @@ export function InteractionPanel({ state, dispatch, onMegaView }: InteractionPan
   if (state.pendingGuardReaction) {
     const animalCard = getCard(state.pendingGuardReaction.animalCard);
     const isMyReaction = state.pendingGuardReaction.targetPlayer === 0;
-    if (!isMyReaction) return <PanelShell title="Waiting for opponent's Guard reaction..." />;
+    if (!isMyReaction) return <PanelShell title="Waiting: opponent deciding Guard reaction" />;
     const guardCardId = findHandCardByDesign(state, 0, 'guard');
     return (
       <PanelShell title={`${animalCard.name} played! Play Guard to cancel?`} sourceCardId={state.pendingGuardReaction.animalCard} onMegaView={onMegaView}>
@@ -178,7 +178,7 @@ export function InteractionPanel({ state, dispatch, onMegaView }: InteractionPan
   // Ware card reaction
   if (state.pendingWareCardReaction) {
     const isMyReaction = state.pendingWareCardReaction.targetPlayer === 0;
-    if (!isMyReaction) return <PanelShell title="Waiting for opponent's Rain Maker reaction..." />;
+    if (!isMyReaction) return <PanelShell title="Waiting: opponent deciding Rain Maker reaction" />;
     const rainMakerCardId = findHandCardByDesign(state, 0, 'rain_maker');
     const opponentWareCard = getCard(state.pendingWareCardReaction.wareCardId);
     return (
@@ -541,7 +541,7 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
   // Ware selection phase: active player picks 2 ware types from supply
   if (pr.wares.length < 2) {
     const isMyPick = state.currentPlayer === 0;
-    if (!isMyPick) return <div className="ui-helper-text">Waiting for opponent to select wares for auction...</div>;
+    if (!isMyPick) return <div className="ui-helper-text">Step 1/2: waiting for opponent to select auction wares...</div>;
     const prompt = pr.wares.length === 0
       ? 'Pick first ware from supply for auction'
       : 'Pick second ware from supply';
@@ -563,7 +563,7 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
   if (!isMyBid) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span className="ui-helper-text">Waiting for opponent to bid...</span>
+        <span className="ui-helper-text">Step 2/2: waiting for opponent bid...</span>
         <div style={getWareGridStyle(pr.wares.length)}>
           {pr.wares.map((wt, i) => <WareToken key={i} type={wt} />)}
         </div>
@@ -860,7 +860,7 @@ function DraftPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolutio
   if (pr.draftMode === 'wares') {
     return (
       <div>
-        <div className="ui-prompt-text">Draft a ware ({pr.availableWares.length} left):</div>
+        <div className="ui-prompt-text">Draft step: pick 1 ware ({pr.availableWares.length} left).</div>
         <div style={getWareGridStyle(pr.availableWares.length)}>
           {pr.availableWares.map((wt, i) => (
             <button key={i} onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
@@ -875,7 +875,7 @@ function DraftPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolutio
   const cards = pr.availableCards || [];
   return (
     <div>
-      <div className="ui-prompt-text">Draft a {pr.draftMode === 'cards' ? 'card' : 'utility'} ({cards.length} left):</div>
+      <div className="ui-prompt-text">Draft step: pick 1 {pr.draftMode === 'cards' ? 'card' : 'utility'} ({cards.length} left).</div>
       <SelectableCardArea
         cards={cards}
         onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
@@ -892,7 +892,7 @@ function SuppliesDiscardPanel({ state, dispatch, onMegaView }: { state: GameStat
   if (hand.length === 0) {
     return (
       <div>
-        <div className="ui-prompt-text">No cards to discard. Drawing until ware found...</div>
+        <div className="ui-prompt-text">No cards to discard. Continue to auto-draw until a ware is found.</div>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue
         </button>
@@ -919,7 +919,7 @@ function UtilityKeepPanel({ state, pr, dispatch, onMegaView }: { state: GameStat
   const responder = pr.step === 'ACTIVE_CHOOSE' ? cp : (cp === 0 ? 1 : 0);
 
   if (responder !== 0) {
-    return <div className="ui-helper-text">Opponent choosing which utility to keep...</div>;
+    return <div className="ui-helper-text">Waiting: opponent chooses utility to keep.</div>;
   }
 
   const utils = state.players[responder].utilities;
@@ -990,7 +990,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
       // Auto-resolve: no wares to return, resolver draws a card anyway
       return (
         <div>
-          <div className="ui-prompt-text">No wares to return.</div>
+          <div className="ui-prompt-text">No wares to return. Continue to draw 1 card.</div>
           <button className="primary" onClick={() => resolve(dispatch, { type: 'RETURN_WARE', wareIndex: 0 })} style={{ margin: '8px auto 0', display: 'block' }}>
             Draw a card
           </button>
@@ -1011,7 +1011,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
       // First phase: trigger the draw
       return (
         <div>
-          <div className="ui-prompt-text">Scale: Draw 2 cards, keep 1, give 1 to opponent.</div>
+          <div className="ui-prompt-text">Scale step 1/2: draw 2 cards.</div>
           <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
             Draw cards
           </button>
@@ -1021,7 +1021,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
     // Second phase: pick which drawn card to keep
     return (
       <div>
-        <div className="ui-prompt-text">Keep one card (other goes to opponent):</div>
+        <div className="ui-prompt-text">Scale step 2/2: keep 1 card (the other goes to opponent).</div>
         <SelectableCardArea
           cards={pr.selectedCards}
           onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}

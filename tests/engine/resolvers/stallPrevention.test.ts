@@ -199,6 +199,21 @@ describe('Basket Maker: requires 2g and 2 empty market slots', () => {
     const s2 = act(s, { type: 'PLAY_CARD', cardId: 'basket_maker_1' });
     expect(s2.pendingResolution!.type).toBe('WARE_SELECT_MULTIPLE');
   });
+
+  it('auto-resolves if supply depletes before response', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['basket_maker_1']);
+    s = removeFromDeck(s, 'basket_maker_1');
+    s = withGold(s, 0, 20);
+    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 2, hides: 2, tea: 2, silk: 2, fruit: 2, salt: 2 } };
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'basket_maker_1' });
+    expect(s2.pendingResolution?.type).toBe('WARE_SELECT_MULTIPLE');
+
+    const s3 = { ...s2, wareSupply: { trinkets: 0, hides: 0, tea: 0, silk: 0, fruit: 0, salt: 0 } };
+    const s4 = resolve(s3, { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' });
+    expect(s4.pendingResolution).toBeNull();
+  });
 });
 
 describe('Dancer: requires ware card in hand and >= 3 wares in market', () => {

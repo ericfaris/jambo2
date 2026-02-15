@@ -5,6 +5,7 @@
 // ============================================================================
 
 import { WebSocketServer, WebSocket } from 'ws';
+import { randomBytes } from 'node:crypto';
 import { createInitialState } from '../engine/GameState.ts';
 import { processAction } from '../engine/GameEngine.ts';
 import { getAiActionByDifficulty } from '../ai/difficulties/index.ts';
@@ -29,6 +30,13 @@ interface Connection {
   ws: WebSocket;
   role: ConnectionRole;
   playerSlot: PlayerSlot | null;
+  reconnectToken?: string;
+}
+
+interface ReservedPlayerSlot {
+  slot: PlayerSlot;
+  reconnectToken: string;
+  expiresAt: number;
 }
 
 interface Room {
@@ -37,10 +45,12 @@ interface Room {
   aiDifficulty: AIDifficulty;
   state: GameState | null;
   connections: Connection[];
+  reservedSlots: ReservedPlayerSlot[];
   lastActivity: number;
 }
 
 const rooms = new Map<string, Room>();
+const PLAYER_RECONNECT_GRACE_MS = 90_000;
 
 // --- Helpers ---
 
@@ -50,6 +60,10 @@ function generateRoomCode(): string {
     code = String(Math.floor(1000 + Math.random() * 9000));
   } while (rooms.has(code));
   return code;
+}
+
+function generateReconnectToken(): string {
+  return randomBytes(16).toString('hex');
 }
 
 function send(ws: WebSocket, msg: ServerMessage): void {
@@ -83,6 +97,42 @@ function getPlayerCount(room: Room): number {
     if (c.playerSlot !== null) slots.add(c.playerSlot);
   }
   return slots.size;
+}
+
+function getActivePlayerSlots(room: Room): Set<PlayerSlot> {
+  const slots = new Set<PlayerSlot>();
+  for (const c of room.connections) {
+    if (c.playerSlot !== null) slots.add(c.playerSlot);
+  }
+  return slots;
+}
+
+function clearExpiredReservations(room: Room): void {
+  const now = Date.now();
+  room.reservedSlots = room.reservedSlots.filter((reservation) => reservation.expiresAt > now);
+}
+
+function findReservationByToken(room: Room, reconnectToken: string): ReservedPlayerSlot | undefined {
+  clearExpiredReservations(room);
+  return room.reservedSlots.find((reservation) => reservation.reconnectToken === reconnectToken);
+}
+
+function reservePlayerSlot(room: Room, slot: PlayerSlot, reconnectToken: string): void {
+  clearExpiredReservations(room);
+  room.reservedSlots = [
+    ...room.reservedSlots.filter((reservation) => reservation.slot !== slot),
+    { slot, reconnectToken, expiresAt: Date.now() + PLAYER_RECONNECT_GRACE_MS },
+  ];
+}
+
+function releaseReservedSlot(room: Room, slot: PlayerSlot): void {
+  clearExpiredReservations(room);
+  room.reservedSlots = room.reservedSlots.filter((reservation) => reservation.slot !== slot);
+}
+
+function getReservedSlots(room: Room): Set<PlayerSlot> {
+  clearExpiredReservations(room);
+  return new Set(room.reservedSlots.map((reservation) => reservation.slot));
 }
 
 // --- Audio Event Detection ---
@@ -278,6 +328,7 @@ function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficu
     aiDifficulty,
     state: null,
     connections: [{ ws, role: 'tv', playerSlot: null }],
+    reservedSlots: [],
     lastActivity: Date.now(),
   };
   rooms.set(code, room);
@@ -286,48 +337,83 @@ function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficu
   console.log(`[Room ${code}] Created (${mode} mode, ai=${aiDifficulty}), TV auto-joined`);
 }
 
-function handleJoinRoom(ws: WebSocket, code: string, role: ConnectionRole): void {
+function handleJoinRoom(ws: WebSocket, code: string, role: ConnectionRole, reconnectToken?: string): void {
   const room = rooms.get(code);
   if (!room) {
     send(ws, { type: 'ERROR', message: 'Room not found' });
     return;
   }
 
+  clearExpiredReservations(room);
+
   // Skip if this connection is already in the room
   if (room.connections.some(c => c.ws === ws)) {
     return;
   }
 
+  if (role === 'player' && reconnectToken) {
+    const duplicate = room.connections.find((connection) => connection.reconnectToken === reconnectToken && connection.ws !== ws);
+    if (duplicate) {
+      room.connections = room.connections.filter((connection) => connection !== duplicate);
+      try {
+        duplicate.ws.close();
+      } catch {
+        // Ignore close errors
+      }
+    }
+  }
+
   let playerSlot: PlayerSlot | null = null;
+  let assignedReconnectToken = reconnectToken;
 
   if (role === 'player') {
-    // Assign player slot
-    const hasP0 = room.connections.some(c => c.playerSlot === 0);
-    const hasP1 = room.connections.some(c => c.playerSlot === 1);
+    const activeSlots = getActivePlayerSlots(room);
+    const reservedSlots = getReservedSlots(room);
 
-    if (room.mode === 'ai') {
-      // AI mode: only slot 0 available for human
-      if (hasP0) {
-        send(ws, { type: 'ERROR', message: 'Room is full' });
-        return;
+    if (assignedReconnectToken) {
+      const reservation = findReservationByToken(room, assignedReconnectToken);
+      if (reservation && !activeSlots.has(reservation.slot)) {
+        playerSlot = reservation.slot;
+        releaseReservedSlot(room, reservation.slot);
       }
-      playerSlot = 0;
-    } else {
-      // PvP: assign first available slot
-      if (!hasP0) playerSlot = 0;
-      else if (!hasP1) playerSlot = 1;
-      else {
-        send(ws, { type: 'ERROR', message: 'Room is full' });
+    }
+
+    if (!assignedReconnectToken) {
+      assignedReconnectToken = generateReconnectToken();
+    }
+
+    if (playerSlot === null) {
+      if (room.mode === 'ai') {
+        // AI mode: only slot 0 available for human
+        if (!activeSlots.has(0) && !reservedSlots.has(0)) {
+          playerSlot = 0;
+        }
+      } else {
+        // PvP: assign first available unreserved slot
+        if (!activeSlots.has(0) && !reservedSlots.has(0)) {
+          playerSlot = 0;
+        } else if (!activeSlots.has(1) && !reservedSlots.has(1)) {
+          playerSlot = 1;
+        }
+      }
+
+      if (playerSlot === null) {
+        send(ws, { type: 'ERROR', message: 'Room is full or reconnect slot is reserved' });
         return;
       }
     }
   }
 
-  const conn: Connection = { ws, role, playerSlot };
+  const conn: Connection = {
+    ws,
+    role,
+    playerSlot,
+    reconnectToken: role === 'player' ? assignedReconnectToken : undefined,
+  };
   room.connections.push(conn);
   room.lastActivity = Date.now();
 
-  send(ws, { type: 'JOINED', playerSlot, mode: room.mode });
+  send(ws, { type: 'JOINED', playerSlot, mode: room.mode, reconnectToken: role === 'player' ? assignedReconnectToken : undefined });
   console.log(`[Room ${code}] ${role} joined${playerSlot !== null ? ` as player ${playerSlot}` : ''}`);
 
   // Notify others about new player
@@ -409,6 +495,9 @@ function handleDisconnect(ws: WebSocket): void {
   room.connections = room.connections.filter(c => c.ws !== ws);
 
   if (conn.playerSlot !== null) {
+    if (conn.reconnectToken) {
+      reservePlayerSlot(room, conn.playerSlot, conn.reconnectToken);
+    }
     console.log(`[Room ${room.code}] Player ${conn.playerSlot} disconnected`);
     for (const other of room.connections) {
       send(other.ws, { type: 'PLAYER_DISCONNECTED', playerSlot: conn.playerSlot });
@@ -427,6 +516,7 @@ function handleDisconnect(ws: WebSocket): void {
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms) {
+    clearExpiredReservations(room);
     if (now - room.lastActivity > 60 * 60 * 1000) {
       for (const conn of room.connections) {
         send(conn.ws, { type: 'ERROR', message: 'Room expired due to inactivity' });
@@ -452,7 +542,7 @@ wss.on('connection', (ws: WebSocket) => {
           handleCreateRoom(ws, msg.mode, msg.aiDifficulty ?? 'medium');
           break;
         case 'JOIN_ROOM':
-          handleJoinRoom(ws, msg.code, msg.role);
+          handleJoinRoom(ws, msg.code, msg.role, msg.reconnectToken);
           break;
         case 'GAME_ACTION':
           handleGameAction(ws, msg.action);

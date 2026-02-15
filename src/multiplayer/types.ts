@@ -25,14 +25,14 @@ export type PlayerSlot = 0 | 1;
 
 export type ClientMessage =
   | { type: 'CREATE_ROOM'; mode: RoomMode; aiDifficulty?: AIDifficulty }
-  | { type: 'JOIN_ROOM'; code: string; role: ConnectionRole }
+  | { type: 'JOIN_ROOM'; code: string; role: ConnectionRole; reconnectToken?: string }
   | { type: 'GAME_ACTION'; action: GameAction };
 
 // --- Server → Client Messages ---
 
 export type ServerMessage =
   | { type: 'ROOM_CREATED'; code: string }
-  | { type: 'JOINED'; playerSlot: PlayerSlot | null; mode: RoomMode }
+  | { type: 'JOINED'; playerSlot: PlayerSlot | null; mode: RoomMode; reconnectToken?: string }
   | { type: 'GAME_STATE'; public: PublicGameState; private: PrivateGameState | null; audioEvent: AudioEvent | null; aiMessage: string | null }
   | { type: 'PLAYER_JOINED'; playerSlot: PlayerSlot }
   | { type: 'PLAYER_DISCONNECTED'; playerSlot: PlayerSlot }

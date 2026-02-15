@@ -56,7 +56,11 @@ export function useWebSocketGame(): WebSocketGameState {
   const [playerDisconnected, setPlayerDisconnected] = useState<PlayerSlot | null>(null);
 
   // Pending join info for reconnection
-  const pendingJoin = useRef<{ code: string; role: ConnectionRole } | null>(null);
+  const pendingJoin = useRef<{ code: string; role: ConnectionRole; reconnectToken?: string } | null>(null);
+
+  const getReconnectStorageKey = useCallback((code: string, role: ConnectionRole) => {
+    return `jambo:reconnect:${code}:${role}`;
+  }, []);
 
   const sendRaw = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -72,6 +76,14 @@ export function useWebSocketGame(): WebSocketGameState {
       case 'JOINED':
         setPlayerSlot(msg.playerSlot);
         setRoomMode(msg.mode);
+        if (pendingJoin.current && msg.reconnectToken) {
+          const key = getReconnectStorageKey(pendingJoin.current.code, pendingJoin.current.role);
+          window.sessionStorage.setItem(key, msg.reconnectToken);
+          pendingJoin.current = {
+            ...pendingJoin.current,
+            reconnectToken: msg.reconnectToken,
+          };
+        }
         break;
       case 'GAME_STATE':
         setPublicState(msg.public);
@@ -93,7 +105,7 @@ export function useWebSocketGame(): WebSocketGameState {
         setGameOver(true);
         break;
     }
-  }, []);
+  }, [getReconnectStorageKey]);
 
   const connect = useCallback(() => {
     // Determine WebSocket URL (use /ws path for Vite proxy)
@@ -109,7 +121,12 @@ export function useWebSocketGame(): WebSocketGameState {
 
       // Re-join room on reconnect
       if (pendingJoin.current) {
-        sendRaw({ type: 'JOIN_ROOM', code: pendingJoin.current.code, role: pendingJoin.current.role });
+        sendRaw({
+          type: 'JOIN_ROOM',
+          code: pendingJoin.current.code,
+          role: pendingJoin.current.role,
+          reconnectToken: pendingJoin.current.reconnectToken,
+        });
       }
     };
 
@@ -150,10 +167,12 @@ export function useWebSocketGame(): WebSocketGameState {
   }, [sendRaw]);
 
   const joinRoom = useCallback((code: string, role: ConnectionRole) => {
-    pendingJoin.current = { code, role };
+    const key = getReconnectStorageKey(code, role);
+    const reconnectToken = window.sessionStorage.getItem(key) ?? undefined;
+    pendingJoin.current = { code, role, reconnectToken };
     setRoomCode(code);
-    sendRaw({ type: 'JOIN_ROOM', code, role });
-  }, [sendRaw]);
+    sendRaw({ type: 'JOIN_ROOM', code, role, reconnectToken });
+  }, [getReconnectStorageKey, sendRaw]);
 
   const sendAction = useCallback((action: GameAction) => {
     sendRaw({ type: 'GAME_ACTION', action });

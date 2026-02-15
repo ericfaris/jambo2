@@ -45,4 +45,36 @@ describe('Replay log', () => {
 
     expect(importedReplay).toEqual(replay);
   });
+
+  it('migrates legacy 0.9 replay payloads', () => {
+    const payload = JSON.stringify({
+      formatVersion: '0.9',
+      seed: 1234,
+      gameVersion: '0.9.8',
+      createdAt: '2025-12-01T00:00:00.000Z',
+      actions: [{ type: 'DRAW_CARD' }],
+    });
+
+    const imported = importReplayLog(payload);
+
+    expect(imported.formatVersion).toBe('1.0');
+    expect(imported.rngSeed).toBe(1234);
+    expect(imported.gameVersion).toBe('0.9.8');
+    expect(imported.actions).toEqual([{ type: 'DRAW_CARD' }]);
+  });
+
+  it('accepts unversioned payloads with rngSeed', () => {
+    const payload = JSON.stringify({
+      gameVersion: '1.0.0',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      rngSeed: 42,
+      actions: [{ type: 'SKIP_DRAW' }],
+    });
+
+    const imported = importReplayLog(payload);
+
+    expect(imported.formatVersion).toBe('1.0');
+    expect(imported.rngSeed).toBe(42);
+    expect(imported.actions).toEqual([{ type: 'SKIP_DRAW' }]);
+  });
 });

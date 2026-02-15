@@ -10,6 +10,14 @@ export interface ReplayLog {
   actions: GameAction[];
 }
 
+interface LegacyReplayLogV09 {
+  formatVersion: '0.9';
+  gameVersion?: string;
+  createdAt?: string;
+  seed: number;
+  actions: GameAction[];
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -103,8 +111,38 @@ function parseReplayLog(value: unknown): ReplayLog {
     throw new Error('Replay payload must be an object');
   }
 
-  if (value.formatVersion !== '1.0') {
-    throw new Error('Unsupported replay format version');
+  const formatVersion = typeof value.formatVersion === 'string' ? value.formatVersion : null;
+
+  if (formatVersion === '0.9') {
+    return migrateLegacyReplayV09(value);
+  }
+
+  if (formatVersion === null) {
+    // Backward compatibility: allow unversioned payloads and infer fields.
+    if (isInteger(value.rngSeed) && Array.isArray(value.actions)) {
+      return {
+        formatVersion: '1.0',
+        gameVersion: typeof value.gameVersion === 'string' ? value.gameVersion : 'unknown',
+        createdAt: typeof value.createdAt === 'string' ? value.createdAt : new Date(0).toISOString(),
+        rngSeed: value.rngSeed,
+        actions: normalizeActions(value.actions),
+      };
+    }
+    if (isInteger(value.seed) && Array.isArray(value.actions)) {
+      const legacy: LegacyReplayLogV09 = {
+        formatVersion: '0.9',
+        seed: value.seed,
+        gameVersion: typeof value.gameVersion === 'string' ? value.gameVersion : undefined,
+        createdAt: typeof value.createdAt === 'string' ? value.createdAt : undefined,
+        actions: normalizeActions(value.actions),
+      };
+      return migrateLegacyReplayV09(legacy as unknown as Record<string, unknown>);
+    }
+    throw new Error('Replay missing formatVersion');
+  }
+
+  if (formatVersion !== '1.0') {
+    throw new Error(`Unsupported replay format version: ${formatVersion}`);
   }
 
   if (typeof value.gameVersion !== 'string') {
@@ -123,16 +161,36 @@ function parseReplayLog(value: unknown): ReplayLog {
     throw new Error('Replay actions must be an array');
   }
 
-  if (!value.actions.every((action) => isGameAction(action))) {
-    throw new Error('Replay contains invalid action entries');
-  }
-
   return {
     formatVersion: '1.0',
     gameVersion: value.gameVersion,
     createdAt: value.createdAt,
     rngSeed: value.rngSeed,
-    actions: [...value.actions],
+    actions: normalizeActions(value.actions),
+  };
+}
+
+function normalizeActions(actions: unknown[]): GameAction[] {
+  if (!actions.every((action) => isGameAction(action))) {
+    throw new Error('Replay contains invalid action entries');
+  }
+  return [...actions];
+}
+
+function migrateLegacyReplayV09(value: Record<string, unknown>): ReplayLog {
+  if (!isInteger(value.seed)) {
+    throw new Error('Legacy replay missing integer seed');
+  }
+  if (!Array.isArray(value.actions)) {
+    throw new Error('Legacy replay actions must be an array');
+  }
+
+  return {
+    formatVersion: '1.0',
+    gameVersion: typeof value.gameVersion === 'string' ? value.gameVersion : 'legacy-0.9',
+    createdAt: typeof value.createdAt === 'string' ? value.createdAt : new Date(0).toISOString(),
+    rngSeed: value.seed,
+    actions: normalizeActions(value.actions),
   };
 }
 
