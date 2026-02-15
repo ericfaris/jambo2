@@ -83,6 +83,16 @@ describe('Hyena (Take 1, Give 1)', () => {
     expect(hand(s4, 0)).not.toContain('ware_3k_1');
     expect(hand(s4, 1)).toContain('ware_3k_1');
   });
+
+  it('cannot give back the card that was just taken', () => {
+    const s = setupHyena();
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'hyena_1' });
+    const s3 = resolve(s2, { type: 'SELECT_CARD', cardId: 'ware_3h_1' });
+
+    expect(() => resolve(s3, { type: 'SELECT_CARD', cardId: 'ware_3h_1' })).toThrow(
+      /Cannot give back the card taken with Hyena/
+    );
+  });
 });
 
 describe('Cheetah (Opponent Choice)', () => {

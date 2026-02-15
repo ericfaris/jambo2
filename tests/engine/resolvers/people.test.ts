@@ -128,6 +128,33 @@ describe('Tribal Elder (Binary Choice)', () => {
     expect(hand(s4, 1).length).toBe(3);
   });
 
+  it('choice 1: opponent with 8 cards discards exactly 5 to reach 3', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['tribal_elder_1']);
+    s = withHand(s, 1, [
+      'ware_3k_1',
+      'ware_3h_1',
+      'ware_3t_1',
+      'ware_3l_1',
+      'ware_3f_1',
+      'ware_3s_1',
+      'guard_1',
+      'guard_2',
+    ]);
+    s = withGold(s, 0, 20);
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'tribal_elder_1' });
+    const s3 = resolve(s2, { type: 'BINARY_CHOICE', choice: 1 });
+
+    expect(s3.pendingResolution!.type).toBe('OPPONENT_DISCARD');
+    expect((s3.pendingResolution as any).discardTo).toBe(3);
+    expect(hand(s3, 1).length).toBe(8);
+
+    const s4 = resolve(s3, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [0, 1, 2, 3, 4] });
+    expect(s4.pendingResolution).toBeNull();
+    expect(hand(s4, 1).length).toBe(3);
+  });
+
   it('choice 0: active player draws up to 5 cards', () => {
     let s = setupTribalElder();
     // Active player has only 1 card (tribal elder) which gets discarded on play → 0 cards

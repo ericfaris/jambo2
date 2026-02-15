@@ -121,8 +121,9 @@ function getRandomInteractionResponse(state: GameState): InteractionResponse | n
         if (pr.revealedHand.length === 0) return { type: 'SELECT_CARD', cardId: '' };
         return { type: 'SELECT_CARD', cardId: pick(pr.revealedHand) };
       }
-      if (player.hand.length === 0) return { type: 'SELECT_CARD', cardId: '' };
-      return { type: 'SELECT_CARD', cardId: pick(player.hand) };
+      const giveOptions = player.hand.filter((cardId) => cardId !== pr.takenCard);
+      if (giveOptions.length === 0) return { type: 'SELECT_CARD', cardId: '' };
+      return { type: 'SELECT_CARD', cardId: pick(giveOptions) };
     }
 
     case 'BINARY_CHOICE':

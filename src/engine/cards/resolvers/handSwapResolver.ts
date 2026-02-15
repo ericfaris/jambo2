@@ -80,6 +80,9 @@ export function resolveHandSwap(
     if (!activeHand.includes(cardId)) {
       throw new Error(`Card ${cardId} not in hand`);
     }
+    if (pending.takenCard !== undefined && cardId === pending.takenCard) {
+      throw new Error('Cannot give back the card taken with Hyena');
+    }
 
     // Move card from active player to opponent
     const newActiveHand = activeHand.filter(id => id !== cardId);
