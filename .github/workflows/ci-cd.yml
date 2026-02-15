@@ -23,7 +23,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm install --no-save @rollup/rollup-linux-x64-gnu@4.57.1
 
       - name: Build
         run: npm run build

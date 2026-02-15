@@ -4,7 +4,7 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+RUN npm ci && npm install --no-save @rollup/rollup-linux-x64-musl@4.57.1
 
 COPY . .
 RUN npm run build
