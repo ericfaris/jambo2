@@ -59,21 +59,36 @@ export function MegaView({ cardId, onClose }: MegaViewProps) {
           gap: 10,
         }}
       >
-        <img
-          src={`/assets/cards/${card.designId}.png`}
-          alt={card.name}
-          style={{
-            width: '100%',
-            borderRadius: 10,
-            display: 'block',
+        <div
+          className="mega-view-art"
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const xRatio = (e.clientX - rect.left) / rect.width - 0.5;
+            const yRatio = (e.clientY - rect.top) / rect.height - 0.5;
+            const rotateY = xRatio * 5;
+            const rotateX = yRatio * -5;
+            e.currentTarget.style.transform = `perspective(900px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-2px)`;
           }}
-          draggable={false}
-        />
-        <div style={{ padding: '0 6px 6px' }}>
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0)';
+          }}
+        >
+          <img
+            src={`/assets/cards/${card.designId}.png`}
+            alt={card.name}
+            style={{
+              width: '100%',
+              borderRadius: 10,
+              display: 'block',
+            }}
+            draggable={false}
+          />
+        </div>
+        <div style={{ padding: '0 6px 6px', textAlign: 'center', minHeight: 96, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1714', marginBottom: 6 }}>
             {card.name}
           </div>
-          <div style={{ fontSize: 15, color: '#4a4540', lineHeight: 1.4 }}>
+          <div style={{ fontSize: 15, color: '#4a4540', lineHeight: 1.4, textAlign: 'center' }}>
             {card.description}
           </div>
         </div>

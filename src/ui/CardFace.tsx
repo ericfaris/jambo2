@@ -79,7 +79,16 @@ export function CardFace({ cardId, onClick, selected, small, large, extraLarge, 
   const card = getCard(cardId);
   const hasImage = CARDS_WITH_IMAGES.has(card.designId) && !imgError;
   const headerColor = CARD_TYPE_COLORS[card.type] || '#666';
-  const tooltip = `${card.name} — ${card.description}`;
+  const cardTypeLabel = card.type.charAt(0).toUpperCase() + card.type.slice(1);
+  const tooltipLines = [
+    card.name,
+    `Type: ${cardTypeLabel}`,
+    card.description,
+  ];
+  if (card.wares) {
+    tooltipLines.push(`Buy: ${card.wares.buyPrice}g | Sell: ${card.wares.sellPrice}g`);
+  }
+  const tooltip = tooltipLines.join('\n');
 
   if (hasImage) {
     const pad = small ? 2 : large ? 4 : 3;
@@ -103,7 +112,7 @@ export function CardFace({ cardId, onClick, selected, small, large, extraLarge, 
           flexDirection: 'column',
           overflow: 'hidden',
           flexShrink: 0,
-          transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.15s',
+          transition: 'border-color var(--motion-fast) var(--anim-ease-standard), box-shadow var(--motion-fast) var(--anim-ease-standard), transform var(--motion-fast) var(--anim-ease-standard)',
         }}
         onMouseEnter={(e) => {
           if (onClick) (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)';
@@ -280,7 +289,7 @@ export function CardFace({ cardId, onClick, selected, small, large, extraLarge, 
         flexDirection: 'column',
         overflow: 'hidden',
         flexShrink: 0,
-        transition: 'border-color 0.15s, transform 0.15s',
+        transition: 'border-color var(--motion-fast) var(--anim-ease-standard), transform var(--motion-fast) var(--anim-ease-standard)',
       }}
       onMouseEnter={(e) => {
         if (onClick) (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)';

@@ -1,15 +1,20 @@
 import type { GameState, GameAction } from '../engine/types.ts';
 import { CONSTANTS } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
+import type { VisualFeedbackState } from './useVisualFeedback.ts';
+import { getCard } from '../engine/cards/CardDatabase.ts';
+import { useEffect, useState } from 'react';
+import { FEEDBACK_TIMINGS } from './animationTimings.ts';
 
 interface CenterRowProps {
   state: GameState;
   dispatch: (action: GameAction) => void;
   isLocalMode?: boolean;
   showGlow?: boolean;
+  visualFeedback?: VisualFeedbackState;
 }
 
-export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = false }: CenterRowProps) {
+export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = false, visualFeedback }: CenterRowProps) {
   const phaseLabel = state.phase === 'DRAW'
     ? `Draw Phase (${state.drawsThisPhase}/5)`
     : state.phase === 'PLAY'
@@ -21,6 +26,71 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
   const topDiscard = state.discardPile.length > 0
     ? state.discardPile[0]
     : null;
+  const [displayDiscardCard, setDisplayDiscardCard] = useState(topDiscard);
+  const [actionTag, setActionTag] = useState<string | null>(null);
+  const [lastActionRecap, setLastActionRecap] = useState<string | null>(null);
+
+  useEffect(() => {
+    const trail = visualFeedback?.trail;
+    if (trail?.kind === 'discard' && trail.cardId) {
+      const previousTop = state.discardPile.length > 1 ? state.discardPile[1] : null;
+      setDisplayDiscardCard(previousTop);
+      const timer = window.setTimeout(() => {
+        setDisplayDiscardCard(state.discardPile.length > 0 ? state.discardPile[0] : null);
+      }, FEEDBACK_TIMINGS.discardPileRevealDelayMs);
+      return () => window.clearTimeout(timer);
+    }
+
+    setDisplayDiscardCard(topDiscard);
+    return;
+  }, [visualFeedback?.trail, state.discardPile, topDiscard]);
+
+  useEffect(() => {
+    const trail = visualFeedback?.trail;
+    if (!trail) return;
+
+    const actorLabel = trail.actor === 1 ? 'Opponent' : 'You';
+    const verb = trail.kind === 'draw' ? 'drew a card' : 'discarded a card';
+    setActionTag(`${actorLabel} ${verb}`);
+
+    const timer = window.setTimeout(() => setActionTag(null), FEEDBACK_TIMINGS.actionTagDurationMs);
+    return () => window.clearTimeout(timer);
+  }, [visualFeedback?.trail]);
+
+  useEffect(() => {
+    if (state.log.length === 0) return;
+    const latest = state.log[state.log.length - 1];
+    const recap = `P${latest.player + 1}: ${latest.action}${latest.details ? ` - ${latest.details}` : ''}`;
+    setLastActionRecap(recap);
+
+    const timer = window.setTimeout(() => setLastActionRecap(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [state.log.length]);
+
+  const trailKind = visualFeedback?.trail?.kind;
+  const trailActor = visualFeedback?.trail?.actor;
+
+  const deckPulseClass = visualFeedback?.deckPulse
+    ? isLocalMode
+      ? trailKind === 'draw' && trailActor === 1
+        ? 'pile-pulse-strong'
+        : 'pile-pulse-soft'
+      : 'pile-pulse'
+    : undefined;
+
+  const discardPulseClass = visualFeedback?.discardPulse
+    ? isLocalMode
+      ? trailKind === 'discard' && trailActor === 1
+        ? 'pile-pulse-strong'
+        : 'pile-pulse-soft'
+      : 'pile-pulse'
+    : undefined;
+
+  const trailIntensityClass = isLocalMode
+    ? visualFeedback?.trail?.actor === 1
+      ? 'center-row-trail-strong'
+      : 'center-row-trail-soft'
+    : undefined;
 
   return (
     <div style={{
@@ -29,9 +99,36 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
       alignItems: 'center',
       gap: 32,
       padding: '12px 0',
+      position: 'relative',
     }}>
+      {visualFeedback?.trail && (
+        <div
+          key={visualFeedback.trail.id}
+          className={`center-row-trail center-row-trail-${visualFeedback.trail.kind}-${visualFeedback.trail.actor === 0 ? 'bottom' : 'top'}${trailIntensityClass ? ` ${trailIntensityClass}` : ''}`}
+          aria-hidden
+        >
+          {visualFeedback.trail.kind === 'discard' && visualFeedback.trail.cardId ? (
+            <img src={`/assets/cards/${getCard(visualFeedback.trail.cardId).designId}.png`} alt="" draggable={false} />
+          ) : (
+            <img src="/assets/cards/card_back.png" alt="" draggable={false} />
+          )}
+        </div>
+      )}
+
+      {actionTag && (
+        <div className={`center-row-action-tag${visualFeedback?.trail?.actor === 1 ? ' center-row-action-tag-opponent' : ''}`}>
+          {actionTag}
+        </div>
+      )}
+
+      {lastActionRecap && (
+        <div className="center-row-recap">
+          {lastActionRecap}
+        </div>
+      )}
+
       {/* Deck */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+      <div key={`deck-${visualFeedback?.deckPulse ?? 0}`} className={deckPulseClass} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
         {state.deck.length > 0 ? (
           <CardFace cardId={state.deck[0]} faceDown small />
         ) : (
@@ -49,13 +146,13 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
             Empty
           </div>
         )}
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 14, color: 'var(--text-muted)', fontWeight: 600 }}>
+        <div className="panel-section-title" style={{ marginBottom: 0 }}>
           Deck ({state.deck.length})
         </div>
       </div>
 
       {/* Phase indicator */}
-      <div style={{
+      <div key={`phase-${visualFeedback?.phasePulse ?? 0}-${visualFeedback?.actionsPulse ?? 0}`} className={(visualFeedback?.phasePulse || visualFeedback?.actionsPulse) ? 'phase-pulse' : undefined} style={{
         background: phaseColor + '20',
         borderRadius: 10,
         padding: '10px 24px',
@@ -130,7 +227,7 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
       </div>
 
       {/* Discard */}
-      <div style={{
+      <div key={`discard-${visualFeedback?.discardPulse ?? 0}`} className={discardPulseClass} style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -142,8 +239,8 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
           background: 'rgba(90,64,48,0.1)',
         })
       }}>
-        {topDiscard ? (
-          <CardFace cardId={topDiscard} small />
+        {displayDiscardCard ? (
+          <CardFace cardId={displayDiscardCard} small />
         ) : (
           <div style={{
             width: 96,
@@ -159,7 +256,7 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
             Empty
           </div>
         )}
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 14, color: 'var(--text-muted)', fontWeight: 600 }}>
+        <div className="panel-section-title" style={{ marginBottom: 0 }}>
           Discard ({state.discardPile.length})
         </div>
       </div>

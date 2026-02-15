@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import type { ChangeEvent } from 'react';
 import { useGameStore } from '../hooks/useGameStore.ts';
 import { getRandomAiAction } from '../ai/RandomAI.ts';
 import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
@@ -17,17 +18,136 @@ import { GameLog } from './GameLog.tsx';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { MegaView } from './MegaView.tsx';
+import { useVisualFeedback } from './useVisualFeedback.ts';
+import { getDrawDisabledReason, getPlayDisabledReason } from './uiHints.ts';
+
+type AnimationSpeed = 'normal' | 'fast';
+const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
+const SHOW_LOG_STORAGE_KEY = 'jambo.showGameLog';
+const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
+const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
+const UX_DEBUG_STORAGE_KEY = 'jambo.uxDebugCounters';
+
+function getInitialAnimationSpeed(): AnimationSpeed {
+  if (typeof window === 'undefined') return 'normal';
+  const saved = window.localStorage.getItem(ANIMATION_SPEED_STORAGE_KEY);
+  return saved === 'fast' ? 'fast' : 'normal';
+}
+
+function getInitialShowLog(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(SHOW_LOG_STORAGE_KEY) === 'true';
+}
+
+function getInitialDevTelemetry(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(DEV_TELEMETRY_STORAGE_KEY) === 'true';
+}
+
+function getInitialHighContrast(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY) === 'true';
+}
+
+function getInitialUxDebug(): boolean {
+  if (typeof window === 'undefined') return true;
+  return window.localStorage.getItem(UX_DEBUG_STORAGE_KEY) !== 'false';
+}
+
+function isDevMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
 
 export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
-  const { state, dispatch, error, newGame } = useGameStore();
+  const { state, dispatch, error, newGame, exportReplay, importReplay } = useGameStore();
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
-  const [showLog, setShowLog] = useState(false);
+  const [showLog, setShowLog] = useState(() => getInitialShowLog());
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawModalOpen, setDrawModalOpen] = useState(false);
   const [cardError, setCardError] = useState<{cardId: DeckCardId, message: string} | null>(null);
   const [aiMessage, setAiMessage] = useState<string>('');
   const [megaCardId, setMegaCardId] = useState<DeckCardId | null>(null);
+  const [replayError, setReplayError] = useState<string | null>(null);
+  const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
+  const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
+  const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
+  const [showUxDebug, setShowUxDebug] = useState(() => getInitialUxDebug());
+  const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
+  const [uxDebugCounts, setUxDebugCounts] = useState({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
+  const replayInputRef = useRef<HTMLInputElement>(null);
+  const pendingSecondsRef = useRef(0);
+  const blockedPlaySecondsRef = useRef(0);
+  const blockedDrawSecondsRef = useRef(0);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.setAttribute('data-anim-speed', animationSpeed);
+    window.localStorage.setItem(ANIMATION_SPEED_STORAGE_KEY, animationSpeed);
+  }, [animationSpeed]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (highContrast) {
+      document.documentElement.setAttribute('data-contrast', 'high');
+    } else {
+      document.documentElement.removeAttribute('data-contrast');
+    }
+    window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(highContrast));
+  }, [highContrast]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(SHOW_LOG_STORAGE_KEY, String(showLog));
+  }, [showLog]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(DEV_TELEMETRY_STORAGE_KEY, String(showDevTelemetry));
+  }, [showDevTelemetry]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(UX_DEBUG_STORAGE_KEY, String(showUxDebug));
+  }, [showUxDebug]);
+
+  const handleExportReplay = useCallback(() => {
+    try {
+      const replayJson = exportReplay();
+      const blob = new Blob([replayJson], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `jambo-replay-turn-${state.turn}-seed-${state.rngSeed}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setReplayError(null);
+      setMenuOpen(false);
+    } catch (e) {
+      setReplayError((e as Error).message);
+    }
+  }, [exportReplay, state.turn, state.rngSeed]);
+
+  const handleReplayFileChange = useCallback(async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const payload = await file.text();
+      importReplay(payload);
+      setReplayError(null);
+      setMenuOpen(false);
+    } catch (e) {
+      setReplayError((e as Error).message);
+    } finally {
+      event.target.value = '';
+    }
+  }, [importReplay]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -176,11 +296,137 @@ export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
     state.pendingGuardReaction ||
     state.pendingWareCardReaction
   );
-  const isMyTurn = state.currentPlayer === 0;
-  const actionsDisabled = !isMyTurn || isAiTurn || (hasPendingInteraction && state.phase !== 'DRAW');
+  const canTakePlayActions =
+    state.phase === 'PLAY' &&
+    state.currentPlayer === 0 &&
+    state.actionsLeft > 0 &&
+    !hasPendingInteraction;
+  const playActionsDisabled = !canTakePlayActions;
+
+  const canTakeDrawActions =
+    state.phase === 'DRAW' &&
+    state.currentPlayer === 0 &&
+    !isAiTurn;
+  const drawActionsDisabled = !canTakeDrawActions;
+  const playDisabledReason = getPlayDisabledReason({
+    phase: state.phase,
+    currentPlayer: state.currentPlayer,
+    actionsLeft: state.actionsLeft,
+    hasPendingInteraction,
+    isAiTurn,
+  });
+  const drawDisabledReason = getDrawDisabledReason({
+    phase: state.phase,
+    currentPlayer: state.currentPlayer,
+    isAiTurn,
+  });
+
+  const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+  const visualFeedback = useVisualFeedback({
+    phase: state.phase,
+    actionsLeft: state.actionsLeft,
+    deckCount: state.deck.length,
+    discardCount: state.discardPile.length,
+    topDiscardCard: state.discardPile.length > 0 ? state.discardPile[0] : null,
+    players: [
+      {
+        gold: state.players[0].gold,
+        handCount: state.players[0].hand.length,
+        market: state.players[0].market,
+      },
+      {
+        gold: state.players[1].gold,
+        handCount: state.players[1].hand.length,
+        market: state.players[1].market,
+      },
+    ],
+    lastLog: lastLog ? { player: lastLog.player, action: lastLog.action } : null,
+  });
+
+  useEffect(() => {
+    if (!showDevTelemetry) return;
+
+    const newEvents: string[] = [];
+    if (visualFeedback.trail) {
+      newEvents.push(`[trail] ${visualFeedback.trail.actor === 1 ? 'opponent' : 'you'} ${visualFeedback.trail.kind}`);
+    }
+    if (visualFeedback.goldDeltas[0] !== 0 || visualFeedback.goldDeltas[1] !== 0) {
+      newEvents.push(`[gold] you ${visualFeedback.goldDeltas[0]}, opp ${visualFeedback.goldDeltas[1]}`);
+    }
+    if (visualFeedback.marketFlashSlots[0].length > 0 || visualFeedback.marketFlashSlots[1].length > 0) {
+      newEvents.push(`[market] you ${visualFeedback.marketFlashSlots[0].join(',') || '-'} | opp ${visualFeedback.marketFlashSlots[1].join(',') || '-'}`);
+    }
+
+    if (newEvents.length === 0) return;
+    newEvents.forEach((entry) => console.debug(`[JamboUI] ${entry}`));
+    setTelemetryEvents((previous) => [...newEvents, ...previous].slice(0, 8));
+  }, [showDevTelemetry, visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots]);
+
+  useEffect(() => {
+    if (!showUxDebug) {
+      pendingSecondsRef.current = 0;
+      blockedPlaySecondsRef.current = 0;
+      blockedDrawSecondsRef.current = 0;
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (hasPendingInteraction) {
+        pendingSecondsRef.current += 1;
+      } else {
+        pendingSecondsRef.current = 0;
+      }
+
+      if (state.phase === 'PLAY' && state.currentPlayer === 0 && playActionsDisabled) {
+        blockedPlaySecondsRef.current += 1;
+      } else {
+        blockedPlaySecondsRef.current = 0;
+      }
+
+      if (state.phase === 'DRAW' && state.currentPlayer === 0 && drawActionsDisabled) {
+        blockedDrawSecondsRef.current += 1;
+      } else {
+        blockedDrawSecondsRef.current = 0;
+      }
+
+      const longPendingTick = pendingSecondsRef.current > 0 && pendingSecondsRef.current % 8 === 0;
+      const blockedPlayTick = blockedPlaySecondsRef.current > 0 && blockedPlaySecondsRef.current % 5 === 0;
+      const blockedDrawTick = blockedDrawSecondsRef.current > 0 && blockedDrawSecondsRef.current % 5 === 0;
+
+      if (!longPendingTick && !blockedPlayTick && !blockedDrawTick) return;
+
+      setUxDebugCounts((previous) => ({
+        longPending: previous.longPending + (longPendingTick ? 1 : 0),
+        blockedPlay: previous.blockedPlay + (blockedPlayTick ? 1 : 0),
+        blockedDraw: previous.blockedDraw + (blockedDrawTick ? 1 : 0),
+      }));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [showUxDebug, hasPendingInteraction, playActionsDisabled, drawActionsDisabled, state.phase, state.currentPlayer]);
+
+  const resetUiPrefs = useCallback(() => {
+    setShowLog(false);
+    setAnimationSpeed('normal');
+    setShowDevTelemetry(false);
+    setHighContrast(false);
+    setShowUxDebug(false);
+    setTelemetryEvents([]);
+    setUxDebugCounts({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
+    pendingSecondsRef.current = 0;
+    blockedPlaySecondsRef.current = 0;
+    blockedDrawSecondsRef.current = 0;
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(SHOW_LOG_STORAGE_KEY);
+      window.localStorage.removeItem(ANIMATION_SPEED_STORAGE_KEY);
+      window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
+      window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
+      window.localStorage.removeItem(UX_DEBUG_STORAGE_KEY);
+    }
+  }, []);
 
   return (
-    <div style={{
+    <div className={showUxDebug ? 'ux-debug' : undefined} style={{
       display: 'flex',
       gap: 16,
       padding: '16px 20px',
@@ -224,43 +470,38 @@ export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
         minWidth: 0,
       }}>
         {/* Opponent area */}
-        <div style={{
-          ...(state.currentPlayer === 1 && {
-            boxShadow: '0 0 20px rgba(212, 168, 80, 0.4), inset 0 0 20px rgba(212, 168, 80, 0.1)',
-            border: '2px solid rgba(212, 168, 80, 0.6)',
-            borderRadius: 12,
-          })
+        <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === 1 ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
+          borderRadius: 12,
+          background: 'rgba(20,10,5,0.34)',
         }}>
           <OpponentArea
             player={state.players[1]}
             aiMessage={aiMessage}
             onMessageHide={handleAiMessageHide}
+            goldDelta={visualFeedback.goldDeltas[1]}
+            marketFlashSlots={visualFeedback.marketFlashSlots[1]}
           />
         </div>
 
         {/* Center row */}
         <div>
-          <CenterRow state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} />
+          <CenterRow state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} visualFeedback={visualFeedback} />
         </div>
 
         {/* Player sections */}
-        <div style={{
-          ...(state.currentPlayer === 0 && {
-            boxShadow: '0 0 20px rgba(212, 168, 80, 0.4), inset 0 0 20px rgba(212, 168, 80, 0.1)',
-            borderRadius: 12,
-            padding: '12px',
-            background: 'rgba(90,64,48,0.1)',
-          })
+        <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === 0 ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
+          borderRadius: 12,
+          padding: '12px',
+          background: 'rgba(20,10,5,0.28)',
         }}>
           {/* Player board */}
-          <div style={{
+          <div className="etched-wood-border" style={{
             display: 'flex',
             flexDirection: 'column',
             gap: 14,
-            background: 'rgba(90,64,48,0.3)',
+            background: 'rgba(20,10,5,0.24)',
             borderRadius: 10,
             padding: 14,
-            border: '1px solid var(--border)',
             marginBottom: 10,
           }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
@@ -274,6 +515,8 @@ export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
             <MarketDisplay
               market={state.players[0].market}
+              flashSlots={visualFeedback.marketFlashSlots[0]}
+              flashVariant="soft"
               label="Your Market"
             />
             <UtilityArea
@@ -288,7 +531,7 @@ export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
                 setCardError(null);
                 dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
               }}
-              disabled={actionsDisabled || state.phase !== 'PLAY' || state.actionsLeft <= 0}
+              disabled={playActionsDisabled}
               cardError={cardError}
               label="Your Utilities"
             />
@@ -300,25 +543,45 @@ export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
           state={state}
         />
 
+        {playActionsDisabled && state.phase === 'PLAY' && (
+          <div className="disabled-hint">
+            {playDisabledReason}
+          </div>
+        )}
+
           {/* Player hand */}
           <div style={{
             marginBottom: 10,
           }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', fontWeight: 600 }}>
+            <div className="panel-section-title" style={{ fontSize: 15, marginBottom: 0 }}>
               Your Hand ({state.players[0].hand.length} cards)
             </div>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)' }}>
+              <span key={`my-gold-${visualFeedback.goldDeltas[0]}`} className={visualFeedback.goldDeltas[0] !== 0 ? 'gold-pop gold-pop-soft' : undefined} style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)', position: 'relative' }}>
                 {state.players[0].gold}g
+                {visualFeedback.goldDeltas[0] !== 0 && (
+                  <span className="gold-delta-text gold-delta-text-soft" style={{
+                    position: 'absolute',
+                    top: -18,
+                    right: -20,
+                    color: visualFeedback.goldDeltas[0] > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}>
+                    {visualFeedback.goldDeltas[0] > 0 ? `+${visualFeedback.goldDeltas[0]}g` : `${visualFeedback.goldDeltas[0]}g`}
+                  </span>
+                )}
               </span>
             </div>
           </div>
           <HandDisplay
             hand={state.players[0].hand}
             onPlayCard={handlePlayCard}
-            disabled={actionsDisabled || state.phase !== 'PLAY' || state.actionsLeft <= 0}
+            disabled={playActionsDisabled}
             cardError={cardError}
+            useWoodBackground={false}
+            transparentBackground={false}
             onMegaView={setMegaCardId}
           />
         </div>
@@ -343,7 +606,7 @@ export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
                 cursor: 'pointer',
                 boxShadow: '0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
                 animation: 'shimmer 2s ease-in-out infinite alternate',
-                transition: 'all 0.2s ease',
+                transition: 'all var(--motion-fast) var(--anim-ease-standard)',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 0 30px rgba(192, 64, 48, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.3)';
@@ -449,6 +712,146 @@ export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
                 style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
               />
             </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: 10,
+              fontSize: 15,
+              color: 'var(--text)',
+            }}>
+              Animation Speed
+              <select
+                value={animationSpeed}
+                onChange={(event) => setAnimationSpeed(event.target.value as AnimationSpeed)}
+                style={{
+                  background: 'var(--surface-light)',
+                  border: '1px solid var(--border-light)',
+                  color: 'var(--text)',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 14,
+                }}
+              >
+                <option value="normal">Normal</option>
+                <option value="fast">Fast</option>
+              </select>
+            </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: 10,
+              cursor: 'pointer',
+              fontSize: 15,
+              color: 'var(--text)',
+            }}>
+              High Contrast Mode
+              <input
+                type="checkbox"
+                checked={highContrast}
+                onChange={() => setHighContrast((previous) => !previous)}
+                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+              />
+            </label>
+            {isDevMode() && (
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                marginTop: 10,
+                cursor: 'pointer',
+                fontSize: 15,
+                color: 'var(--text)',
+              }}>
+                Dev Telemetry Overlay
+                <input
+                  type="checkbox"
+                  checked={showDevTelemetry}
+                  onChange={() => setShowDevTelemetry((previous) => !previous)}
+                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+                />
+              </label>
+            )}
+            {isDevMode() && (
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                marginTop: 10,
+                cursor: 'pointer',
+                fontSize: 15,
+                color: 'var(--text)',
+              }}>
+                UX Debug Counters
+                <input
+                  type="checkbox"
+                  checked={showUxDebug}
+                  onChange={() => setShowUxDebug((previous) => !previous)}
+                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+                />
+              </label>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+              <button
+                onClick={handleExportReplay}
+                style={{
+                  background: 'var(--surface-light)',
+                  border: '1px solid var(--border-light)',
+                  color: 'var(--text)',
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                Export Replay JSON
+              </button>
+              <button
+                onClick={() => replayInputRef.current?.click()}
+                style={{
+                  background: 'var(--surface-light)',
+                  border: '1px solid var(--border-light)',
+                  color: 'var(--text)',
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                Import Replay JSON
+              </button>
+              <input
+                ref={replayInputRef}
+                type="file"
+                accept="application/json"
+                onChange={handleReplayFileChange}
+                style={{ display: 'none' }}
+              />
+              {replayError && (
+                <div style={{ color: '#c04030', fontSize: 12 }}>
+                  {replayError}
+                </div>
+              )}
+              <button
+                onClick={resetUiPrefs}
+                style={{
+                  background: 'var(--surface-light)',
+                  border: '1px solid var(--border-light)',
+                  color: 'var(--text)',
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                Reset UI Preferences
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -490,9 +893,56 @@ export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
         <DrawModal
           state={state}
           dispatch={dispatch}
-          disabled={actionsDisabled}
+          disabled={drawActionsDisabled}
+          disabledReason={drawDisabledReason}
           onClose={() => setDrawModalOpen(false)}
         />
+      )}
+
+      {isDevMode() && showDevTelemetry && telemetryEvents.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          left: 12,
+          bottom: 12,
+          width: 300,
+          maxHeight: 220,
+          overflowY: 'auto',
+          background: 'rgba(20,10,5,0.88)',
+          border: '1px solid var(--border-light)',
+          borderRadius: 8,
+          padding: 8,
+          zIndex: 1500,
+          fontSize: 11,
+          color: 'var(--text-muted)',
+        }}>
+          <div style={{ color: 'var(--gold)', fontWeight: 700, marginBottom: 6 }}>UI Telemetry</div>
+          {telemetryEvents.map((entry, index) => (
+            <div key={`${entry}-${index}`} style={{ marginBottom: 3 }}>
+              {entry}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isDevMode() && showUxDebug && (
+        <div style={{
+          position: 'fixed',
+          left: 12,
+          bottom: showDevTelemetry && telemetryEvents.length > 0 ? 244 : 12,
+          width: 300,
+          background: 'rgba(20,10,5,0.88)',
+          border: '1px solid var(--border-light)',
+          borderRadius: 8,
+          padding: 8,
+          zIndex: 1500,
+          fontSize: 11,
+          color: 'var(--text-muted)',
+        }}>
+          <div style={{ color: 'var(--gold)', fontWeight: 700, marginBottom: 6 }}>UX Debug Counters</div>
+          <div>Long pending (&gt;=8s): {uxDebugCounts.longPending}</div>
+          <div>Play blocked (&gt;=5s): {uxDebugCounts.blockedPlay}</div>
+          <div>Draw blocked (&gt;=5s): {uxDebugCounts.blockedDraw}</div>
+        </div>
       )}
 
       {/* Endgame overlay */}

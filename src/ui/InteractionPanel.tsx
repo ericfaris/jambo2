@@ -4,6 +4,7 @@ import { WARE_TYPES } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { CardFace, WareToken, WARE_COLORS } from './CardFace.tsx';
 import { MarketDisplay } from './MarketDisplay.tsx';
+import { formatResolutionBreadcrumb } from './uiHints.ts';
 
 interface InteractionPanelProps {
   state: GameState;
@@ -210,10 +211,12 @@ export function InteractionPanel({ state, dispatch, onMegaView }: InteractionPan
 
   const source = getCard(pr.sourceCard);
   const compactSourceCard = shouldUseCompactSourceCard(pr);
+  const breadcrumb = formatResolutionBreadcrumb(pr);
 
   return (
     <PanelShell
       title={`${source.name} - Resolve`}
+      breadcrumb={breadcrumb}
       sourceCardId={pr.sourceCard}
       onMegaView={onMegaView}
       compactSourceCard={compactSourceCard}
@@ -247,7 +250,7 @@ function ReactionDecisionPanel({
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ fontSize: 18, color: '#6a5a48', fontWeight: 700 }}>↳</div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{reactionLabel}</div>
+          <div className="ui-helper-text">{reactionLabel}</div>
           {reactionCardId ? (
             <ReactionCardTile cardId={reactionCardId} onMegaView={onMegaView} />
           ) : (
@@ -364,7 +367,7 @@ function shouldUseCompactSourceCard(pr: PendingResolution): boolean {
   }
 }
 
-function PanelShell({ title, children, sourceCardId, onMegaView, compactSourceCard, sourceCardOverlay }: { title: string; children?: React.ReactNode; sourceCardId?: DeckCardId; onMegaView?: (cardId: DeckCardId) => void; compactSourceCard?: boolean; sourceCardOverlay?: React.ReactNode }) {
+function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, compactSourceCard, sourceCardOverlay }: { title: string; breadcrumb?: string; children?: React.ReactNode; sourceCardId?: DeckCardId; onMegaView?: (cardId: DeckCardId) => void; compactSourceCard?: boolean; sourceCardOverlay?: React.ReactNode }) {
   const sourceCard = sourceCardId ? getCard(sourceCardId) : null;
   const LINEN_BG = [
     'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
@@ -427,6 +430,17 @@ function PanelShell({ title, children, sourceCardId, onMegaView, compactSourceCa
           flex: compactSourceCard ? '1 1 320px' : undefined,
           minWidth: compactSourceCard ? 0 : undefined,
         }}>
+          {breadcrumb && (
+            <div style={{
+              fontSize: 12,
+              color: '#6a5a48',
+              textAlign: 'center',
+              marginBottom: 6,
+              fontWeight: 600,
+            }}>
+              {breadcrumb}
+            </div>
+          )}
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 17, marginBottom: 10, color: '#1a1714', letterSpacing: 0.2, textAlign: 'center' }}>
             {title}
           </div>
@@ -483,9 +497,9 @@ function ResolutionContent({ state, pr, dispatch, onMegaView }: { state: GameSta
     case 'DRAW_MODIFIER':
       return <DrawModifierPanel state={state} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'TURN_MODIFIER':
-      return <div style={{ color: 'var(--text-muted)' }}>Auto-resolving...</div>;
+      return <div className="ui-helper-text">Auto-resolving...</div>;
     default:
-      return <div style={{ color: 'var(--text-muted)' }}>Unknown resolution type</div>;
+      return <div className="ui-helper-text">Unknown resolution type</div>;
   }
 }
 
@@ -495,7 +509,7 @@ function WareTypePicker({ prompt, onPick, exclude }: { prompt: string; onPick: (
   const types = exclude ? WARE_TYPES.filter(w => w !== exclude) : WARE_TYPES;
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>{prompt}</div>
+      <div className="ui-prompt-text">{prompt}</div>
       <div style={getWareGridStyle(types.length)}>
         {types.map(wt => (
           <button key={wt} onClick={() => onPick(wt)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
@@ -527,7 +541,7 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
   // Ware selection phase: active player picks 2 ware types from supply
   if (pr.wares.length < 2) {
     const isMyPick = state.currentPlayer === 0;
-    if (!isMyPick) return <div style={{ color: 'var(--text-muted)' }}>Waiting for opponent to select wares for auction...</div>;
+    if (!isMyPick) return <div className="ui-helper-text">Waiting for opponent to select wares for auction...</div>;
     const prompt = pr.wares.length === 0
       ? 'Pick first ware from supply for auction'
       : 'Pick second ware from supply';
@@ -535,7 +549,7 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
       <div>
         {pr.wares.length === 1 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>First pick:</span>
+            <span className="ui-helper-text">First pick:</span>
             <WareToken type={pr.wares[0]} />
           </div>
         )}
@@ -549,22 +563,22 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
   if (!isMyBid) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Waiting for opponent to bid...</span>
+        <span className="ui-helper-text">Waiting for opponent to bid...</span>
         <div style={getWareGridStyle(pr.wares.length)}>
           {pr.wares.map((wt, i) => <WareToken key={i} type={wt} />)}
         </div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>(Current: {pr.currentBid}g)</span>
+        <span className="ui-helper-text">(Current: {pr.currentBid}g)</span>
       </div>
     );
   }
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Auction:</span>
+        <span className="ui-helper-text">Auction:</span>
         <div style={getWareGridStyle(pr.wares.length)}>
           {pr.wares.map((wt, i) => <WareToken key={i} type={wt} />)}
         </div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current bid: {pr.currentBid}g. Your turn.</span>
+        <span className="ui-helper-text">Current bid: {pr.currentBid}g. Your turn.</span>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'AUCTION_BID', amount: pr.currentBid + 1 })}>
@@ -579,7 +593,7 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
 function DeckPeekPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'DECK_PEEK' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
+      <div className="ui-prompt-text">
         Pick {pr.pickCount} card(s) from the revealed cards:
       </div>
       <SelectableCardArea
@@ -594,7 +608,9 @@ function DeckPeekPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolu
 function DiscardPickPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'DISCARD_PICK' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Pick a card from the discard pile:</div>
+      <div className="ui-prompt-text">
+        Pick 1 card from the discard pile ({pr.eligibleCards.length} available).
+      </div>
       <SelectableCardArea
         cards={pr.eligibleCards}
         onSelect={(cardId) => resolve(dispatch, { type: 'DISCARD_PICK', cardId })}
@@ -613,7 +629,9 @@ function WareCashPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
     const wareCards = player.hand.filter(id => getCard(id).type === 'ware');
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a ware card from your hand:</div>
+        <div className="ui-prompt-text">
+          Select 1 ware card from your hand ({wareCards.length} ware card{wareCards.length === 1 ? '' : 's'} available).
+        </div>
         <SelectableCardArea
           cards={wareCards}
           onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
@@ -629,8 +647,11 @@ function WareCashPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
     };
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
-          Select 3 wares to return ({selectedWares.length}/3):
+        <div className="ui-prompt-text">
+          Select 3 wares to return ({selectedWares.length}/3 selected).
+        </div>
+        <div className="ui-helper-text" style={{ marginBottom: 8, opacity: 0.9 }}>
+          You currently have {player.market.filter(w => w !== null).length} ware(s) in market.
         </div>
         <MarketDisplay market={player.market} onSlotClick={toggleSlot} selectedSlots={selectedWares} />
         <button className="primary" disabled={selectedWares.length !== 3} onClick={() => { resolve(dispatch, { type: 'SELECT_WARES', wareIndices: selectedWares }); setSelectedWares([]); }} style={{ margin: '8px auto 0', display: 'block' }}>
@@ -640,7 +661,7 @@ function WareCashPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
     );
   }
 
-  return <div style={{ color: 'var(--text-muted)' }}>Processing...</div>;
+  return <div className="ui-helper-text">Processing...</div>;
 }
 
 function WareSellBulkPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'WARE_SELL_BULK' }>; dispatch: InteractionPanelProps['dispatch'] }) {
@@ -654,7 +675,7 @@ function WareSellBulkPanel({ state, pr, dispatch }: { state: GameState; pr: Extr
 
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
+      <div className="ui-prompt-text">
         Select wares to sell at {pr.pricePerWare}g each ({selected.length} selected = {selected.length * pr.pricePerWare}g):
       </div>
       <MarketDisplay market={player.market} onSlotClick={toggleSlot} selectedSlots={selected} />
@@ -668,9 +689,12 @@ function WareSellBulkPanel({ state, pr, dispatch }: { state: GameState; pr: Extr
 function WareReturnPanel({ state, dispatch }: { state: GameState; dispatch: InteractionPanelProps['dispatch'] }) {
   const cp = state.currentPlayer;
   const player = state.players[cp];
+  const marketCount = player.market.filter(w => w !== null).length;
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a ware to return:</div>
+      <div className="ui-prompt-text">
+        Select 1 ware to return ({marketCount} ware{marketCount === 1 ? '' : 's'} available).
+      </div>
       <MarketDisplay market={player.market} onSlotClick={(i) => resolve(dispatch, { type: 'RETURN_WARE', wareIndex: i })} />
     </div>
   );
@@ -679,9 +703,12 @@ function WareReturnPanel({ state, dispatch }: { state: GameState; dispatch: Inte
 function WareTheftSinglePanel({ state, dispatch }: { state: GameState; dispatch: InteractionPanelProps['dispatch'] }) {
   const cp = state.currentPlayer;
   const opponent: 0 | 1 = cp === 0 ? 1 : 0;
+  const opponentWareCount = state.players[opponent].market.filter(w => w !== null).length;
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a ware to steal from opponent:</div>
+      <div className="ui-prompt-text">
+        Select 1 ware to steal from opponent ({opponentWareCount} available).
+      </div>
       <MarketDisplay market={state.players[opponent].market} onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} />
     </div>
   );
@@ -692,16 +719,22 @@ function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
   const opponent: 0 | 1 = cp === 0 ? 1 : 0;
 
   if (pr.step === 'STEAL') {
+    const opponentWareCount = state.players[opponent].market.filter(w => w !== null).length;
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a ware to steal from opponent:</div>
+        <div className="ui-prompt-text">
+          Step 1/2: steal 1 ware from opponent ({opponentWareCount} available).
+        </div>
         <MarketDisplay market={state.players[opponent].market} onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} />
       </div>
     );
   }
+  const myWareCount = state.players[cp].market.filter(w => w !== null).length;
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a ware to give to opponent:</div>
+      <div className="ui-prompt-text">
+        Step 2/2: give 1 ware to opponent ({myWareCount} available).
+      </div>
       <MarketDisplay market={state.players[cp].market} onSlotClick={(i) => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} />
     </div>
   );
@@ -713,7 +746,9 @@ function UtilityTheftPanel({ state, dispatch, onMegaView }: { state: GameState; 
   const opUtils = state.players[opponent].utilities;
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select opponent utility to steal:</div>
+      <div className="ui-prompt-text">
+        Select 1 opponent utility to steal ({opUtils.length} available).
+      </div>
       <div style={getCardGridStyle(opUtils.length)}>
         {opUtils.map((u, i) => (
           <CardFace key={u.cardId} cardId={u.cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })} onMegaView={onMegaView} />
@@ -729,7 +764,7 @@ function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
     if (pr.revealedHand.length === 0) {
       return (
         <div>
-          <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Opponent has no cards to take.</div>
+          <div className="ui-prompt-text">Opponent has no cards to take.</div>
           <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
             Continue
           </button>
@@ -738,7 +773,9 @@ function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
     }
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a card to take from opponent's hand:</div>
+        <div className="ui-prompt-text">
+          Step 1/2: take 1 card from opponent's hand ({pr.revealedHand.length} available).
+        </div>
         <SelectableCardArea
           cards={pr.revealedHand}
           onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
@@ -747,11 +784,17 @@ function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; 
       </div>
     );
   }
+  const giveOptions = state.players[cp].hand.filter(cardId => cardId !== pr.takenCard);
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a card to give to opponent:</div>
+      <div className="ui-prompt-text">
+        Step 2/2: give 1 card to opponent ({giveOptions.length} valid choices).
+      </div>
+      <div className="ui-helper-text" style={{ marginBottom: 8, opacity: 0.9 }}>
+        You cannot give back the card you just took.
+      </div>
       <SelectableCardArea
-        cards={state.players[cp].hand}
+        cards={giveOptions}
         onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
         onMegaView={onMegaView}
       />
@@ -768,7 +811,9 @@ function OpponentDiscardPanel({ state, pr, dispatch, onMegaView }: { state: Game
   if (discardCount <= 0) {
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>No cards need to be discarded.</div>
+        <div className="ui-prompt-text">
+          Hand limit check: {target.hand.length} card(s), target is {pr.discardTo}. No cards need to be discarded.
+        </div>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [] })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue
         </button>
@@ -777,7 +822,7 @@ function OpponentDiscardPanel({ state, pr, dispatch, onMegaView }: { state: Game
   }
 
   if (pr.targetPlayer !== 0) {
-    return <div style={{ color: 'var(--text-muted)' }}>Opponent is choosing cards to discard...</div>;
+    return <div className="ui-helper-text">Opponent is choosing cards to discard...</div>;
   }
 
   const toggleCard = (i: number) => {
@@ -786,8 +831,11 @@ function OpponentDiscardPanel({ state, pr, dispatch, onMegaView }: { state: Game
 
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
-        Select {discardCount} card(s) to discard ({selected.length}/{discardCount}):
+      <div className="ui-prompt-text">
+        You have {target.hand.length} card(s). Discard down to {pr.discardTo} ({discardCount} total) — selected {selected.length}/{discardCount}.
+      </div>
+      <div className="ui-helper-text" style={{ marginBottom: 8, opacity: 0.9 }}>
+        You are at {target.hand.length} card(s), so discard {discardCount} to end at {pr.discardTo}.
       </div>
       <SelectableCardArea
         cards={target.hand}
@@ -806,13 +854,13 @@ function DraftPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolutio
   const isMyPick = pr.currentPicker === 0;
 
   if (!isMyPick) {
-    return <div style={{ color: 'var(--text-muted)' }}>Waiting for opponent to pick...</div>;
+    return <div className="ui-helper-text">Waiting for opponent to pick...</div>;
   }
 
   if (pr.draftMode === 'wares') {
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Draft a ware ({pr.availableWares.length} left):</div>
+        <div className="ui-prompt-text">Draft a ware ({pr.availableWares.length} left):</div>
         <div style={getWareGridStyle(pr.availableWares.length)}>
           {pr.availableWares.map((wt, i) => (
             <button key={i} onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
@@ -827,7 +875,7 @@ function DraftPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolutio
   const cards = pr.availableCards || [];
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Draft a {pr.draftMode === 'cards' ? 'card' : 'utility'} ({cards.length} left):</div>
+      <div className="ui-prompt-text">Draft a {pr.draftMode === 'cards' ? 'card' : 'utility'} ({cards.length} left):</div>
       <SelectableCardArea
         cards={cards}
         onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
@@ -844,7 +892,7 @@ function SuppliesDiscardPanel({ state, dispatch, onMegaView }: { state: GameStat
   if (hand.length === 0) {
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>No cards to discard. Drawing until ware found...</div>
+        <div className="ui-prompt-text">No cards to discard. Drawing until ware found...</div>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue
         </button>
@@ -854,7 +902,9 @@ function SuppliesDiscardPanel({ state, dispatch, onMegaView }: { state: GameStat
 
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a card to discard:</div>
+      <div className="ui-prompt-text">
+        Select 1 card to discard ({hand.length} available).
+      </div>
       <SelectableCardArea
         cards={hand}
         onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
@@ -869,7 +919,7 @@ function UtilityKeepPanel({ state, pr, dispatch, onMegaView }: { state: GameStat
   const responder = pr.step === 'ACTIVE_CHOOSE' ? cp : (cp === 0 ? 1 : 0);
 
   if (responder !== 0) {
-    return <div style={{ color: 'var(--text-muted)' }}>Opponent choosing which utility to keep...</div>;
+    return <div className="ui-helper-text">Opponent choosing which utility to keep...</div>;
   }
 
   const utils = state.players[responder].utilities;
@@ -877,7 +927,7 @@ function UtilityKeepPanel({ state, pr, dispatch, onMegaView }: { state: GameStat
   if (utils.length === 0) {
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>You have no utilities.</div>
+        <div className="ui-prompt-text">You have no utilities.</div>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: 0 })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue
         </button>
@@ -887,7 +937,9 @@ function UtilityKeepPanel({ state, pr, dispatch, onMegaView }: { state: GameStat
 
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Choose a utility to keep (others will be discarded):</div>
+      <div className="ui-prompt-text">
+        Choose 1 utility to keep ({utils.length} available, {Math.max(0, utils.length - 1)} will be discarded).
+      </div>
       <SelectableCardArea
         cards={utils.map((u) => u.cardId)}
         onSelect={(_, i) => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })}
@@ -902,7 +954,9 @@ function CrocodilePanel({ state, pr, dispatch, onMegaView }: { state: GameState;
     const opUtils = state.players[pr.opponentPlayer].utilities;
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select opponent's utility to use and discard:</div>
+        <div className="ui-prompt-text">
+          Select 1 opponent utility to use and discard ({opUtils.length} available).
+        </div>
         <SelectableCardArea
           cards={opUtils.map((u) => u.cardId)}
           onSelect={(_, i) => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })}
@@ -911,7 +965,7 @@ function CrocodilePanel({ state, pr, dispatch, onMegaView }: { state: GameState;
       </div>
     );
   }
-  return <div style={{ color: 'var(--text-muted)' }}>Using opponent's utility...</div>;
+  return <div className="ui-helper-text">Using opponent's utility...</div>;
 }
 
 function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'UTILITY_EFFECT' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
@@ -926,7 +980,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
       // Auto-resolve: no wares to return, resolver draws a card anyway
       return (
         <div>
-          <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>No wares to return.</div>
+          <div className="ui-prompt-text">No wares to return.</div>
           <button className="primary" onClick={() => resolve(dispatch, { type: 'RETURN_WARE', wareIndex: 0 })} style={{ margin: '8px auto 0', display: 'block' }}>
             Draw a card
           </button>
@@ -935,7 +989,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
     }
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a ware to return (then draw 1 card):</div>
+        <div className="ui-prompt-text">Select a ware to return (then draw 1 card):</div>
         <MarketDisplay market={player.market} onSlotClick={(i) => resolve(dispatch, { type: 'RETURN_WARE', wareIndex: i })} />
       </div>
     );
@@ -947,7 +1001,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
       // First phase: trigger the draw
       return (
         <div>
-          <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Scale: Draw 2 cards, keep 1, give 1 to opponent.</div>
+          <div className="ui-prompt-text">Scale: Draw 2 cards, keep 1, give 1 to opponent.</div>
           <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
             Draw cards
           </button>
@@ -957,7 +1011,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
     // Second phase: pick which drawn card to keep
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Keep one card (other goes to opponent):</div>
+        <div className="ui-prompt-text">Keep one card (other goes to opponent):</div>
         <SelectableCardArea
           cards={pr.selectedCards}
           onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
@@ -976,7 +1030,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
         : { type: 'SELECT_CARD', cardId: '' };
       return (
         <div>
-          <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>No cards in hand.</div>
+          <div className="ui-prompt-text">No cards in hand.</div>
           <button className="primary" onClick={() => resolve(dispatch, dummyResponse)} style={{ margin: '8px auto 0', display: 'block' }}>
             Continue
           </button>
@@ -993,7 +1047,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
       // Single card selection — click to confirm immediately
       return (
         <div>
-          <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a card from your hand:</div>
+          <div className="ui-prompt-text">Select a card from your hand:</div>
           <SelectableCardArea
             cards={player.hand}
             onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
@@ -1005,7 +1059,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
 
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
+        <div className="ui-prompt-text">
           Select 1-2 cards from your hand ({selectedCards.length} selected):
         </div>
         <SelectableCardArea
@@ -1025,7 +1079,7 @@ function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameSt
     return <WareTypePicker prompt="Choose a ware type to receive" onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} />;
   }
 
-  return <div style={{ color: 'var(--text-muted)' }}>Processing...</div>;
+  return <div className="ui-helper-text">Processing...</div>;
 }
 
 function DrawModifierPanel({ state, dispatch, onMegaView }: { state: GameState; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
@@ -1035,7 +1089,7 @@ function DrawModifierPanel({ state, dispatch, onMegaView }: { state: GameState; 
   if (hand.length === 0 || state.discardPile.length === 0) {
     return (
       <div>
-        <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
+        <div className="ui-prompt-text">
           {hand.length === 0 ? 'No cards in hand to trade.' : 'Discard pile is empty.'}
         </div>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
@@ -1047,7 +1101,7 @@ function DrawModifierPanel({ state, dispatch, onMegaView }: { state: GameState; 
 
   return (
     <div>
-      <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
+      <div className="ui-prompt-text">
         Mask of Transformation: Select a card from your hand to trade for top of discard pile:
       </div>
       <SelectableCardArea

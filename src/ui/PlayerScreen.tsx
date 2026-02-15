@@ -4,7 +4,7 @@
 // All actions sent via WebSocket.
 // ============================================================================
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { PublicGameState, PrivateGameState } from '../multiplayer/types.ts';
 import type { GameAction, DeckCardId, WareType, GameState } from '../engine/types.ts';
@@ -18,6 +18,33 @@ import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { MegaView } from './MegaView.tsx';
 import { CardPlayDialog } from './ActionButtons.tsx';
 import { useAudioEvents } from './useAudioEvents.ts';
+import { useVisualFeedback } from './useVisualFeedback.ts';
+
+type AnimationSpeed = 'normal' | 'fast';
+const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
+const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
+const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
+
+function getInitialAnimationSpeed(): AnimationSpeed {
+  if (typeof window === 'undefined') return 'normal';
+  const saved = window.localStorage.getItem(ANIMATION_SPEED_STORAGE_KEY);
+  return saved === 'fast' ? 'fast' : 'normal';
+}
+
+function getInitialDevTelemetry(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(DEV_TELEMETRY_STORAGE_KEY) === 'true';
+}
+
+function getInitialHighContrast(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY) === 'true';
+}
+
+function isDevMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
 
 interface PlayerScreenProps {
   ws: WebSocketGameState;
@@ -31,6 +58,12 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const [drawModalOpen, setDrawModalOpen] = useState(false);
   const [cardError, setCardError] = useState<{cardId: DeckCardId, message: string} | null>(null);
   const [megaCardId, setMegaCardId] = useState<DeckCardId | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
+  const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
+  const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
+  const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
+  const menuRef = useRef<HTMLDivElement>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
 
   const isCardActionValidationError = (message: string) => (
@@ -59,11 +92,112 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     }
   }, [ws.error, ws.clearError]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.setAttribute('data-anim-speed', animationSpeed);
+    window.localStorage.setItem(ANIMATION_SPEED_STORAGE_KEY, animationSpeed);
+  }, [animationSpeed]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(DEV_TELEMETRY_STORAGE_KEY, String(showDevTelemetry));
+  }, [showDevTelemetry]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (highContrast) {
+      document.documentElement.setAttribute('data-contrast', 'high');
+    } else {
+      document.documentElement.removeAttribute('data-contrast');
+    }
+    window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(highContrast));
+  }, [highContrast]);
+
   if (!pub || !priv || slot === null) return null;
 
   const dispatch = (action: GameAction) => ws.sendAction(action);
   const isMyTurn = isWaitingForMe(pub, priv, slot);
   const myPublic = pub.players[slot];
+  const lastLog = pub.log.length > 0 ? pub.log[pub.log.length - 1] : null;
+
+  const visualFeedback = useVisualFeedback({
+    phase: pub.phase,
+    actionsLeft: pub.actionsLeft,
+    deckCount: pub.deckCount,
+    discardCount: pub.discardPile.length,
+    topDiscardCard: pub.discardPile.length > 0 ? pub.discardPile[0] : null,
+    players: [
+      {
+        gold: pub.players[0].gold,
+        handCount: pub.players[0].handCount,
+        market: pub.players[0].market,
+      },
+      {
+        gold: pub.players[1].gold,
+        handCount: pub.players[1].handCount,
+        market: pub.players[1].market,
+      },
+    ],
+    lastLog: lastLog ? { player: lastLog.player, action: lastLog.action } : null,
+  });
+
+  useEffect(() => {
+    if (!showDevTelemetry) return;
+
+    const newEvents: string[] = [];
+    if (visualFeedback.trail) {
+      newEvents.push(`[trail] ${visualFeedback.trail.actor === slot ? 'you' : 'opponent'} ${visualFeedback.trail.kind}`);
+    }
+    if (visualFeedback.goldDeltas[0] !== 0 || visualFeedback.goldDeltas[1] !== 0) {
+      const myDelta = visualFeedback.goldDeltas[slot];
+      const oppDelta = visualFeedback.goldDeltas[slot === 0 ? 1 : 0];
+      newEvents.push(`[gold] you ${myDelta}, opp ${oppDelta}`);
+    }
+    if (visualFeedback.marketFlashSlots[0].length > 0 || visualFeedback.marketFlashSlots[1].length > 0) {
+      const mySlots = visualFeedback.marketFlashSlots[slot];
+      const oppSlots = visualFeedback.marketFlashSlots[slot === 0 ? 1 : 0];
+      newEvents.push(`[market] you ${mySlots.join(',') || '-'} | opp ${oppSlots.join(',') || '-'}`);
+    }
+
+    if (newEvents.length === 0) return;
+    newEvents.forEach((entry) => console.debug(`[JamboPlayer] ${entry}`));
+    setTelemetryEvents((previous) => [...newEvents, ...previous].slice(0, 8));
+  }, [showDevTelemetry, visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots, slot]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleClick = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [menuOpen]);
+
+  const resetUiPrefs = useCallback(() => {
+    setAnimationSpeed('normal');
+    setShowDevTelemetry(false);
+    setHighContrast(false);
+    setTelemetryEvents([]);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(ANIMATION_SPEED_STORAGE_KEY);
+      window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
+      window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
+    }
+  }, []);
 
   const hasPendingInteraction = !!(
     priv.pendingResolution ||
@@ -192,83 +326,93 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         </ResolveMegaView>
       )}
 
-      {/* Own market + utilities */}
-      <div style={{
-        display: 'flex',
-        gap: 12,
-        flexWrap: 'wrap',
-        background: 'rgba(90,64,48,0.3)',
-        borderRadius: 10,
+      <div className={`turn-emphasis ${isMyTurn ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
+        borderRadius: 12,
         padding: 12,
-        border: '1px solid var(--border)',
+        backgroundImage: 'linear-gradient(rgba(20,10,5,0.54), rgba(20,10,5,0.54)), url(/assets/panels/wood_1.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
       }}>
-        <MarketDisplay market={myPublic.market} label="Your Market" />
-        <UtilityArea
-          utilities={myPublic.utilities}
-          onActivate={(i) => {
-            const validation = validateActivateUtility(validationState, i);
-            if (!validation.valid) {
-              const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot activate utility');
-              setCardError({ cardId: myPublic.utilities[i].cardId, message: friendlyMessage });
-              return;
-            }
-            setCardError(null);
-            dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
-          }}
-          disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
-          cardError={cardError}
-          label="Your Utilities"
-        />
-      </div>
+        {/* Own market + utilities */}
+        <div style={{
+          display: 'flex',
+          gap: 12,
+          flexWrap: 'wrap',
+          background: 'rgba(20,10,5,0.24)',
+          borderRadius: 10,
+          padding: 12,
+          border: '1px solid var(--border)',
+        }}>
+          <MarketDisplay market={myPublic.market} label="Your Market" />
+          <UtilityArea
+            utilities={myPublic.utilities}
+            onActivate={(i) => {
+              const validation = validateActivateUtility(validationState, i);
+              if (!validation.valid) {
+                const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot activate utility');
+                setCardError({ cardId: myPublic.utilities[i].cardId, message: friendlyMessage });
+                return;
+              }
+              setCardError(null);
+              dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
+            }}
+            disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
+            cardError={cardError}
+            label="Your Utilities"
+          />
+        </div>
 
-      {/* Play phase: End Turn button */}
-      {inPlayPhase && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
-          <button
-            className="danger"
-            disabled={actionsDisabled}
-            onClick={() => dispatch({ type: 'END_TURN' })}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div>End Turn</div>
-              <div style={{ display: 'flex', gap: 3 }}>
-                {Array.from({ length: 5 }, (_, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
-                      border: '2px solid var(--gold)',
-                    }}
-                  />
-                ))}
+        {/* Play phase: End Turn button */}
+        {inPlayPhase && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
+            <button
+              className="danger"
+              disabled={actionsDisabled}
+              onClick={() => dispatch({ type: 'END_TURN' })}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div>End Turn</div>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
+                        border: '2px solid var(--gold)',
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          </button>
-        </div>
-      )}
+            </button>
+          </div>
+        )}
 
-      {/* Hand */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', fontWeight: 600 }}>
-            Your Hand ({priv.hand.length} cards)
+        {/* Hand */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <div className="panel-section-title" style={{ fontSize: 15, marginBottom: 0 }}>
+              Your Hand ({priv.hand.length} cards)
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)' }}>
+                {myPublic.gold}g
+              </span>
+            </div>
           </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)' }}>
-              {myPublic.gold}g
-            </span>
-          </div>
+          <HandDisplay
+            hand={priv.hand}
+            onPlayCard={handlePlayCard}
+            disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
+            cardError={cardError}
+            useWoodBackground={false}
+            onMegaView={setMegaCardId}
+          />
         </div>
-        <HandDisplay
-          hand={priv.hand}
-          onPlayCard={handlePlayCard}
-          disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
-          cardError={cardError}
-          onMegaView={setMegaCardId}
-        />
       </div>
 
       {/* Ware dialog */}
@@ -314,6 +458,128 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         {ws.connected ? 'Connected' : 'Reconnecting...'}
       </div>
 
+      {/* Settings */}
+      <div ref={menuRef} style={{ position: 'fixed', top: 12, right: 16, zIndex: 50 }}>
+        <button
+          onClick={() => setMenuOpen((previous) => !previous)}
+          style={{
+            width: 42,
+            height: 42,
+            padding: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            background: menuOpen ? 'var(--surface-accent)' : 'var(--surface-light)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 8,
+          }}
+          title="Settings"
+        >
+          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
+          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
+          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
+        </button>
+
+        {menuOpen && (
+          <div className="dialog-pop" style={{
+            position: 'absolute',
+            top: 42,
+            right: 0,
+            background: 'var(--surface)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 10,
+            padding: 12,
+            minWidth: 220,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--gold)', marginBottom: 12 }}>
+              Player Settings
+            </div>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              fontSize: 15,
+              color: 'var(--text)',
+            }}>
+              Animation Speed
+              <select
+                value={animationSpeed}
+                onChange={(event) => setAnimationSpeed(event.target.value as AnimationSpeed)}
+                style={{
+                  background: 'var(--surface-light)',
+                  border: '1px solid var(--border-light)',
+                  color: 'var(--text)',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 14,
+                }}
+              >
+                <option value="normal">Normal</option>
+                <option value="fast">Fast</option>
+              </select>
+            </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: 10,
+              cursor: 'pointer',
+              fontSize: 15,
+              color: 'var(--text)',
+            }}>
+              High Contrast Mode
+              <input
+                type="checkbox"
+                checked={highContrast}
+                onChange={() => setHighContrast((previous) => !previous)}
+                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+              />
+            </label>
+            {isDevMode() && (
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                marginTop: 10,
+                cursor: 'pointer',
+                fontSize: 15,
+                color: 'var(--text)',
+              }}>
+                Dev Telemetry Overlay
+                <input
+                  type="checkbox"
+                  checked={showDevTelemetry}
+                  onChange={() => setShowDevTelemetry((previous) => !previous)}
+                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+                />
+              </label>
+            )}
+            <button
+              onClick={resetUiPrefs}
+              style={{
+                marginTop: 12,
+                width: '100%',
+                background: 'var(--surface-light)',
+                border: '1px solid var(--border-light)',
+                color: 'var(--text)',
+                borderRadius: 8,
+                padding: '8px 10px',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              Reset UI Preferences
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Draw modal */}
       {drawModalOpen && (
         <DrawModal
@@ -329,6 +595,31 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       {/* Mega view */}
       {megaCardId && (
         <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} />
+      )}
+
+      {isDevMode() && showDevTelemetry && telemetryEvents.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          left: 12,
+          bottom: 12,
+          width: 300,
+          maxHeight: 220,
+          overflowY: 'auto',
+          background: 'rgba(20,10,5,0.88)',
+          border: '1px solid var(--border-light)',
+          borderRadius: 8,
+          padding: 8,
+          zIndex: 1500,
+          fontSize: 11,
+          color: 'var(--text-muted)',
+        }}>
+          <div style={{ color: 'var(--gold)', fontWeight: 700, marginBottom: 6 }}>Player Telemetry</div>
+          {telemetryEvents.map((entry, index) => (
+            <div key={`${entry}-${index}`} style={{ marginBottom: 3 }}>
+              {entry}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

@@ -20,7 +20,7 @@ export function StatusBar({ state }: StatusBarProps) {
       border: '1px solid var(--border)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>Actions:</span>
+        <span className="ui-prompt-text" style={{ marginBottom: 0 }}>Actions:</span>
         <div style={{ display: 'flex', gap: 6 }}>
           {dots.map((active, i) => (
             <div key={i} style={{

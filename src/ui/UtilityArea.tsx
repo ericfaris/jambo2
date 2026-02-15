@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import type { UtilityState } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 
@@ -10,7 +10,7 @@ interface UtilityAreaProps {
   label?: string;
 }
 
-export function UtilityArea({ utilities, onActivate, disabled, cardError, label }: UtilityAreaProps) {
+function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, label }: UtilityAreaProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -21,12 +21,19 @@ export function UtilityArea({ utilities, onActivate, disabled, cardError, label 
   }, []);
 
   const overlapAmount = 42;
+  const hasUnusedUtility = utilities.some((utility) => !utility.usedThisTurn);
+  const showInteractionHint = !!onActivate && !disabled && hasUnusedUtility;
 
   return (
     <div>
       {label && (
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 14, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600 }}>
+        <div className="panel-section-title">
           {label}
+        </div>
+      )}
+      {showInteractionHint && (
+        <div className="ui-helper-text" style={{ marginBottom: 4 }}>
+          Tap an unused utility to activate.
         </div>
       )}
       <div style={{
@@ -104,3 +111,5 @@ export function UtilityArea({ utilities, onActivate, disabled, cardError, label 
     </div>
   );
 }
+
+export const UtilityArea = memo(UtilityAreaComponent);

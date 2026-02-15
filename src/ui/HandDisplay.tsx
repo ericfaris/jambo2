@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { memo, useState, useEffect } from 'react';
 import type { DeckCardId } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 
@@ -8,9 +8,11 @@ interface HandDisplayProps {
   disabled?: boolean;
   cardError?: {cardId: DeckCardId, message: string} | null;
   onMegaView?: (cardId: DeckCardId) => void;
+  useWoodBackground?: boolean;
+  transparentBackground?: boolean;
 }
 
-export function HandDisplay({ hand, onPlayCard, disabled, cardError, onMegaView }: HandDisplayProps) {
+function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile screen size
@@ -71,7 +73,16 @@ export function HandDisplay({ hand, onPlayCard, disabled, cardError, onMegaView 
       style={{
         position: 'relative',
         padding: 14,
-        background: 'rgba(90,64,48,0.15)',
+        ...(useWoodBackground
+          ? {
+              backgroundImage: 'linear-gradient(rgba(20,10,5,0.54), rgba(20,10,5,0.54)), url(/assets/panels/wood_1.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            }
+          : {
+              background: transparentBackground ? 'transparent' : 'rgba(20,10,5,0.2)',
+            }),
         border: '1px dashed var(--border)',
         borderRadius: 10,
         minHeight: 200, // Increased to accommodate card height (187px) + padding
@@ -86,6 +97,16 @@ export function HandDisplay({ hand, onPlayCard, disabled, cardError, onMegaView 
         touchAction: 'pan-x',
       } as any}
     >
+      {!disabled && !!onPlayCard && hand.length > 0 && (
+        <div className="ui-helper-text" style={{
+          position: 'absolute',
+          top: 4,
+          left: 8,
+          zIndex: 5,
+        }}>
+          Tap a card to play it.
+        </div>
+      )}
       {hand.length === 0 && (
         <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: 12, fontSize: 14 }}>
           No cards in hand
@@ -134,3 +155,5 @@ export function HandDisplay({ hand, onPlayCard, disabled, cardError, onMegaView 
     </div>
   );
 }
+
+export const HandDisplay = memo(HandDisplayComponent);

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { WareType } from '../engine/types.ts';
 import { WareToken } from './CardFace.tsx';
 
@@ -5,29 +6,38 @@ interface MarketDisplayProps {
   market: (WareType | null)[];
   onSlotClick?: (index: number) => void;
   selectedSlots?: number[];
+  flashSlots?: number[];
+  flashVariant?: 'soft' | 'normal' | 'strong';
   label?: string;
 }
 
-export function MarketDisplay({ market, onSlotClick, selectedSlots, label }: MarketDisplayProps) {
+function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label }: MarketDisplayProps) {
+  const isInteractive = !!onSlotClick;
+
   return (
     <div>
       {label && (
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 14, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600 }}>
+        <div className="panel-section-title">
           {label}
+        </div>
+      )}
+      {isInteractive && (
+        <div className="ui-helper-text" style={{ marginBottom: 4 }}>
+          Tap a filled slot to select.
         </div>
       )}
       <div style={{
         display: 'flex',
         gap: 6,
         flexWrap: 'wrap',
-        background: 'linear-gradient(180deg, #3d2a1a 0%, #2d1c12 100%)',
+        background: 'transparent',
         borderRadius: 10,
         padding: 10,
         border: '1px solid var(--border)',
-        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
+        boxShadow: 'none',
       }}>
         {market.map((ware, i) => (
-          <div key={i} style={{
+          <div key={i} className={flashSlots?.includes(i) ? `market-slot-flash market-slot-flash-${flashVariant}` : undefined} style={{
             width: 48,
             height: 48,
             borderRadius: 8,
@@ -51,3 +61,5 @@ export function MarketDisplay({ market, onSlotClick, selectedSlots, label }: Mar
     </div>
   );
 }
+
+export const MarketDisplay = memo(MarketDisplayComponent);

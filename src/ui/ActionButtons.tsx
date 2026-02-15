@@ -123,10 +123,11 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
   );
 }
 
-export function DrawModal({ state, dispatch, disabled, onClose }: {
+export function DrawModal({ state, dispatch, disabled, disabledReason, onClose }: {
   state: GameState;
   dispatch: (action: import('../engine/types.ts').GameAction) => void;
   disabled: boolean;
+  disabledReason?: string | null;
   onClose: () => void;
 }) {
   const [showCardBack, setShowCardBack] = useState(false);
@@ -270,7 +271,14 @@ export function DrawModal({ state, dispatch, disabled, onClose }: {
           gap: 12,
           justifyContent: 'center',
           padding: '0 6px 6px',
+          flexDirection: 'column',
         }}>
+          {!canAct && (
+            <div className="disabled-hint ui-helper-text" style={{ marginBottom: 2 }}>
+              {disabledReason || 'Drawing is currently unavailable.'}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           {showCardBack || !state.drawnCard ? (
             <>
               <button
@@ -329,6 +337,7 @@ export function DrawModal({ state, dispatch, disabled, onClose }: {
               </button>
             </>
           )}
+          </div>
         </div>
       </div>
     </div>
