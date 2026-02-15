@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { GameState, DeckCardId } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
+import { validateActivateUtility } from '../engine/validation/actionValidator.ts';
 import { WARE_COLORS } from './CardFace.tsx';
 
 interface ActionButtonsProps {
@@ -137,6 +138,15 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose }
   if (!shouldShowModal && !showCardBack) return null;
 
   const canAct = state.currentPlayer === 0 && !disabled;
+  const maskUtilityIndex = state.players[0].utilities.findIndex(
+    (utility) => utility.designId === 'mask_of_transformation' && !utility.usedThisTurn,
+  );
+  const canUseMaskBeforeDraw =
+    canAct &&
+    state.phase === 'DRAW' &&
+    state.drawnCard === null &&
+    maskUtilityIndex !== -1 &&
+    validateActivateUtility(state, maskUtilityIndex).valid;
 
   // CSS linen finish — fine crosshatch over off-white base
   const LINEN_BG = [
@@ -338,6 +348,18 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose }
             </>
           )}
           </div>
+          {(showCardBack || !state.drawnCard) && canUseMaskBeforeDraw && (
+            <button
+              onClick={() => {
+                dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: maskUtilityIndex });
+                setShowCardBack(false);
+                onClose();
+              }}
+              style={{ width: '100%', padding: '12px' }}
+            >
+              Use Mask of Transformation
+            </button>
+          )}
         </div>
       </div>
     </div>

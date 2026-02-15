@@ -80,6 +80,40 @@ describe('Draw Phase', () => {
     expect(s.phase).toBe('PLAY');
     expect(() => act(s, { type: 'DRAW_CARD' })).toThrow();
   });
+
+  it('allows activating Mask of Transformation before first draw', () => {
+    let s = createTestState();
+    s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
+    s = removeFromDeck(s, 'ware_3k_1');
+
+    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    expect(s2.phase).toBe('DRAW');
+    expect(s2.actionsLeft).toBe(4);
+    expect(s2.pendingResolution?.type).toBe('DRAW_MODIFIER');
+  });
+
+  it('can continue draw flow after resolving pre-draw Mask', () => {
+    let s = createTestState();
+    s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
+    s = removeFromDeck(s, 'ware_3k_1');
+
+    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    const cardToSwap = s2.players[0].hand[0];
+    const s3 = act(s2, { type: 'RESOLVE_INTERACTION', response: { type: 'SELECT_CARD', cardId: cardToSwap } });
+
+    expect(s3.pendingResolution).toBeNull();
+    expect(s3.phase).toBe('DRAW');
+
+    const s4 = act(s3, { type: 'DRAW_CARD' });
+    expect(s4.drawnCard).not.toBeNull();
+  });
+
+  it('does not allow non-mask utility activation in DRAW phase', () => {
+    let s = createTestState();
+    s = withUtility(s, 0, 'well_1', 'well');
+
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow();
+  });
 });
 
 describe('Play Phase — Card Play', () => {

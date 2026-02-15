@@ -643,6 +643,19 @@ function DrawModal({ pub, priv, dispatch, disabled, onClose, slot }: {
   if (!shouldShowModal && !showCardBack) return null;
 
   const card = priv.drawnCard ? getCard(priv.drawnCard) : null;
+  const myUtilities = pub.players[slot].utilities;
+  const maskUtilityIndex = myUtilities.findIndex(
+    (utility) => utility.designId === 'mask_of_transformation' && !utility.usedThisTurn,
+  );
+  const canUseMaskBeforeDraw =
+    !disabled &&
+    pub.phase === 'DRAW' &&
+    pub.currentPlayer === slot &&
+    !priv.drawnCard &&
+    maskUtilityIndex !== -1 &&
+    priv.hand.length > 0 &&
+    pub.discardPile.length > 0 &&
+    pub.actionsLeft > 0;
 
   // CSS linen finish — fine crosshatch over off-white base
   const LINEN_BG = [
@@ -742,48 +755,63 @@ function DrawModal({ pub, priv, dispatch, disabled, onClose, slot }: {
           gap: 12,
           justifyContent: 'center',
           padding: '0 6px 6px',
+          flexDirection: 'column',
         }}>
-          {showCardBack || !priv.drawnCard ? (
-            <>
-              <button
-                className="primary"
-                disabled={disabled || pub.actionsLeft <= 0}
-                onClick={handleDrawCard}
-                style={{ flex: 1, padding: '12px' }}
-              >
-                Draw Card ({pub.actionsLeft} actions left)
-              </button>
-              <button
-                disabled={disabled}
-                onClick={handleSkipDraw}
-                style={{ flex: 1, padding: '12px' }}
-              >
-                Skip Draw Phase
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                className="primary"
-                disabled={disabled}
-                onClick={() => {
-                  dispatch({ type: 'KEEP_CARD' });
-                  setShowCardBack(false);
-                  onClose();
-                }}
-                style={{ flex: 1, padding: '12px' }}
-              >
-                Keep Card
-              </button>
-              <button
-                className="danger"
-                disabled={disabled}
-                onClick={handleDiscard}
-                style={{ flex: 1, padding: '12px' }}
-              >
-                Discard
-              </button>
-            </>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            {showCardBack || !priv.drawnCard ? (
+              <>
+                <button
+                  className="primary"
+                  disabled={disabled || pub.actionsLeft <= 0}
+                  onClick={handleDrawCard}
+                  style={{ flex: 1, padding: '12px' }}
+                >
+                  Draw Card ({pub.actionsLeft} actions left)
+                </button>
+                <button
+                  disabled={disabled}
+                  onClick={handleSkipDraw}
+                  style={{ flex: 1, padding: '12px' }}
+                >
+                  Skip Draw Phase
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="primary"
+                  disabled={disabled}
+                  onClick={() => {
+                    dispatch({ type: 'KEEP_CARD' });
+                    setShowCardBack(false);
+                    onClose();
+                  }}
+                  style={{ flex: 1, padding: '12px' }}
+                >
+                  Keep Card
+                </button>
+                <button
+                  className="danger"
+                  disabled={disabled}
+                  onClick={handleDiscard}
+                  style={{ flex: 1, padding: '12px' }}
+                >
+                  Discard
+                </button>
+              </>
+            )}
+          </div>
+          {(showCardBack || !priv.drawnCard) && canUseMaskBeforeDraw && (
+            <button
+              onClick={() => {
+                dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: maskUtilityIndex });
+                setShowCardBack(false);
+                onClose();
+              }}
+              style={{ width: '100%', padding: '12px' }}
+            >
+              Use Mask of Transformation
+            </button>
           )}
         </div>
       </div>

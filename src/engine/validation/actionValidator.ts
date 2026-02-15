@@ -286,9 +286,6 @@ export function validatePlayCard(
 }
 
 export function validateActivateUtility(state: GameState, utilityIndex: number): ValidationResult {
-  if (state.phase !== 'PLAY') {
-    return fail('Can only activate utilities during PLAY phase');
-  }
   if (state.actionsLeft <= 0) {
     return fail('No actions remaining');
   }
@@ -301,6 +298,25 @@ export function validateActivateUtility(state: GameState, utilityIndex: number):
   }
 
   const utility = player.utilities[utilityIndex];
+
+  const isPlayPhaseActivation = state.phase === 'PLAY';
+  const isPreDrawMaskActivation =
+    state.phase === 'DRAW' &&
+    state.drawnCard === null &&
+    utility.designId === 'mask_of_transformation';
+
+  if (!isPlayPhaseActivation && !isPreDrawMaskActivation) {
+    return fail('Can only activate utilities during PLAY phase');
+  }
+
+  if (state.phase === 'DRAW' && utility.designId !== 'mask_of_transformation') {
+    return fail('Only Mask of Transformation can be activated before drawing');
+  }
+
+  if (state.phase === 'DRAW' && state.drawnCard !== null) {
+    return fail('Cannot activate utility after drawing a card');
+  }
+
   if (utility.usedThisTurn) {
     return fail(`Utility "${utility.cardId}" already used this turn`);
   }
@@ -377,7 +393,16 @@ export function getValidActions(state: GameState): GameAction[] {
     return actions;
   }
 
+  const player = state.players[state.currentPlayer];
+
   if (state.phase === 'DRAW') {
+      // Pre-draw Mask window
+      for (let i = 0; i < player.utilities.length; i++) {
+        if (validateActivateUtility(state, i).valid) {
+          actions.push({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
+        }
+      }
+
     if (validateDrawCard(state).valid) {
       actions.push({ type: 'DRAW_CARD' });
     }
@@ -393,7 +418,6 @@ export function getValidActions(state: GameState): GameAction[] {
   }
 
   if (state.phase === 'PLAY') {
-    const player = state.players[state.currentPlayer];
     if (state.actionsLeft > 0) {
       for (const cardId of player.hand) {
         const cardDef = getCard(cardId);
