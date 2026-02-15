@@ -4,6 +4,11 @@ import { getCard } from '../engine/cards/CardDatabase.ts';
 import { validateAction } from '../engine/validation/actionValidator.ts';
 import { processAction } from '../engine/GameEngine.ts';
 import { createRng } from '../utils/rng.ts';
+import {
+  pickBestUtilityIndex,
+  pickBestWareType,
+  pickDiscardCardForValue,
+} from './strategyHeuristics.ts';
 
 type RngFn = () => number;
 
@@ -119,7 +124,7 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
         ) ?? 'trinkets';
         return { type: 'SELECT_WARE_TYPE', wareType: fallbackType };
       }
-      return { type: 'SELECT_WARE_TYPE', wareType: pick(available, rng) };
+      return { type: 'SELECT_WARE_TYPE', wareType: pickBestWareType(state, cp, available) };
     }
 
     case 'WARE_SELECT_MULTIPLE': {
@@ -127,7 +132,7 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
       const emptySlots = player.market.filter(s => s === null).length;
       const available = availableWareTypes(state).filter(w => state.wareSupply[w] >= pr.count);
       if (available.length === 0 || emptySlots < pr.count) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' }; // guard handles
-      return { type: 'SELECT_WARE_TYPE', wareType: pick(available, rng) };
+      return { type: 'SELECT_WARE_TYPE', wareType: pickBestWareType(state, cp, available) };
     }
 
     case 'CARRIER_WARE_SELECT': {
@@ -135,7 +140,7 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
       const emptySlots = target.market.filter(s => s === null).length;
       const available = availableWareTypes(state).filter(w => state.wareSupply[w] >= 1);
       if (available.length === 0 || emptySlots < 1) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' };
-      return { type: 'SELECT_WARE_TYPE', wareType: pick(available, rng) };
+      return { type: 'SELECT_WARE_TYPE', wareType: pickBestWareType(state, pr.targetPlayer, available) };
     }
 
     case 'WARE_THEFT_SINGLE': {
@@ -167,7 +172,12 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
       const opUtils = state.players[opponent].utilities;
       // Resolver auto-resolves when opponent has no utilities; send dummy to trigger guard
       if (opUtils.length === 0) return { type: 'SELECT_UTILITY', utilityIndex: 0 };
-      return { type: 'SELECT_UTILITY', utilityIndex: Math.floor(rng() * opUtils.length) };
+      const utilityIndex = pickBestUtilityIndex(
+        state,
+        opponent,
+        opUtils.map((u) => u.designId),
+      );
+      return { type: 'SELECT_UTILITY', utilityIndex };
     }
 
     case 'HAND_SWAP': {
@@ -193,7 +203,7 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
         const wareTypes: import('../engine/types.ts').WareType[] = ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt'];
         const available = wareTypes.filter(wt => state.wareSupply[wt] > 0);
         if (available.length === 0) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' }; // guard handles
-        return { type: 'SELECT_WARE_TYPE', wareType: pick(available, rng) };
+        return { type: 'SELECT_WARE_TYPE', wareType: pickBestWareType(state, cp, available) };
       }
       // Bidding rounds
       const bidAmount = pr.currentBid + 1;
@@ -291,7 +301,12 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
       const utils = state.players[responder].utilities;
       // Resolver auto-skips when no utilities; send dummy response to trigger it
       if (utils.length === 0) return { type: 'SELECT_UTILITY', utilityIndex: 0 };
-      return { type: 'SELECT_UTILITY', utilityIndex: Math.floor(rng() * utils.length) };
+      const utilityIndex = pickBestUtilityIndex(
+        state,
+        responder,
+        utils.map((u) => u.designId),
+      );
+      return { type: 'SELECT_UTILITY', utilityIndex };
     }
 
     case 'CROCODILE_USE': {
@@ -299,7 +314,12 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
         const opUtils = state.players[pr.opponentPlayer].utilities;
         // Resolver auto-resolves when opponent has no utilities; send dummy to trigger guard
         if (opUtils.length === 0) return { type: 'SELECT_UTILITY', utilityIndex: 0 };
-        return { type: 'SELECT_UTILITY', utilityIndex: Math.floor(rng() * opUtils.length) };
+        const utilityIndex = pickBestUtilityIndex(
+          state,
+          pr.opponentPlayer,
+          opUtils.map((u) => u.designId),
+        );
+        return { type: 'SELECT_UTILITY', utilityIndex };
       }
       return null;
     }
@@ -317,7 +337,12 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
       // Scale: pick from drawn cards (selectedCards), not from hand
       if (pr.utilityDesign === 'scale' && pr.step === 'SELECT_CARD') {
         if (pr.selectedCards && pr.selectedCards.length > 0) {
-          return { type: 'SELECT_CARD', cardId: pick(pr.selectedCards, rng) };
+          if (pr.selectedCards.length === 1) {
+            return { type: 'SELECT_CARD', cardId: pr.selectedCards[0] };
+          }
+          const discardCard = pickDiscardCardForValue(state, cp, pr.selectedCards);
+          const keepCard = pr.selectedCards.find((cardId) => cardId !== discardCard) ?? pr.selectedCards[0];
+          return { type: 'SELECT_CARD', cardId: keepCard };
         }
         // First call triggers the draw — send any valid response (it's ignored)
         return { type: 'SELECT_CARD', cardId: player.hand[0] ?? '' };
@@ -327,19 +352,24 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
         if (pr.utilityDesign === 'kettle') {
           // Resolver auto-resolves when hand empty; send dummy to trigger guard
           if (player.hand.length === 0) return { type: 'SELECT_CARDS', cardIds: [] };
-          const count = Math.min(1 + Math.floor(rng() * 2), player.hand.length);
-          const cards = shuffleWithRng(player.hand, rng).slice(0, count);
+          const firstDiscard = pickDiscardCardForValue(state, cp, player.hand);
+          const count = player.hand.length >= 5 ? 2 : 1;
+          const remaining = player.hand.filter((cardId) => cardId !== firstDiscard);
+          const secondDiscard = count === 2 && remaining.length > 0
+            ? pickDiscardCardForValue(state, cp, remaining)
+            : null;
+          const cards = secondDiscard ? [firstDiscard, secondDiscard] : [firstDiscard];
           return { type: 'SELECT_CARDS', cardIds: cards };
         }
         // Boat/Weapons: needs SELECT_CARD response
         // Resolver auto-resolves when hand empty; send dummy to trigger guard
         if (player.hand.length === 0) return { type: 'SELECT_CARD', cardId: '' };
-        return { type: 'SELECT_CARD', cardId: pick(player.hand, rng) };
+        return { type: 'SELECT_CARD', cardId: pickDiscardCardForValue(state, cp, player.hand) };
       }
       if (pr.step === 'SELECT_WARE_TYPE') {
         const available = availableWareTypes(state);
         if (available.length === 0) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' };
-        return { type: 'SELECT_WARE_TYPE', wareType: pick(available, rng) };
+        return { type: 'SELECT_WARE_TYPE', wareType: pickBestWareType(state, cp, available) };
       }
       return null;
     }
@@ -349,7 +379,7 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
       // No resolver guard for this — validation should prevent it, but send dummy for safety
       if (state.discardPile.length === 0) return { type: 'SELECT_CARD', cardId: '' };
       if (player.hand.length === 0) return { type: 'SELECT_CARD', cardId: '' };
-      return { type: 'SELECT_CARD', cardId: pick(player.hand, rng) };
+      return { type: 'SELECT_CARD', cardId: pickDiscardCardForValue(state, cp, player.hand) };
     }
 
     case 'TURN_MODIFIER':

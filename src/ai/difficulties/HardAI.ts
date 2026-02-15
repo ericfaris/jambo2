@@ -1,10 +1,20 @@
-import type { GameAction, GameState } from '../../engine/types.ts';
+import type { GameAction, GameState, UtilityDesignId } from '../../engine/types.ts';
 import { getCard } from '../../engine/cards/CardDatabase.ts';
 import { processAction } from '../../engine/GameEngine.ts';
 import { getValidActions } from '../../engine/validation/actionValidator.ts';
 import { getMediumAiAction } from './MediumAI.ts';
 import { getRandomAiAction } from '../RandomAI.ts';
 import { createRng } from '../../utils/rng.ts';
+import {
+  getCardEconomyValue,
+  getCardPressureBonus,
+  getHandRiskPenalty,
+  getMarketExposurePenalty,
+  getUtilityActivationPriority,
+  getUtilityPlayPriority,
+  getUtilitySetStrength,
+  getWareAcquisitionPriority,
+} from '../strategyHeuristics.ts';
 
 function pick<T>(items: readonly T[], rng: () => number): T {
   return items[Math.floor(rng() * items.length)];
@@ -61,6 +71,10 @@ function evaluateBoard(state: GameState, perspective: 0 | 1): number {
   const oppHand = state.players[opp].hand.length;
   const myUtilities = state.players[me].utilities.length;
   const oppUtilities = state.players[opp].utilities.length;
+  const myHandValue = getCardEconomyValue(myHand);
+  const oppHandValue = getCardEconomyValue(oppHand);
+  const myExposurePenalty = getMarketExposurePenalty(state.players[me]);
+  const oppExposurePenalty = getMarketExposurePenalty(state.players[opp]);
 
   let score = 0;
   score += myGold * 6.5;
@@ -68,8 +82,14 @@ function evaluateBoard(state: GameState, perspective: 0 | 1): number {
   score += myCapacity * 0.8;
   score -= oppCapacity * 0.5;
   score += (myMarketFilled - oppMarketFilled) * 0.5;
-  score += (myHand - oppHand) * 0.35;
+  score += (myHandValue - oppHandValue) * 0.42;
   score += (myUtilities - oppUtilities) * 1.2;
+  score += getUtilitySetStrength(state, me);
+  score -= getUtilitySetStrength(state, opp) * 0.8;
+  score -= myExposurePenalty;
+  score += oppExposurePenalty * 0.55;
+  score -= getHandRiskPenalty(myHand);
+  score += getHandRiskPenalty(oppHand) * 0.45;
 
   if (state.turnModifiers.buyDiscount > 0 && state.currentPlayer === me) score += 6;
   if (state.turnModifiers.sellBonus > 0 && state.currentPlayer === me) score += 9;
@@ -98,45 +118,38 @@ function tacticalActionBonus(state: GameState, action: GameAction, me: 0 | 1): n
       return 12 + card.wares.sellPrice * 0.6;
     }
     if (card.type === 'ware' && action.wareMode === 'buy' && card.wares) {
-      const emptySlots = state.players[me].market.filter(slot => slot === null).length;
-      const capacityPenalty = emptySlots <= card.wares.types.length ? -5 : 2;
-      return 3 + capacityPenalty;
+      return (getWareAcquisitionPriority(state, me, card.wares) - 44) * 0.5;
     }
     if (card.type === 'animal') {
+      const pressure = getCardPressureBonus(state, me, action.cardId);
       if (card.designId === 'crocodile') {
-        return state.players[opponent].utilities.length * 3;
+        return state.players[opponent].utilities.length * 2.6 + pressure;
       }
       if (card.designId === 'parrot') {
-        return 11;
+        return 8 + pressure;
       }
-      return 3;
+      return 2 + pressure;
     }
     if (card.type === 'people') {
+      const pressure = getCardPressureBonus(state, me, action.cardId);
       if (card.designId === 'portuguese') return state.players[me].market.filter(w => w !== null).length * 1.5;
-      return 4;
+      return 3 + pressure;
     }
     if (card.type === 'utility') {
-      return state.players[me].utilities.length < 3 ? 2 : -8;
+      if (state.players[me].utilities.length >= 3) return -8;
+      return (getUtilityPlayPriority(state, me, card.designId as UtilityDesignId) - 58) * 0.45;
     }
   }
 
   if (action.type === 'ACTIVATE_UTILITY') {
     const utility = state.players[me].utilities[action.utilityIndex];
     if (!utility) return 0;
-    switch (utility.designId) {
-      case 'well':
-        return 6;
-      case 'weapons':
-        return 7;
-      case 'leopard_statue':
-        return 5;
-      default:
-        return 2;
-    }
+    return (getUtilityActivationPriority(state, me, utility.designId) - 55) * 0.45;
   }
 
   if (action.type === 'END_TURN' && state.actionsLeft > 1) {
-    return -4;
+    const handSize = state.players[me].hand.length;
+    return -4 - Math.min(5, getCardEconomyValue(handSize) * 0.4) + getHandRiskPenalty(handSize) * 0.4;
   }
 
   return 0;

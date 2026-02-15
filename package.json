@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "server": "tsx src/multiplayer/server.ts"
+    "server": "tsx src/multiplayer/server.ts",
+    "ai:bench:short": "tsx scripts/ai-benchmark.ts short",
+    "ai:bench:medium": "tsx scripts/ai-benchmark.ts medium",
+    "ai:bench:long": "tsx scripts/ai-benchmark.ts long"
   },
   "dependencies": {
     "react": "^18.2.0",

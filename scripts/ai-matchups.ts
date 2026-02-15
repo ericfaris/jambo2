@@ -1,13 +1,16 @@
 /// <reference types="node" />
 
+import { fileURLToPath } from 'node:url';
 import { createInitialState } from '../src/engine/GameState.ts';
 import { processAction } from '../src/engine/GameEngine.ts';
 import type { GameState } from '../src/engine/types.ts';
 import type { AIDifficulty } from '../src/ai/difficulties/index.ts';
 import { getAiActionByDifficulty } from '../src/ai/difficulties/index.ts';
 import { getValidActions } from '../src/engine/validation/actionValidator.ts';
+import { getCard } from '../src/engine/cards/CardDatabase.ts';
+import type { UtilityDesignId } from '../src/engine/types.ts';
 
-interface MatchSummary {
+export interface MatchSummary {
   label: string;
   games: number;
   p0Wins: number;
@@ -23,11 +26,53 @@ interface MatchSummary {
   avgGoldDelta: number;
   stalls: number;
   stallReasons: Record<string, number>;
+  utilityStats: {
+    played: Record<UtilityDesignId, number>;
+    activated: Record<UtilityDesignId, number>;
+    bySeat: {
+      p0: {
+        played: Record<UtilityDesignId, number>;
+        activated: Record<UtilityDesignId, number>;
+      };
+      p1: {
+        played: Record<UtilityDesignId, number>;
+        activated: Record<UtilityDesignId, number>;
+      };
+    };
+  };
 }
 
-interface RunLimits {
+export interface RunLimits {
   maxSteps: number;
   maxGameMs: number;
+}
+
+interface GameRunResult {
+  winner: 0 | 1 | null;
+  stalled: boolean;
+  stallReason: string | null;
+  turns: number;
+  p0Gold: number;
+  p1Gold: number;
+  utilityPlayed: Record<UtilityDesignId, number>;
+  utilityActivated: Record<UtilityDesignId, number>;
+  utilityPlayedBySeat: [Record<UtilityDesignId, number>, Record<UtilityDesignId, number>];
+  utilityActivatedBySeat: [Record<UtilityDesignId, number>, Record<UtilityDesignId, number>];
+}
+
+function createUtilityCounter(): Record<UtilityDesignId, number> {
+  return {
+    well: 0,
+    drums: 0,
+    throne: 0,
+    boat: 0,
+    scale: 0,
+    mask_of_transformation: 0,
+    supplies: 0,
+    kettle: 0,
+    leopard_statue: 0,
+    weapons: 0,
+  };
 }
 
 function getPendingResponder(state: GameState): 0 | 1 {
@@ -62,6 +107,16 @@ function playOneGame(seed: number, p0: AIDifficulty, p1: AIDifficulty, limits: R
   let state = createInitialState(seed);
   let steps = 0;
   const startedAt = Date.now();
+  const utilityPlayed = createUtilityCounter();
+  const utilityActivated = createUtilityCounter();
+  const utilityPlayedBySeat: [Record<UtilityDesignId, number>, Record<UtilityDesignId, number>] = [
+    createUtilityCounter(),
+    createUtilityCounter(),
+  ];
+  const utilityActivatedBySeat: [Record<UtilityDesignId, number>, Record<UtilityDesignId, number>] = [
+    createUtilityCounter(),
+    createUtilityCounter(),
+  ];
 
   while (state.phase !== 'GAME_OVER' && steps < limits.maxSteps) {
     if (Date.now() - startedAt > limits.maxGameMs) {
@@ -72,7 +127,11 @@ function playOneGame(seed: number, p0: AIDifficulty, p1: AIDifficulty, limits: R
         turns: state.turn,
         p0Gold: state.players[0].gold,
         p1Gold: state.players[1].gold,
-      };
+        utilityPlayed,
+        utilityActivated,
+        utilityPlayedBySeat,
+        utilityActivatedBySeat,
+      } satisfies GameRunResult;
     }
 
     const responder = getResponder(state);
@@ -88,7 +147,11 @@ function playOneGame(seed: number, p0: AIDifficulty, p1: AIDifficulty, limits: R
         turns: state.turn,
         p0Gold: state.players[0].gold,
         p1Gold: state.players[1].gold,
-      };
+        utilityPlayed,
+        utilityActivated,
+        utilityPlayedBySeat,
+        utilityActivatedBySeat,
+      } satisfies GameRunResult;
     }
 
     if (!action) {
@@ -101,7 +164,27 @@ function playOneGame(seed: number, p0: AIDifficulty, p1: AIDifficulty, limits: R
         turns: state.turn,
         p0Gold: state.players[0].gold,
         p1Gold: state.players[1].gold,
-      };
+        utilityPlayed,
+        utilityActivated,
+        utilityPlayedBySeat,
+        utilityActivatedBySeat,
+      } satisfies GameRunResult;
+    }
+
+    if (action.type === 'PLAY_CARD') {
+      const card = getCard(action.cardId);
+      if (card.type === 'utility') {
+        utilityPlayed[card.designId as UtilityDesignId] += 1;
+        utilityPlayedBySeat[responder][card.designId as UtilityDesignId] += 1;
+      }
+    }
+
+    if (action.type === 'ACTIVATE_UTILITY') {
+      const utility = state.players[state.currentPlayer].utilities[action.utilityIndex];
+      if (utility) {
+        utilityActivated[utility.designId] += 1;
+        utilityActivatedBySeat[responder][utility.designId] += 1;
+      }
     }
 
     try {
@@ -129,7 +212,11 @@ function playOneGame(seed: number, p0: AIDifficulty, p1: AIDifficulty, limits: R
           turns: state.turn,
           p0Gold: state.players[0].gold,
           p1Gold: state.players[1].gold,
-        };
+          utilityPlayed,
+          utilityActivated,
+          utilityPlayedBySeat,
+          utilityActivatedBySeat,
+        } satisfies GameRunResult;
       }
 
       try {
@@ -142,7 +229,11 @@ function playOneGame(seed: number, p0: AIDifficulty, p1: AIDifficulty, limits: R
           turns: state.turn,
           p0Gold: state.players[0].gold,
           p1Gold: state.players[1].gold,
-        };
+          utilityPlayed,
+          utilityActivated,
+          utilityPlayedBySeat,
+          utilityActivatedBySeat,
+        } satisfies GameRunResult;
       }
     }
     steps++;
@@ -161,7 +252,11 @@ function playOneGame(seed: number, p0: AIDifficulty, p1: AIDifficulty, limits: R
     turns: state.turn,
     p0Gold,
     p1Gold,
-  };
+    utilityPlayed,
+    utilityActivated,
+    utilityPlayedBySeat,
+    utilityActivatedBySeat,
+  } satisfies GameRunResult;
 }
 
 function runMatchup(p0: AIDifficulty, p1: AIDifficulty, games: number, seedBase: number, limits: RunLimits): MatchSummary {
@@ -173,6 +268,16 @@ function runMatchup(p0: AIDifficulty, p1: AIDifficulty, games: number, seedBase:
   let totalGoldP0 = 0;
   let totalGoldP1 = 0;
   const stallReasons: Record<string, number> = {};
+  const utilityPlayed = createUtilityCounter();
+  const utilityActivated = createUtilityCounter();
+  const utilityPlayedBySeat: [Record<UtilityDesignId, number>, Record<UtilityDesignId, number>] = [
+    createUtilityCounter(),
+    createUtilityCounter(),
+  ];
+  const utilityActivatedBySeat: [Record<UtilityDesignId, number>, Record<UtilityDesignId, number>] = [
+    createUtilityCounter(),
+    createUtilityCounter(),
+  ];
 
   for (let i = 0; i < games; i++) {
     let result;
@@ -194,6 +299,15 @@ function runMatchup(p0: AIDifficulty, p1: AIDifficulty, games: number, seedBase:
     if (result.stalled) stalls++;
     if (result.stallReason) {
       stallReasons[result.stallReason] = (stallReasons[result.stallReason] ?? 0) + 1;
+    }
+
+    for (const key of Object.keys(utilityPlayed) as UtilityDesignId[]) {
+      utilityPlayed[key] += result.utilityPlayed[key] ?? 0;
+      utilityActivated[key] += result.utilityActivated[key] ?? 0;
+      utilityPlayedBySeat[0][key] += result.utilityPlayedBySeat[0][key] ?? 0;
+      utilityPlayedBySeat[1][key] += result.utilityPlayedBySeat[1][key] ?? 0;
+      utilityActivatedBySeat[0][key] += result.utilityActivatedBySeat[0][key] ?? 0;
+      utilityActivatedBySeat[1][key] += result.utilityActivatedBySeat[1][key] ?? 0;
     }
 
     if (result.winner === 0) p0Wins++;
@@ -221,18 +335,26 @@ function runMatchup(p0: AIDifficulty, p1: AIDifficulty, games: number, seedBase:
     avgGoldP1: Number((totalGoldP1 / games).toFixed(2)),
     avgGoldDelta: Number(((totalGoldP0 - totalGoldP1) / games).toFixed(2)),
     stallReasons,
+    utilityStats: {
+      played: utilityPlayed,
+      activated: utilityActivated,
+      bySeat: {
+        p0: {
+          played: utilityPlayedBySeat[0],
+          activated: utilityActivatedBySeat[0],
+        },
+        p1: {
+          played: utilityPlayedBySeat[1],
+          activated: utilityActivatedBySeat[1],
+        },
+      },
+    },
   };
 
   return summary;
 }
 
-const games = Number(process.argv[2] ?? 30);
-const seedBase = Number(process.argv[3] ?? 9000);
-const maxSteps = Number(process.argv[4] ?? 2500);
-const maxGameMs = Number(process.argv[5] ?? 8000);
-const limits: RunLimits = { maxSteps, maxGameMs };
-
-const matchups: Array<[AIDifficulty, AIDifficulty]> = [
+export const DEFAULT_MATCHUPS: Array<[AIDifficulty, AIDifficulty]> = [
   ['easy', 'easy'],
   ['easy', 'medium'],
   ['easy', 'hard'],
@@ -242,6 +364,39 @@ const matchups: Array<[AIDifficulty, AIDifficulty]> = [
   ['hard', 'hard'],
 ];
 
-const summaries = matchups.map(([p0, p1], idx) => runMatchup(p0, p1, games, seedBase + idx * 1000, limits));
+export interface MatchupRunResult {
+  gamesPerMatchup: number;
+  seedBase: number;
+  maxSteps: number;
+  maxGameMs: number;
+  summaries: MatchSummary[];
+}
 
-console.log(JSON.stringify({ gamesPerMatchup: games, seedBase, maxSteps, maxGameMs, summaries }, null, 2));
+export function runAiMatchups(
+  games: number,
+  seedBase: number,
+  limits: RunLimits,
+  matchups: Array<[AIDifficulty, AIDifficulty]> = DEFAULT_MATCHUPS,
+): MatchupRunResult {
+  const summaries = matchups.map(([p0, p1], idx) => runMatchup(p0, p1, games, seedBase + idx * 1000, limits));
+  return {
+    gamesPerMatchup: games,
+    seedBase,
+    maxSteps: limits.maxSteps,
+    maxGameMs: limits.maxGameMs,
+    summaries,
+  };
+}
+
+const isMain = process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1];
+
+if (isMain) {
+  const games = Number(process.argv[2] ?? 30);
+  const seedBase = Number(process.argv[3] ?? 9000);
+  const maxSteps = Number(process.argv[4] ?? 2500);
+  const maxGameMs = Number(process.argv[5] ?? 8000);
+  const limits: RunLimits = { maxSteps, maxGameMs };
+
+  const result = runAiMatchups(games, seedBase, limits);
+  console.log(JSON.stringify(result, null, 2));
+}
