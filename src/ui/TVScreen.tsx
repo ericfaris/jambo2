@@ -3,7 +3,7 @@
 // Full shared board view for TV/large display. No private info shown.
 // ============================================================================
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { PublicGameState, PublicPlayerState } from '../multiplayer/types.ts';
 import type { WareType } from '../engine/types.ts';
@@ -13,6 +13,7 @@ import { UtilityArea } from './UtilityArea.tsx';
 import { GameLog } from './GameLog.tsx';
 import { CardFace, WareToken } from './CardFace.tsx';
 import { SpeechBubble } from './SpeechBubble.tsx';
+import { useAudioEvents } from './useAudioEvents.ts';
 
 interface TVScreenProps {
   ws: WebSocketGameState;

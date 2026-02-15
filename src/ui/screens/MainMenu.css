@@ -1,0 +1,54 @@
+/* MainMenu component styles */
+
+.image-container {
+  /* Set the container position to relative so the absolute text is positioned within it */
+  position: relative;
+  /* Ensure the container only takes up the space of its content (the image) */
+  display: inline-block;
+  /* Optional: Center the text horizontally within the container */
+  text-align: center;
+  color: white; /* Optional: Set text color for better visibility */
+}
+
+.image-container img {
+  /* Ensure the image is responsive */
+  width: 100%;
+  height: auto;
+  display: block; /* Removes default margin issues */
+}
+
+.overlay-text {
+  /* Position the text absolutely within the container */
+  position: absolute;
+  /* Place the text to the right of the image */
+  top: calc(50% + 20px); /* Move down 20px from center */
+  left: 100%; /* Position relative to the image's right edge */
+  /* Use transform to center vertically */
+  transform: translateY(-50%);
+  /* Display as vertical column */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Optional: Add styling for readability */
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 18px;
+  margin-left: -120px; /* Move another 15px to the left (-105px - 15px = -120px) */
+}
+
+.overlay-text button {
+  background: none;
+  border: none;
+  color: black;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  text-align: left;
+}
+
+.overlay-text button:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}

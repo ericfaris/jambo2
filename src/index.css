@@ -143,6 +143,12 @@ button.danger:hover:not(:disabled) {
   to { opacity: 0.5; transform: scale(0.8); }
 }
 
+@keyframes cardErrorFadeOut {
+  0% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* Overlay fade-in */
 .overlay-fade {
   animation: fadeIn 0.25s ease;

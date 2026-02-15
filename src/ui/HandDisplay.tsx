@@ -7,12 +7,11 @@ interface HandDisplayProps {
   onPlayCard?: (cardId: DeckCardId) => void;
   disabled?: boolean;
   cardError?: {cardId: DeckCardId, message: string} | null;
+  onMegaView?: (cardId: DeckCardId) => void;
 }
 
-export function HandDisplay({ hand, onPlayCard, disabled, cardError }: HandDisplayProps) {
+export function HandDisplay({ hand, onPlayCard, disabled, cardError, onMegaView }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -28,30 +27,6 @@ export function HandDisplay({ hand, onPlayCard, disabled, cardError }: HandDispl
   const cardWidth = 140; // Card width
   const minGap = hand.length <= 8 ? 20 : 10; // More space for 1-8 cards, tighter for 9+
   const containerWidth = 600; // Approximate container width
-
-  // Touch event handlers for mobile scrolling
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (!isMobile) return;
-    setIsDragging(true);
-    setStartX(e.touches[0].clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || !isMobile) return;
-    e.preventDefault(); // Prevent default scrolling
-    const currentX = e.touches[0].clientX;
-    const deltaX = startX - currentX;
-    
-    // Scroll the container
-    const container = e.currentTarget as HTMLElement;
-    container.scrollLeft += deltaX;
-    
-    setStartX(currentX);
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-  };
 
   // Smooth overlap calculation starting from 9 cards
   let overlapAmount = 0;
@@ -108,10 +83,8 @@ export function HandDisplay({ hand, onPlayCard, disabled, cardError }: HandDispl
         scrollbarWidth: 'thin',
         scrollbarColor: 'rgba(90,64,48,0.3) transparent',
         WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
+        touchAction: 'pan-x',
       } as any}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       {hand.length === 0 && (
         <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: 12, fontSize: 14 }}>
@@ -131,6 +104,7 @@ export function HandDisplay({ hand, onPlayCard, disabled, cardError }: HandDispl
           <CardFace
             cardId={cardId}
             onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
+            onMegaView={onMegaView}
           />
           {cardError && cardError.cardId === cardId && (
             <div style={{
@@ -149,7 +123,8 @@ export function HandDisplay({ hand, onPlayCard, disabled, cardError }: HandDispl
               textAlign: 'center',
               padding: 8,
               borderRadius: 8,
-              zIndex: 10,
+              zIndex: 1000,
+              animation: 'cardErrorFadeOut 5s linear forwards',
             }}>
               {cardError.message}
             </div>

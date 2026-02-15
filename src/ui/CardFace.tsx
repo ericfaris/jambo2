@@ -52,11 +52,11 @@ interface CardFaceProps {
   large?: boolean;
   extraLarge?: boolean;
   faceDown?: boolean;
+  onMegaView?: (cardId: DeckCardId) => void;
 }
 
-export function CardFace({ cardId, onClick, selected, small, large, extraLarge, faceDown }: CardFaceProps) {
+export function CardFace({ cardId, onClick, selected, small, large, extraLarge, faceDown, onMegaView }: CardFaceProps) {
   const [imgError, setImgError] = useState(false);
-  const [showMega, setShowMega] = useState(false);
 
   if (faceDown) {
     return (
@@ -134,7 +134,7 @@ export function CardFace({ cardId, onClick, selected, small, large, extraLarge, 
             card.wares.types.length > 3 ? (
             /* 6-ware layout: top row of 3 pips, bottom row with coins + 3 pips */
             <div
-              onClick={(e) => { e.stopPropagation(); setShowMega(true); }}
+              onClick={(e) => { e.stopPropagation(); onMegaView?.(cardId); }}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -187,7 +187,7 @@ export function CardFace({ cardId, onClick, selected, small, large, extraLarge, 
             </div>
             ) : (
             <div
-              onClick={(e) => { e.stopPropagation(); setShowMega(true); }}
+              onClick={(e) => { e.stopPropagation(); onMegaView?.(cardId); }}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -228,7 +228,7 @@ export function CardFace({ cardId, onClick, selected, small, large, extraLarge, 
             )
           ) : (
             <div
-              onClick={(e) => { e.stopPropagation(); setShowMega(true); }}
+              onClick={(e) => { e.stopPropagation(); onMegaView?.(cardId); }}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -262,58 +262,6 @@ export function CardFace({ cardId, onClick, selected, small, large, extraLarge, 
           )}
         </div>
       </div>
-      {showMega && (
-        <div
-          className="overlay-fade"
-          onClick={() => setShowMega(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 150,
-            background: 'rgba(20,10,5,0.85)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            className="dialog-pop"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 380,
-              borderRadius: 14,
-              padding: 8,
-              backgroundImage: LINEN_BG,
-              backgroundSize: LINEN_BG_SIZE,
-              backgroundColor: LINEN_BASE,
-              border: '2px solid #a89880',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-            }}
-          >
-            <img
-              src={`/assets/cards/${card.designId}.png`}
-              alt={card.name}
-              style={{
-                width: '100%',
-                borderRadius: 10,
-                display: 'block',
-              }}
-              draggable={false}
-            />
-            <div style={{ padding: '0 6px 6px' }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1714', marginBottom: 6 }}>
-                {card.name}
-              </div>
-              <div style={{ fontSize: 15, color: '#4a4540', lineHeight: 1.4 }}>
-                {card.description}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>);
   }
 

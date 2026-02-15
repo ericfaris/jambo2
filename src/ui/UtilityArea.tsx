@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { UtilityState } from '../engine/types.ts';
 import { CardFace } from './CardFace.tsx';
 
@@ -5,10 +6,22 @@ interface UtilityAreaProps {
   utilities: UtilityState[];
   onActivate?: (index: number) => void;
   disabled?: boolean;
+  cardError?: {cardId: string, message: string} | null;
   label?: string;
 }
 
-export function UtilityArea({ utilities, onActivate, disabled, label }: UtilityAreaProps) {
+export function UtilityArea({ utilities, onActivate, disabled, cardError, label }: UtilityAreaProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const updateIsMobile = () => setIsMobile(window.innerWidth <= 768);
+    updateIsMobile();
+    window.addEventListener('resize', updateIsMobile);
+    return () => window.removeEventListener('resize', updateIsMobile);
+  }, []);
+
+  const overlapAmount = 42;
+
   return (
     <div>
       {label && (
@@ -16,14 +29,31 @@ export function UtilityArea({ utilities, onActivate, disabled, label }: UtilityA
           {label}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{
+        display: 'flex',
+        gap: isMobile ? 0 : 8,
+        flexWrap: isMobile ? 'nowrap' : 'wrap',
+        overflowX: isMobile ? 'auto' : 'visible',
+        overflowY: 'hidden',
+        paddingBottom: isMobile ? 4 : 0,
+        WebkitOverflowScrolling: 'touch',
+        touchAction: isMobile ? 'pan-x' : 'auto',
+      }}>
         {utilities.length === 0 && (
           <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 14, padding: 6 }}>
             No utilities
           </div>
         )}
         {utilities.map((u, i) => (
-          <div key={u.cardId} style={{ position: 'relative' }}>
+          <div
+            key={u.cardId}
+            style={{
+              position: 'relative',
+              flexShrink: 0,
+              zIndex: i,
+              marginLeft: isMobile && i > 0 ? -overlapAmount : 0,
+            }}
+          >
             <CardFace
               cardId={u.cardId}
               small
@@ -43,6 +73,29 @@ export function UtilityArea({ utilities, onActivate, disabled, label }: UtilityA
                 color: '#a08060',
               }}>
                 USED
+              </div>
+            )}
+            {cardError && cardError.cardId === u.cardId && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: 12,
+                fontWeight: 600,
+                textAlign: 'center',
+                padding: 4,
+                borderRadius: 8,
+                zIndex: 1000,
+                animation: 'cardErrorFadeOut 5s linear forwards',
+              }}>
+                {cardError.message}
               </div>
             )}
           </div>

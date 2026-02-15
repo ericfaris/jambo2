@@ -2,7 +2,7 @@
 // Action Validator - Pre-play validation for each card and action type
 // ============================================================================
 
-import type { GameState, DeckCardId, GameAction } from '../types.ts';
+import type { GameState, DeckCardId, GameAction, WareType } from '../types.ts';
 import { CONSTANTS } from '../types.ts';
 import { getCard, isDesign } from '../cards/CardDatabase.ts';
 
@@ -48,7 +48,7 @@ export function validateAction(state: GameState, action: GameAction): Validation
     case 'ACTIVATE_UTILITY':
       return validateActivateUtility(state, action.utilityIndex);
     case 'DRAW_ACTION':
-      return validateDrawAction(state);
+      return validateDrawAction();
     case 'END_TURN':
       return validateEndTurn(state);
     case 'RESOLVE_INTERACTION':
@@ -140,6 +140,49 @@ export function validatePlayCard(
     if (wareMode !== 'buy' && wareMode !== 'sell') {
       return fail(`Invalid wareMode: "${wareMode}"`);
     }
+
+    const requiredWares = cardDef.wares!.types;
+
+    if (wareMode === 'sell') {
+      const requiredCounts: Partial<Record<WareType, number>> = {};
+      for (const wareType of requiredWares) {
+        requiredCounts[wareType] = (requiredCounts[wareType] ?? 0) + 1;
+      }
+
+      const marketCounts: Partial<Record<WareType, number>> = {};
+      for (const slot of player.market) {
+        if (slot !== null) {
+          marketCounts[slot] = (marketCounts[slot] ?? 0) + 1;
+        }
+      }
+
+      for (const [wareType, count] of Object.entries(requiredCounts)) {
+        if ((marketCounts[wareType as WareType] ?? 0) < count!) {
+          return fail('Cannot sell: player does not have the required wares');
+        }
+      }
+    } else {
+      const effectiveBuyPrice = Math.max(0, cardDef.wares!.buyPrice - state.turnModifiers.buyDiscount);
+      if (player.gold < effectiveBuyPrice) {
+        return fail(`Cannot buy: insufficient gold (need ${effectiveBuyPrice}g, have ${player.gold}g)`);
+      }
+
+      const emptyMarketSlots = player.market.filter(slot => slot === null).length;
+      if (emptyMarketSlots < requiredWares.length) {
+        return fail('Cannot buy: insufficient market space');
+      }
+
+      const requiredCounts: Partial<Record<WareType, number>> = {};
+      for (const wareType of requiredWares) {
+        requiredCounts[wareType] = (requiredCounts[wareType] ?? 0) + 1;
+      }
+
+      for (const [wareType, count] of Object.entries(requiredCounts)) {
+        if (state.wareSupply[wareType as WareType] < count!) {
+          return fail(`Cannot buy: insufficient ware supply (${wareType})`);
+        }
+      }
+    }
   }
 
   // Stand card validation
@@ -221,7 +264,7 @@ export function validatePlayCard(
   return ok;
 }
 
-function validateActivateUtility(state: GameState, utilityIndex: number): ValidationResult {
+export function validateActivateUtility(state: GameState, utilityIndex: number): ValidationResult {
   if (state.phase !== 'PLAY') {
     return fail('Can only activate utilities during PLAY phase');
   }
@@ -272,7 +315,7 @@ function validateActivateUtility(state: GameState, utilityIndex: number): Valida
   return ok;
 }
 
-function validateDrawAction(state: GameState): ValidationResult {
+function validateDrawAction(): ValidationResult {
   return fail('Drawing cards is only allowed during DRAW phase');
 }
 
@@ -353,7 +396,7 @@ export function getValidActions(state: GameState): GameAction[] {
       }
 
       // Draw as action
-      if (validateDrawAction(state).valid) {
+      if (validateDrawAction().valid) {
         actions.push({ type: 'DRAW_ACTION' });
       }
     }

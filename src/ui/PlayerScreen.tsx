@@ -7,12 +7,15 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { PublicGameState, PrivateGameState } from '../multiplayer/types.ts';
-import type { GameAction, DeckCardId, WareType } from '../engine/types.ts';
+import type { GameAction, DeckCardId, WareType, GameState } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
+import { validatePlayCard, validateActivateUtility } from '../engine/validation/actionValidator.ts';
 import { MarketDisplay } from './MarketDisplay.tsx';
 import { UtilityArea } from './UtilityArea.tsx';
 import { HandDisplay } from './HandDisplay.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
+import { ResolveMegaView } from './ResolveMegaView.tsx';
+import { MegaView } from './MegaView.tsx';
 import { CardPlayDialog } from './ActionButtons.tsx';
 import { useAudioEvents } from './useAudioEvents.ts';
 
@@ -26,7 +29,14 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const slot = ws.playerSlot;
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
   const [drawModalOpen, setDrawModalOpen] = useState(false);
+  const [cardError, setCardError] = useState<{cardId: DeckCardId, message: string} | null>(null);
+  const [megaCardId, setMegaCardId] = useState<DeckCardId | null>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
+
+  const isCardActionValidationError = (message: string) => (
+    message.startsWith('Invalid action PLAY_CARD:') ||
+    message.startsWith('Invalid action ACTIVATE_UTILITY:')
+  );
 
   // Auto-open draw modal when entering draw phase
   useEffect(() => {
@@ -36,6 +46,18 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       setDrawModalOpen(false);
     }
   }, [pub?.phase, pub?.currentPlayer, slot, drawModalOpen]);
+
+  useEffect(() => {
+    if (!cardError) return;
+    const timer = setTimeout(() => setCardError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [cardError]);
+
+  useEffect(() => {
+    if (ws.error && isCardActionValidationError(ws.error)) {
+      ws.clearError();
+    }
+  }, [ws.error, ws.clearError]);
 
   if (!pub || !priv || slot === null) return null;
 
@@ -52,15 +74,87 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const inPlayPhase = pub.phase === 'PLAY' && pub.currentPlayer === slot;
   const actionsDisabled = !isMyTurn || (hasPendingInteraction && pub.phase !== 'DRAW');
 
+  const validationState: GameState = {
+    version: 'cast-mode-validation',
+    rngSeed: 0,
+    rngState: 0,
+    turn: pub.turn,
+    currentPlayer: pub.currentPlayer,
+    phase: pub.phase,
+    actionsLeft: pub.actionsLeft,
+    drawsThisPhase: pub.drawsThisPhase,
+    drawnCard: slot === pub.currentPlayer ? priv.drawnCard : null,
+    keptCardThisDrawPhase: false,
+    deck: [],
+    discardPile: pub.discardPile,
+    reshuffleCount: 0,
+    wareSupply: pub.wareSupply,
+    players: [
+      {
+        gold: pub.players[0].gold,
+        hand: slot === 0 ? priv.hand : [],
+        market: pub.players[0].market,
+        utilities: pub.players[0].utilities,
+        smallMarketStands: pub.players[0].smallMarketStands,
+      },
+      {
+        gold: pub.players[1].gold,
+        hand: slot === 1 ? priv.hand : [],
+        market: pub.players[1].market,
+        utilities: pub.players[1].utilities,
+        smallMarketStands: pub.players[1].smallMarketStands,
+      },
+    ],
+    pendingResolution: priv.pendingResolution,
+    turnModifiers: pub.turnModifiers,
+    endgame: pub.endgame,
+    pendingGuardReaction: pub.pendingGuardReaction,
+    crocodileCleanup: null,
+    pendingWareCardReaction: pub.pendingWareCardReaction,
+    log: pub.log,
+  };
+
+  const getFriendlyErrorMessage = (reason: string) => {
+    if (reason.includes('PLAY phase')) {
+      return 'You can only play cards during your turn.';
+    }
+    if (reason.includes('No actions remaining')) {
+      return "You've used all your actions this turn.";
+    }
+    if (reason.includes('not in hand')) {
+      return 'This card is not in your hand.';
+    }
+    if (reason.includes('wareMode')) {
+      return 'Please choose buy or sell for this ware card.';
+    }
+    if (reason.includes('gold') || reason.includes('cost')) {
+      return 'You do not have enough gold for this action.';
+    }
+    if (reason.includes('market') || reason.includes('space')) {
+      return 'You do not have space in your market for this ware.';
+    }
+    if (reason.includes('wares') || reason.includes('supply')) {
+      return 'There are no wares available to buy or sell.';
+    }
+    return 'This card cannot be played right now.';
+  };
+
   const handlePlayCard = useCallback((cardId: DeckCardId) => {
     if (!inPlayPhase || actionsDisabled) return;
     const cardDef = getCard(cardId);
     if (cardDef.type === 'ware') {
       setWareDialog(cardId);
     } else {
+      const validation = validatePlayCard(validationState, cardId);
+      if (!validation.valid) {
+        const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Invalid play');
+        setCardError({ cardId, message: friendlyMessage });
+        return;
+      }
+      setCardError(null);
       dispatch({ type: 'PLAY_CARD', cardId });
     }
-  }, [inPlayPhase, actionsDisabled, dispatch]);
+  }, [inPlayPhase, actionsDisabled, dispatch, validationState]);
 
   return (
     <div style={{
@@ -76,7 +170,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       <TurnIndicator pub={pub} slot={slot} isMyTurn={isMyTurn} />
 
       {/* Error */}
-      {ws.error && (
+      {ws.error && !isCardActionValidationError(ws.error) && (
         <div style={{
           background: '#4a1a12',
           border: '1px solid #8a3a2a',
@@ -93,7 +187,9 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
 
       {/* Interaction panel */}
       {hasPendingInteraction && (
-        <CastInteractionPanel pub={pub} priv={priv} slot={slot} dispatch={dispatch} />
+        <ResolveMegaView>
+          <CastInteractionPanel pub={pub} priv={priv} slot={slot} dispatch={dispatch} onMegaView={setMegaCardId} />
+        </ResolveMegaView>
       )}
 
       {/* Own market + utilities */}
@@ -109,8 +205,18 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         <MarketDisplay market={myPublic.market} label="Your Market" />
         <UtilityArea
           utilities={myPublic.utilities}
-          onActivate={(i) => dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i })}
+          onActivate={(i) => {
+            const validation = validateActivateUtility(validationState, i);
+            if (!validation.valid) {
+              const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot activate utility');
+              setCardError({ cardId: myPublic.utilities[i].cardId, message: friendlyMessage });
+              return;
+            }
+            setCardError(null);
+            dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
+          }}
           disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
+          cardError={cardError}
           label="Your Utilities"
         />
       </div>
@@ -123,20 +229,45 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
             disabled={actionsDisabled}
             onClick={() => dispatch({ type: 'END_TURN' })}
           >
-            End Turn ({pub.actionsLeft} actions left)
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div>End Turn</div>
+              <div style={{ display: 'flex', gap: 3 }}>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
+                      border: '2px solid var(--gold)',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
           </button>
         </div>
       )}
 
       {/* Hand */}
       <div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600 }}>
-          Your Hand ({priv.hand.length} cards)
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', fontWeight: 600 }}>
+            Your Hand ({priv.hand.length} cards)
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)' }}>
+              {myPublic.gold}g
+            </span>
+          </div>
         </div>
         <HandDisplay
           hand={priv.hand}
           onPlayCard={handlePlayCard}
           disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
+          cardError={cardError}
+          onMegaView={setMegaCardId}
         />
       </div>
 
@@ -144,8 +275,30 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       {wareDialog && (
         <CardPlayDialog
           cardId={wareDialog}
-          onBuy={() => { dispatch({ type: 'PLAY_CARD', cardId: wareDialog, wareMode: 'buy' }); setWareDialog(null); }}
-          onSell={() => { dispatch({ type: 'PLAY_CARD', cardId: wareDialog, wareMode: 'sell' }); setWareDialog(null); }}
+          onBuy={() => {
+            const validation = validatePlayCard(validationState, wareDialog, 'buy');
+            if (!validation.valid) {
+              const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot buy wares');
+              setCardError({ cardId: wareDialog, message: friendlyMessage });
+              setWareDialog(null);
+              return;
+            }
+            setCardError(null);
+            dispatch({ type: 'PLAY_CARD', cardId: wareDialog, wareMode: 'buy' });
+            setWareDialog(null);
+          }}
+          onSell={() => {
+            const validation = validatePlayCard(validationState, wareDialog, 'sell');
+            if (!validation.valid) {
+              const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot sell wares');
+              setCardError({ cardId: wareDialog, message: friendlyMessage });
+              setWareDialog(null);
+              return;
+            }
+            setCardError(null);
+            dispatch({ type: 'PLAY_CARD', cardId: wareDialog, wareMode: 'sell' });
+            setWareDialog(null);
+          }}
           onCancel={() => setWareDialog(null)}
         />
       )}
@@ -171,6 +324,11 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
           onClose={() => setDrawModalOpen(false)}
           slot={slot}
         />
+      )}
+
+      {/* Mega view */}
+      {megaCardId && (
+        <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} />
       )}
     </div>
   );
@@ -383,11 +541,12 @@ function TurnIndicator({ pub, slot, isMyTurn }: {
  * Wraps InteractionPanel for cast mode by constructing a synthetic GameState
  * from the public + private data. InteractionPanel expects a full GameState.
  */
-function CastInteractionPanel({ pub, priv, slot, dispatch }: {
+function CastInteractionPanel({ pub, priv, slot, dispatch, onMegaView }: {
   pub: PublicGameState;
   priv: PrivateGameState;
   slot: 0 | 1;
   dispatch: (action: GameAction) => void;
+  onMegaView?: (cardId: DeckCardId) => void;
 }) {
   // Build a minimal synthetic GameState that InteractionPanel can work with.
   // It only reads: pendingResolution, pendingGuardReaction, pendingWareCardReaction,
@@ -418,6 +577,7 @@ function CastInteractionPanel({ pub, priv, slot, dispatch }: {
     <InteractionPanel
       state={syntheticState as import('../engine/types.ts').GameState}
       dispatch={dispatch}
+      onMegaView={onMegaView}
     />
   );
 }
@@ -444,3 +604,4 @@ function isWaitingForMe(
 
   return pub.waitingOnPlayer === slot;
 }
+

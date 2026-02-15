@@ -3,8 +3,8 @@ import { useGameStore } from '../hooks/useGameStore.ts';
 import { getRandomAiAction } from '../ai/RandomAI.ts';
 import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
-import { validatePlayCard } from '../engine/validation/actionValidator.ts';
-import type { DeckCardId } from '../engine/types.ts';
+import { validatePlayCard, validateActivateUtility } from '../engine/validation/actionValidator.ts';
+import type { DeckCardId, GameState, PendingResolution } from '../engine/types.ts';
 import { CONSTANTS } from '../engine/types.ts';
 import { OpponentArea } from './OpponentArea.tsx';
 import { CenterRow } from './CenterRow.tsx';
@@ -15,8 +15,10 @@ import { ActionButtons, CardPlayDialog, DrawModal } from './ActionButtons.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
 import { GameLog } from './GameLog.tsx';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
+import { ResolveMegaView } from './ResolveMegaView.tsx';
+import { MegaView } from './MegaView.tsx';
 
-export function GameScreen() {
+export function GameScreen({ onBackToMenu }: { onBackToMenu?: () => void }) {
   const { state, dispatch, error, newGame } = useGameStore();
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
   const [showLog, setShowLog] = useState(false);
@@ -24,6 +26,7 @@ export function GameScreen() {
   const [drawModalOpen, setDrawModalOpen] = useState(false);
   const [cardError, setCardError] = useState<{cardId: DeckCardId, message: string} | null>(null);
   const [aiMessage, setAiMessage] = useState<string>('');
+  const [megaCardId, setMegaCardId] = useState<DeckCardId | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
@@ -39,10 +42,29 @@ export function GameScreen() {
   }, [menuOpen]);
 
   // Is it the AI's turn to act?
+  const getPendingResponder = (state: GameState, pr: PendingResolution): 0 | 1 => {
+    switch (pr.type) {
+      case 'AUCTION':
+        return pr.wares.length < 2 ? state.currentPlayer : pr.nextBidder;
+      case 'DRAFT':
+        return pr.currentPicker;
+      case 'OPPONENT_DISCARD':
+      case 'CARRIER_WARE_SELECT':
+        return pr.targetPlayer;
+      case 'UTILITY_KEEP':
+        return pr.step === 'ACTIVE_CHOOSE'
+          ? state.currentPlayer
+          : (state.currentPlayer === 0 ? 1 : 0);
+      case 'OPPONENT_CHOICE':
+        return state.currentPlayer === 0 ? 1 : 0;
+      default:
+        return state.currentPlayer;
+    }
+  };
+
   const isAiResponder = (state: GameState) => {
     if (!state.pendingResolution) return false;
-    // For now, assume AI responds to all pending resolutions when it's player 1
-    return state.currentPlayer === 1;
+    return getPendingResponder(state, state.pendingResolution) === 1;
   };
 
   const isAiTurn = state.phase !== 'GAME_OVER' && (
@@ -61,6 +83,18 @@ export function GameScreen() {
     }
     if (reason.includes('not in hand')) {
       return 'This card is not in your hand.';
+    }
+    if (reason.includes('wareMode')) {
+      return 'Please choose buy or sell for this ware card.';
+    }
+    if (reason.includes('gold') || reason.includes('cost')) {
+      return 'You do not have enough gold for this action.';
+    }
+    if (reason.includes('market') || reason.includes('space')) {
+      return 'You do not have space in your market for this ware.';
+    }
+    if (reason.includes('wares') || reason.includes('supply')) {
+      return 'There are no wares available to buy or sell.';
     }
     // Default friendly message
     return 'This card cannot be played right now.';
@@ -101,6 +135,9 @@ export function GameScreen() {
     if (!isAiTurn) return;
     if (aiAttemptRef.current >= 10) return;
 
+    const isFirstTurn = state.turn === 0;
+    const delay = isFirstTurn ? 0 : CONSTANTS.AI_ACTION_DELAY_MS;
+
     const timer = setTimeout(() => {
       aiAttemptRef.current++;
       const action = getRandomAiAction(state);
@@ -110,7 +147,7 @@ export function GameScreen() {
         setAiMessage(message);
         dispatch(action);
       }
-    }, CONSTANTS.AI_ACTION_DELAY_MS);
+    }, delay);
 
     return () => clearTimeout(timer);
   }, [isAiTurn, state, dispatch, error]);
@@ -123,6 +160,12 @@ export function GameScreen() {
       setDrawModalOpen(false);
     }
   }, [state.phase, state.currentPlayer, drawModalOpen]);
+
+  useEffect(() => {
+    if (!cardError) return;
+    const timer = setTimeout(() => setCardError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [cardError]);
 
   const handleAiMessageHide = useCallback(() => {
     setAiMessage('');
@@ -144,6 +187,34 @@ export function GameScreen() {
       minHeight: '100vh',
       position: 'relative',
     }}>
+      {/* Menu button */}
+      {onBackToMenu && (
+        <button
+          onClick={onBackToMenu}
+          style={{
+            position: 'absolute',
+            top: 16,
+            right: 20,
+            background: 'rgba(90,64,48,0.8)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            padding: '8px 16px',
+            color: 'white',
+            fontSize: 14,
+            cursor: 'pointer',
+            zIndex: 1000,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(90,64,48,0.9)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(90,64,48,0.8)';
+          }}
+        >
+          Menu
+        </button>
+      )}
+
       {/* Main game area */}
       <div style={{
         flex: 1,
@@ -152,20 +223,6 @@ export function GameScreen() {
         gap: 10,
         minWidth: 0,
       }}>
-        {/* Error banner */}
-        {error && !isAiTurn && (
-          <div style={{
-            background: '#4a1a12',
-            border: '1px solid #8a3a2a',
-            borderRadius: 8,
-            padding: '8px 16px',
-            fontSize: 14,
-            color: '#ff9977',
-          }}>
-            {error}
-          </div>
-        )}
-
         {/* Opponent area */}
         <div style={{
           ...(state.currentPlayer === 1 && {
@@ -185,11 +242,6 @@ export function GameScreen() {
         <div>
           <CenterRow state={state} dispatch={dispatch} isLocalMode={true} showGlow={false} />
         </div>
-
-        {/* Interaction panel */}
-        {hasPendingInteraction && !isAiTurn && (
-          <InteractionPanel state={state} dispatch={dispatch} />
-        )}
 
         {/* Player sections */}
         <div style={{
@@ -226,15 +278,20 @@ export function GameScreen() {
             />
             <UtilityArea
               utilities={state.players[0].utilities}
-              onActivate={(i) => dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i })}
+              onActivate={(i) => {
+                const validation = validateActivateUtility(state, i);
+                if (!validation.valid) {
+                  const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot activate utility');
+                  setCardError({ cardId: state.players[0].utilities[i].cardId, message: friendlyMessage });
+                  return;
+                }
+                setCardError(null);
+                dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
+              }}
               disabled={actionsDisabled || state.phase !== 'PLAY' || state.actionsLeft <= 0}
+              cardError={cardError}
               label="Your Utilities"
             />
-            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', minHeight: 120 }}>
-              <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 28, textShadow: '0 0 8px rgba(212,168,80,0.4)' }}>
-                {state.players[0].gold}g
-              </span>
-            </div>
           </div>
         </div>
 
@@ -247,14 +304,22 @@ export function GameScreen() {
           <div style={{
             marginBottom: 10,
           }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600 }}>
-            Your Hand ({state.players[0].hand.length} cards)
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', fontWeight: 600 }}>
+              Your Hand ({state.players[0].hand.length} cards)
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)' }}>
+                {state.players[0].gold}g
+              </span>
+            </div>
           </div>
           <HandDisplay
             hand={state.players[0].hand}
             onPlayCard={handlePlayCard}
             disabled={actionsDisabled || state.phase !== 'PLAY' || state.actionsLeft <= 0}
             cardError={cardError}
+            onMegaView={setMegaCardId}
           />
         </div>
 
@@ -289,7 +354,23 @@ export function GameScreen() {
                 e.currentTarget.style.transform = 'scale(1)';
               }}
             >
-              End Turn
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div>End Turn</div>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        backgroundColor: i < state.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
+                        border: '2px solid var(--gold)',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
             </button>
           </div>
         )}
@@ -376,8 +457,30 @@ export function GameScreen() {
       {wareDialog && (
         <CardPlayDialog
           cardId={wareDialog}
-          onBuy={() => { dispatch({ type: 'PLAY_CARD', cardId: wareDialog, wareMode: 'buy' }); setWareDialog(null); }}
-          onSell={() => { dispatch({ type: 'PLAY_CARD', cardId: wareDialog, wareMode: 'sell' }); setWareDialog(null); }}
+          onBuy={() => {
+            const validation = validatePlayCard(state, wareDialog, 'buy');
+            if (!validation.valid) {
+              const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot buy wares');
+              setCardError({ cardId: wareDialog, message: friendlyMessage });
+              setWareDialog(null);
+              return;
+            }
+            setCardError(null);
+            dispatch({ type: 'PLAY_CARD', cardId: wareDialog, wareMode: 'buy' });
+            setWareDialog(null);
+          }}
+          onSell={() => {
+            const validation = validatePlayCard(state, wareDialog, 'sell');
+            if (!validation.valid) {
+              const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot sell wares');
+              setCardError({ cardId: wareDialog, message: friendlyMessage });
+              setWareDialog(null);
+              return;
+            }
+            setCardError(null);
+            dispatch({ type: 'PLAY_CARD', cardId: wareDialog, wareMode: 'sell' });
+            setWareDialog(null);
+          }}
           onCancel={() => setWareDialog(null)}
         />
       )}
@@ -394,6 +497,18 @@ export function GameScreen() {
 
       {/* Endgame overlay */}
       <EndgameOverlay state={state} onNewGame={() => newGame()} />
+
+      {/* Resolve mega view */}
+      {hasPendingInteraction && !isAiTurn && (
+        <ResolveMegaView verticalAlign="center">
+          <InteractionPanel state={state} dispatch={dispatch} onMegaView={setMegaCardId} />
+        </ResolveMegaView>
+      )}
+
+      {/* Mega view */}
+      {megaCardId && (
+        <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} />
+      )}
     </div>
   );
 }
@@ -415,30 +530,4 @@ if (typeof document !== 'undefined') {
   const style = document.createElement('style');
   style.textContent = shimmerKeyframes;
   document.head.appendChild(style);
-}
-
-/**
- * Determine if the AI (player 1) is the one who needs to respond
- * to the current pending resolution.
- */
-function isAiResponder(state: import('../engine/types.ts').GameState): boolean {
-  const pr = state.pendingResolution;
-  if (!pr) return false;
-
-  switch (pr.type) {
-    case 'OPPONENT_DISCARD':
-      return pr.targetPlayer === 1;
-    case 'OPPONENT_CHOICE':
-      return state.currentPlayer !== 1;
-    case 'AUCTION':
-      if (pr.wares.length < 2) return state.currentPlayer === 1;
-      return pr.nextBidder === 1;
-    case 'DRAFT':
-      return pr.currentPicker === 1;
-    case 'UTILITY_KEEP':
-      return (pr.step === 'ACTIVE_CHOOSE' && state.currentPlayer === 1) ||
-             (pr.step === 'OPPONENT_CHOOSE' && state.currentPlayer === 0);
-    default:
-      return state.currentPlayer === 1;
-  }
 }

@@ -8,9 +8,11 @@ import { GameScreen } from './GameScreen.tsx';
 import { CastLobby } from './CastLobby.tsx';
 import { TVScreen } from './TVScreen.tsx';
 import { PlayerScreen } from './PlayerScreen.tsx';
+import { MainMenu } from './screens/MainMenu.tsx';
 import { useWebSocketGame } from '../multiplayer/client.ts';
 
 type Route = 'local' | 'tv' | 'play';
+type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings';
 
 function getRoute(): Route {
   const hash = window.location.hash;
@@ -21,6 +23,7 @@ function getRoute(): Route {
 
 export function Router() {
   const [route, setRoute] = useState<Route>(getRoute);
+  const [screen, setScreen] = useState<Screen>('menu');
 
   useEffect(() => {
     const onHashChange = () => setRoute(getRoute());
@@ -28,8 +31,31 @@ export function Router() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
+  const handleMenuSelect = (option: 'login' | 'solo' | 'multiplayer' | 'settings') => {
+    setScreen(option);
+  };
+
   if (route === 'local') {
-    return <GameScreen />;
+    if (screen === 'menu') {
+      return <MainMenu onSelectOption={handleMenuSelect} />;
+    }
+    if (screen === 'solo') {
+      return <GameScreen onBackToMenu={() => setScreen('menu')} />;
+    }
+    // Placeholder for other screens
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl mb-4">{screen.charAt(0).toUpperCase() + screen.slice(1)} - Coming Soon</h1>
+          <button
+            onClick={() => setScreen('menu')}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Back to Menu
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return <CastRouter route={route} />;

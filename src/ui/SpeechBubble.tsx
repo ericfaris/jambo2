@@ -22,7 +22,7 @@ export function SpeechBubble({ message, visible, onHide }: SpeechBubbleProps) {
     <div style={{
       position: 'absolute',
       top: 60,
-      right: -20,
+      right: 80,
       zIndex: 2000,
       animation: 'speechBubbleFadeIn 0.3s ease-out',
     }}>

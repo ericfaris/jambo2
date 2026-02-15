@@ -2,34 +2,174 @@ import { useState } from 'react';
 import type { GameState, PendingResolution, InteractionResponse, WareType, DeckCardId } from '../engine/types.ts';
 import { WARE_TYPES } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
-import { CardFace, WareToken } from './CardFace.tsx';
+import { CardFace, WareToken, WARE_COLORS } from './CardFace.tsx';
 import { MarketDisplay } from './MarketDisplay.tsx';
 
 interface InteractionPanelProps {
   state: GameState;
   dispatch: (action: import('../engine/types.ts').GameAction) => void;
+  onMegaView?: (cardId: DeckCardId) => void;
 }
 
 function resolve(dispatch: InteractionPanelProps['dispatch'], response: InteractionResponse) {
   dispatch({ type: 'RESOLVE_INTERACTION', response });
 }
 
-export function InteractionPanel({ state, dispatch }: InteractionPanelProps) {
+function getCardGridStyle(cardCount: number) {
+  if (cardCount <= 0) {
+    return { display: 'grid' } as const;
+  }
+  if (cardCount <= 3) {
+    return {
+      display: 'grid',
+      gridTemplateColumns: `repeat(${cardCount}, minmax(96px, 1fr))`,
+      gap: 10,
+      width: '100%',
+      maxWidth: 520,
+      justifyContent: 'center',
+      justifyItems: 'center',
+      alignContent: 'start',
+      margin: '0 auto',
+      maxHeight: 'min(42vh, 360px)',
+      overflowY: 'auto',
+      overflowX: 'hidden',
+      paddingRight: 4,
+    } as const;
+  }
+  return {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))',
+    gap: 10,
+    width: '100%',
+    maxWidth: '100%',
+    justifyContent: 'center',
+    alignItems: 'start',
+    justifyItems: 'center',
+    alignContent: 'start',
+    margin: '0 auto',
+    maxHeight: 'min(42vh, 360px)',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    paddingRight: 4,
+  } as const;
+}
+
+function getWareGridStyle(wareCount: number) {
+  if (wareCount <= 0) {
+    return { display: 'grid' } as const;
+  }
+  if (wareCount <= 4) {
+    return {
+      display: 'grid',
+      gridTemplateColumns: `repeat(${wareCount}, minmax(52px, 1fr))`,
+      gap: 10,
+      width: '100%',
+      maxWidth: 520,
+      justifyContent: 'center',
+      justifyItems: 'center',
+      alignContent: 'start',
+      margin: '0 auto',
+    } as const;
+  }
+  return {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(52px, 1fr))',
+    gap: 10,
+    width: '100%',
+    maxWidth: '100%',
+    justifyItems: 'center',
+    alignContent: 'start',
+    margin: '0 auto',
+  } as const;
+}
+
+function SelectableCardArea({
+  cards,
+  onSelect,
+  onMegaView,
+  selectedIndices,
+  selectedCardIds,
+}: {
+  cards: DeckCardId[];
+  onSelect: (cardId: DeckCardId, index: number) => void;
+  onMegaView?: (cardId: DeckCardId) => void;
+  selectedIndices?: number[];
+  selectedCardIds?: DeckCardId[];
+}) {
+  const useOverlap = cards.length >= 8;
+
+  if (!useOverlap) {
+    return (
+      <div style={getCardGridStyle(cards.length)}>
+        {cards.map((cardId, index) => (
+          <CardFace
+            key={`${cardId}-${index}`}
+            cardId={cardId}
+            small
+            selected={selectedIndices?.includes(index) || selectedCardIds?.includes(cardId)}
+            onClick={() => onSelect(cardId, index)}
+            onMegaView={onMegaView}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  const overlap = 36;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'flex-start',
+        overflowX: 'auto',
+        overflowY: 'hidden',
+        maxWidth: '100%',
+        padding: '2px 4px 6px',
+        scrollbarWidth: 'thin',
+      }}
+    >
+      {cards.map((cardId, index) => (
+        <div
+          key={`${cardId}-${index}`}
+          style={{
+            marginLeft: index === 0 ? 0 : -overlap,
+            flexShrink: 0,
+            zIndex: index,
+            position: 'relative',
+          }}
+        >
+          <CardFace
+            cardId={cardId}
+            small
+            selected={selectedIndices?.includes(index) || selectedCardIds?.includes(cardId)}
+            onClick={() => onSelect(cardId, index)}
+            onMegaView={onMegaView}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function InteractionPanel({ state, dispatch, onMegaView }: InteractionPanelProps) {
   // Guard reaction
   if (state.pendingGuardReaction) {
     const animalCard = getCard(state.pendingGuardReaction.animalCard);
     const isMyReaction = state.pendingGuardReaction.targetPlayer === 0;
     if (!isMyReaction) return <PanelShell title="Waiting for opponent's Guard reaction..." />;
+    const guardCardId = findHandCardByDesign(state, 0, 'guard');
     return (
-      <PanelShell title={`${animalCard.name} played! Play Guard to cancel?`}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="primary" onClick={() => dispatch({ type: 'GUARD_REACTION', play: true })}>
-            Play Guard
-          </button>
-          <button onClick={() => dispatch({ type: 'GUARD_REACTION', play: false })}>
-            Decline
-          </button>
-        </div>
+      <PanelShell title={`${animalCard.name} played! Play Guard to cancel?`} sourceCardId={state.pendingGuardReaction.animalCard} onMegaView={onMegaView}>
+        <ReactionDecisionPanel
+          reactionCardId={guardCardId}
+          reactionLabel="Your Guard"
+          primaryLabel="Play Guard"
+          onPrimary={() => dispatch({ type: 'GUARD_REACTION', play: true })}
+          onSecondary={() => dispatch({ type: 'GUARD_REACTION', play: false })}
+          onMegaView={onMegaView}
+        />
       </PanelShell>
     );
   }
@@ -38,16 +178,29 @@ export function InteractionPanel({ state, dispatch }: InteractionPanelProps) {
   if (state.pendingWareCardReaction) {
     const isMyReaction = state.pendingWareCardReaction.targetPlayer === 0;
     if (!isMyReaction) return <PanelShell title="Waiting for opponent's Rain Maker reaction..." />;
+    const rainMakerCardId = findHandCardByDesign(state, 0, 'rain_maker');
+    const opponentWareCard = getCard(state.pendingWareCardReaction.wareCardId);
     return (
-      <PanelShell title="Opponent used a ware card! Play Rain Maker to take it?">
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="primary" onClick={() => dispatch({ type: 'WARE_CARD_REACTION', play: true })}>
-            Play Rain Maker
-          </button>
-          <button onClick={() => dispatch({ type: 'WARE_CARD_REACTION', play: false })}>
-            Decline
-          </button>
-        </div>
+      <PanelShell
+        title="Opponent used a ware card! Play Rain Maker to take it?"
+        sourceCardId={state.pendingWareCardReaction.wareCardId}
+        onMegaView={onMegaView}
+        sourceCardOverlay={opponentWareCard.wares ? (
+          <WareCardTradeOverlay
+            buyPrice={opponentWareCard.wares.buyPrice}
+            sellPrice={opponentWareCard.wares.sellPrice}
+            wareTypes={opponentWareCard.wares.types}
+          />
+        ) : undefined}
+      >
+        <ReactionDecisionPanel
+          reactionCardId={rainMakerCardId}
+          reactionLabel="Your Rain Maker"
+          primaryLabel="Play Rain Maker"
+          onPrimary={() => dispatch({ type: 'WARE_CARD_REACTION', play: true })}
+          onSecondary={() => dispatch({ type: 'WARE_CARD_REACTION', play: false })}
+          onMegaView={onMegaView}
+        />
       </PanelShell>
     );
   }
@@ -56,33 +209,235 @@ export function InteractionPanel({ state, dispatch }: InteractionPanelProps) {
   if (!pr) return null;
 
   const source = getCard(pr.sourceCard);
+  const compactSourceCard = shouldUseCompactSourceCard(pr);
 
   return (
-    <PanelShell title={`${source.name} - Resolve`}>
-      <ResolutionContent state={state} pr={pr} dispatch={dispatch} />
+    <PanelShell
+      title={`${source.name} - Resolve`}
+      sourceCardId={pr.sourceCard}
+      onMegaView={onMegaView}
+      compactSourceCard={compactSourceCard}
+    >
+      <ResolutionContent state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />
     </PanelShell>
   );
 }
 
-function PanelShell({ title, children }: { title: string; children?: React.ReactNode }) {
+function findHandCardByDesign(state: GameState, player: 0 | 1, designId: 'guard' | 'rain_maker'): DeckCardId | undefined {
+  return state.players[player].hand.find((cardId) => getCard(cardId).designId === designId);
+}
+
+function ReactionDecisionPanel({
+  reactionCardId,
+  reactionLabel,
+  primaryLabel,
+  onPrimary,
+  onSecondary,
+  onMegaView,
+}: {
+  reactionCardId?: DeckCardId;
+  reactionLabel: string;
+  primaryLabel: string;
+  onPrimary: () => void;
+  onSecondary: () => void;
+  onMegaView?: (cardId: DeckCardId) => void;
+}) {
   return (
-    <div className="panel-slide" style={{
-      background: 'linear-gradient(135deg, #3d2a1a 0%, #2d1c12 100%)',
-      borderRadius: 12,
-      padding: 18,
-      border: '2px solid var(--gold-dim)',
-      margin: '10px 0',
-      boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.3)',
-    }}>
-      <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18, marginBottom: 10, color: 'var(--gold)' }}>
-        {title}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 18, color: '#6a5a48', fontWeight: 700 }}>↳</div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{reactionLabel}</div>
+          {reactionCardId ? (
+            <ReactionCardTile cardId={reactionCardId} onMegaView={onMegaView} />
+          ) : (
+            <div style={{ width: 136, height: 188, borderRadius: 10, border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 12, padding: 8, textAlign: 'center' }}>
+              Card not in hand
+            </div>
+          )}
+        </div>
       </div>
-      {children}
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+        <button className="primary" onClick={onPrimary}>{primaryLabel}</button>
+        <button onClick={onSecondary}>Decline</button>
+      </div>
     </div>
   );
 }
 
-function ResolutionContent({ state, pr, dispatch }: { state: GameState; pr: PendingResolution; dispatch: InteractionPanelProps['dispatch'] }) {
+function ReactionCardTile({ cardId, onMegaView }: { cardId: DeckCardId; onMegaView?: (cardId: DeckCardId) => void }) {
+  const card = getCard(cardId);
+  const LINEN_BG = [
+    'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+    'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+    'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+    'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+  ].join(', ');
+  const LINEN_BG_SIZE = '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px';
+  const LINEN_BASE = '#e8e4df';
+
+  return (
+    <div
+      onClick={onMegaView ? () => onMegaView(cardId) : undefined}
+      style={{
+        width: 136,
+        borderRadius: 10,
+        padding: 5,
+        backgroundImage: LINEN_BG,
+        backgroundSize: LINEN_BG_SIZE,
+        backgroundColor: LINEN_BASE,
+        border: '1px solid #b8ab97',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+        cursor: onMegaView ? 'zoom-in' : 'default',
+      }}
+    >
+      <img
+        src={`/assets/cards/${card.designId}.png`}
+        alt={card.name}
+        style={{ width: '100%', borderRadius: 8, display: 'block' }}
+        draggable={false}
+      />
+    </div>
+  );
+}
+
+function WareCardTradeOverlay({ buyPrice, sellPrice, wareTypes }: { buyPrice: number; sellPrice: number; wareTypes: WareType[] }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 8,
+        right: 8,
+        bottom: 8,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 16,
+        padding: '6px 8px',
+        borderRadius: 10,
+        background: 'rgba(20,10,5,0.55)',
+        backdropFilter: 'blur(2px)',
+        pointerEvents: 'none',
+      }}
+    >
+      <img src={`/assets/coins/coin_${buyPrice}.png`} alt={`${buyPrice}g`} style={{ width: 54, height: 54 }} draggable={false} />
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 200 }}>
+        {wareTypes.map((wareType, index) => (
+          <div
+            key={`${wareType}-${index}`}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: WARE_COLORS[wareType],
+              border: '2px solid rgba(0,0,0,0.6)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            }}
+            title={wareType}
+          />
+        ))}
+      </div>
+      <img src={`/assets/coins/coin_${sellPrice}.png`} alt={`${sellPrice}g`} style={{ width: 54, height: 54 }} draggable={false} />
+    </div>
+  );
+}
+
+function shouldUseCompactSourceCard(pr: PendingResolution): boolean {
+  switch (pr.type) {
+    case 'DECK_PEEK':
+    case 'DISCARD_PICK':
+    case 'DRAW_MODIFIER':
+      return true;
+    case 'HAND_SWAP':
+    case 'SUPPLIES_DISCARD':
+      return true;
+    case 'OPPONENT_DISCARD':
+      return pr.targetPlayer === 0;
+    case 'DRAFT':
+      return pr.draftMode !== 'wares';
+    case 'WARE_CASH_CONVERSION':
+      return pr.step === 'SELECT_CARD';
+    case 'UTILITY_EFFECT':
+      return pr.step === 'SELECT_CARD';
+    default:
+      return false;
+  }
+}
+
+function PanelShell({ title, children, sourceCardId, onMegaView, compactSourceCard, sourceCardOverlay }: { title: string; children?: React.ReactNode; sourceCardId?: DeckCardId; onMegaView?: (cardId: DeckCardId) => void; compactSourceCard?: boolean; sourceCardOverlay?: React.ReactNode }) {
+  const sourceCard = sourceCardId ? getCard(sourceCardId) : null;
+  const LINEN_BG = [
+    'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+    'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+    'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+    'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+  ].join(', ');
+  const LINEN_BG_SIZE = '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px';
+  const LINEN_BASE = '#e8e4df';
+
+  return (
+    <div className="panel-slide" style={{ maxWidth: compactSourceCard ? 980 : 460, margin: '0 auto', width: '100%' }}>
+      <div
+        className="dialog-pop"
+        style={{
+          borderRadius: 14,
+          padding: 'clamp(6px, 2vw, 10px)',
+          backgroundImage: LINEN_BG,
+          backgroundSize: LINEN_BG_SIZE,
+          backgroundColor: LINEN_BASE,
+          border: '2px solid #a89880',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+          display: compactSourceCard ? 'flex' : 'block',
+          flexWrap: compactSourceCard ? 'wrap' : undefined,
+          gap: compactSourceCard ? 10 : 0,
+          alignItems: 'start',
+        }}
+      >
+        {sourceCard && (
+          <div
+            onClick={sourceCardId && onMegaView ? () => onMegaView(sourceCardId) : undefined}
+            style={{
+              cursor: sourceCardId && onMegaView ? 'zoom-in' : 'default',
+              maxWidth: compactSourceCard ? 180 : undefined,
+              width: compactSourceCard ? 'min(180px, 40vw)' : undefined,
+              flex: compactSourceCard ? '0 0 auto' : undefined,
+              margin: compactSourceCard ? '0 auto' : undefined,
+              position: 'relative',
+            }}
+          >
+            <img
+              src={`/assets/cards/${sourceCard.designId}.png`}
+              alt={sourceCard.name}
+              style={{ width: '100%', borderRadius: 10, display: 'block' }}
+              draggable={false}
+            />
+            {sourceCardOverlay}
+          </div>
+        )}
+
+        <div style={{
+          marginTop: sourceCard && !compactSourceCard ? 8 : 0,
+          borderRadius: 10,
+          padding: 'clamp(10px, 2.5vw, 14px)',
+          backgroundImage: LINEN_BG,
+          backgroundSize: LINEN_BG_SIZE,
+          backgroundColor: LINEN_BASE,
+          border: 'none',
+          color: '#1a1714',
+          flex: compactSourceCard ? '1 1 320px' : undefined,
+          minWidth: compactSourceCard ? 0 : undefined,
+        }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 17, marginBottom: 10, color: '#1a1714', letterSpacing: 0.2, textAlign: 'center' }}>
+            {title}
+          </div>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResolutionContent({ state, pr, dispatch, onMegaView }: { state: GameState; pr: PendingResolution; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   switch (pr.type) {
     case 'WARE_TRADE':
       return <WareTradePanel state={state} pr={pr} dispatch={dispatch} />;
@@ -96,11 +451,11 @@ function ResolutionContent({ state, pr, dispatch }: { state: GameState; pr: Pend
     case 'AUCTION':
       return <AuctionPanel pr={pr} state={state} dispatch={dispatch} />;
     case 'DECK_PEEK':
-      return <DeckPeekPanel pr={pr} dispatch={dispatch} />;
+      return <DeckPeekPanel pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'DISCARD_PICK':
-      return <DiscardPickPanel pr={pr} dispatch={dispatch} />;
+      return <DiscardPickPanel pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'WARE_CASH_CONVERSION':
-      return <WareCashPanel state={state} pr={pr} dispatch={dispatch} />;
+      return <WareCashPanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'WARE_SELL_BULK':
       return <WareSellBulkPanel state={state} pr={pr} dispatch={dispatch} />;
     case 'WARE_RETURN':
@@ -110,23 +465,23 @@ function ResolutionContent({ state, pr, dispatch }: { state: GameState; pr: Pend
     case 'WARE_THEFT_SWAP':
       return <WareTheftSwapPanel state={state} pr={pr} dispatch={dispatch} />;
     case 'UTILITY_THEFT_SINGLE':
-      return <UtilityTheftPanel state={state} dispatch={dispatch} />;
+      return <UtilityTheftPanel state={state} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'HAND_SWAP':
-      return <HandSwapPanel state={state} pr={pr} dispatch={dispatch} />;
+      return <HandSwapPanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'OPPONENT_DISCARD':
-      return <OpponentDiscardPanel state={state} pr={pr} dispatch={dispatch} />;
+      return <OpponentDiscardPanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'DRAFT':
-      return <DraftPanel state={state} pr={pr} dispatch={dispatch} />;
+      return <DraftPanel pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'SUPPLIES_DISCARD':
-      return <SuppliesDiscardPanel state={state} dispatch={dispatch} />;
+      return <SuppliesDiscardPanel state={state} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'UTILITY_KEEP':
-      return <UtilityKeepPanel state={state} pr={pr} dispatch={dispatch} />;
+      return <UtilityKeepPanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'CROCODILE_USE':
-      return <CrocodilePanel state={state} pr={pr} dispatch={dispatch} />;
+      return <CrocodilePanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'UTILITY_EFFECT':
-      return <UtilityEffectPanel state={state} pr={pr} dispatch={dispatch} />;
+      return <UtilityEffectPanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'DRAW_MODIFIER':
-      return <DrawModifierPanel state={state} dispatch={dispatch} />;
+      return <DrawModifierPanel state={state} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'TURN_MODIFIER':
       return <div style={{ color: 'var(--text-muted)' }}>Auto-resolving...</div>;
     default:
@@ -141,9 +496,9 @@ function WareTypePicker({ prompt, onPick, exclude }: { prompt: string; onPick: (
   return (
     <div>
       <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>{prompt}</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={getWareGridStyle(types.length)}>
         {types.map(wt => (
-          <button key={wt} onClick={() => onPick(wt)} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button key={wt} onClick={() => onPick(wt)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
             <WareToken type={wt} />
           </button>
         ))}
@@ -154,7 +509,7 @@ function WareTypePicker({ prompt, onPick, exclude }: { prompt: string; onPick: (
 
 function BinaryChoicePanel({ options, onChoice }: { options: [string, string]; onChoice: (c: 0 | 1) => void }) {
   return (
-    <div style={{ display: 'flex', gap: 8 }}>
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
       <button className="primary" onClick={() => onChoice(0)}>{options[0]}</button>
       <button className="primary" onClick={() => onChoice(1)}>{options[1]}</button>
     </div>
@@ -195,7 +550,7 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Waiting for opponent to bid...</span>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={getWareGridStyle(pr.wares.length)}>
           {pr.wares.map((wt, i) => <WareToken key={i} type={wt} />)}
         </div>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>(Current: {pr.currentBid}g)</span>
@@ -206,10 +561,12 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Auction:</span>
-        {pr.wares.map((wt, i) => <WareToken key={i} type={wt} />)}
+        <div style={getWareGridStyle(pr.wares.length)}>
+          {pr.wares.map((wt, i) => <WareToken key={i} type={wt} />)}
+        </div>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current bid: {pr.currentBid}g. Your turn.</span>
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
         <button className="primary" onClick={() => resolve(dispatch, { type: 'AUCTION_BID', amount: pr.currentBid + 1 })}>
           Bid {pr.currentBid + 1}g
         </button>
@@ -219,35 +576,35 @@ function AuctionPanel({ pr, state, dispatch }: { pr: Extract<PendingResolution, 
   );
 }
 
-function DeckPeekPanel({ pr, dispatch }: { pr: Extract<PendingResolution, { type: 'DECK_PEEK' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+function DeckPeekPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'DECK_PEEK' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   return (
     <div>
       <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
         Pick {pr.pickCount} card(s) from the revealed cards:
       </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {pr.revealedCards.map((cardId, i) => (
-          <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'DECK_PEEK_PICK', cardIndex: i })} />
-        ))}
-      </div>
+      <SelectableCardArea
+        cards={pr.revealedCards}
+        onSelect={(_, i) => resolve(dispatch, { type: 'DECK_PEEK_PICK', cardIndex: i })}
+        onMegaView={onMegaView}
+      />
     </div>
   );
 }
 
-function DiscardPickPanel({ pr, dispatch }: { pr: Extract<PendingResolution, { type: 'DISCARD_PICK' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+function DiscardPickPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'DISCARD_PICK' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   return (
     <div>
       <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Pick a card from the discard pile:</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {pr.eligibleCards.map((cardId) => (
-          <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'DISCARD_PICK', cardId })} />
-        ))}
-      </div>
+      <SelectableCardArea
+        cards={pr.eligibleCards}
+        onSelect={(cardId) => resolve(dispatch, { type: 'DISCARD_PICK', cardId })}
+        onMegaView={onMegaView}
+      />
     </div>
   );
 }
 
-function WareCashPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'WARE_CASH_CONVERSION' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+function WareCashPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'WARE_CASH_CONVERSION' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const [selectedWares, setSelectedWares] = useState<number[]>([]);
   const cp = state.currentPlayer;
   const player = state.players[cp];
@@ -257,11 +614,11 @@ function WareCashPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<
     return (
       <div>
         <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a ware card from your hand:</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {wareCards.map((cardId) => (
-            <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
-          ))}
-        </div>
+        <SelectableCardArea
+          cards={wareCards}
+          onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
+          onMegaView={onMegaView}
+        />
       </div>
     );
   }
@@ -276,7 +633,7 @@ function WareCashPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<
           Select 3 wares to return ({selectedWares.length}/3):
         </div>
         <MarketDisplay market={player.market} onSlotClick={toggleSlot} selectedSlots={selectedWares} />
-        <button className="primary" disabled={selectedWares.length !== 3} onClick={() => { resolve(dispatch, { type: 'SELECT_WARES', wareIndices: selectedWares }); setSelectedWares([]); }} style={{ marginTop: 8 }}>
+        <button className="primary" disabled={selectedWares.length !== 3} onClick={() => { resolve(dispatch, { type: 'SELECT_WARES', wareIndices: selectedWares }); setSelectedWares([]); }} style={{ margin: '8px auto 0', display: 'block' }}>
           Confirm
         </button>
       </div>
@@ -301,7 +658,7 @@ function WareSellBulkPanel({ state, pr, dispatch }: { state: GameState; pr: Extr
         Select wares to sell at {pr.pricePerWare}g each ({selected.length} selected = {selected.length * pr.pricePerWare}g):
       </div>
       <MarketDisplay market={player.market} onSlotClick={toggleSlot} selectedSlots={selected} />
-      <button className="primary" disabled={selected.length === 0} onClick={() => { resolve(dispatch, { type: 'SELL_WARES', wareIndices: selected }); setSelected([]); }} style={{ marginTop: 8 }}>
+      <button className="primary" disabled={selected.length === 0} onClick={() => { resolve(dispatch, { type: 'SELL_WARES', wareIndices: selected }); setSelected([]); }} style={{ margin: '8px auto 0', display: 'block' }}>
         Sell ({selected.length * pr.pricePerWare}g)
       </button>
     </div>
@@ -350,30 +707,30 @@ function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
   );
 }
 
-function UtilityTheftPanel({ state, dispatch }: { state: GameState; dispatch: InteractionPanelProps['dispatch'] }) {
+function UtilityTheftPanel({ state, dispatch, onMegaView }: { state: GameState; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const cp = state.currentPlayer;
   const opponent: 0 | 1 = cp === 0 ? 1 : 0;
   const opUtils = state.players[opponent].utilities;
   return (
     <div>
       <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select opponent utility to steal:</div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={getCardGridStyle(opUtils.length)}>
         {opUtils.map((u, i) => (
-          <CardFace key={u.cardId} cardId={u.cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })} />
+          <CardFace key={u.cardId} cardId={u.cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })} onMegaView={onMegaView} />
         ))}
       </div>
     </div>
   );
 }
 
-function HandSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'HAND_SWAP' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'HAND_SWAP' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const cp = state.currentPlayer;
   if (pr.step === 'TAKE') {
     if (pr.revealedHand.length === 0) {
       return (
         <div>
           <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Opponent has no cards to take.</div>
-          <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })}>
+          <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
             Continue
           </button>
         </div>
@@ -382,27 +739,27 @@ function HandSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<
     return (
       <div>
         <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a card to take from opponent's hand:</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {pr.revealedHand.map((cardId) => (
-            <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
-          ))}
-        </div>
+        <SelectableCardArea
+          cards={pr.revealedHand}
+          onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
+          onMegaView={onMegaView}
+        />
       </div>
     );
   }
   return (
     <div>
       <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a card to give to opponent:</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {state.players[cp].hand.map((cardId) => (
-          <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
-        ))}
-      </div>
+      <SelectableCardArea
+        cards={state.players[cp].hand}
+        onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
+        onMegaView={onMegaView}
+      />
     </div>
   );
 }
 
-function OpponentDiscardPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'OPPONENT_DISCARD' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+function OpponentDiscardPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'OPPONENT_DISCARD' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const [selected, setSelected] = useState<number[]>([]);
   const target = state.players[pr.targetPlayer];
   const discardCount = target.hand.length - pr.discardTo;
@@ -412,7 +769,7 @@ function OpponentDiscardPanel({ state, pr, dispatch }: { state: GameState; pr: E
     return (
       <div>
         <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>No cards need to be discarded.</div>
-        <button className="primary" onClick={() => resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [] })}>
+        <button className="primary" onClick={() => resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [] })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue
         </button>
       </div>
@@ -432,19 +789,20 @@ function OpponentDiscardPanel({ state, pr, dispatch }: { state: GameState; pr: E
       <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
         Select {discardCount} card(s) to discard ({selected.length}/{discardCount}):
       </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {target.hand.map((cardId, i) => (
-          <CardFace key={cardId} cardId={cardId} small selected={selected.includes(i)} onClick={() => toggleCard(i)} />
-        ))}
-      </div>
-      <button className="primary" disabled={selected.length !== discardCount} onClick={() => { resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: selected }); setSelected([]); }} style={{ marginTop: 8 }}>
+      <SelectableCardArea
+        cards={target.hand}
+        selectedIndices={selected}
+        onSelect={(_, i) => toggleCard(i)}
+        onMegaView={onMegaView}
+      />
+      <button className="primary" disabled={selected.length !== discardCount} onClick={() => { resolve(dispatch, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: selected }); setSelected([]); }} style={{ margin: '8px auto 0', display: 'block' }}>
         Confirm Discard
       </button>
     </div>
   );
 }
 
-function DraftPanel({ pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'DRAFT' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+function DraftPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'DRAFT' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const isMyPick = pr.currentPicker === 0;
 
   if (!isMyPick) {
@@ -455,9 +813,9 @@ function DraftPanel({ pr, dispatch }: { state: GameState; pr: Extract<PendingRes
     return (
       <div>
         <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Draft a ware ({pr.availableWares.length} left):</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={getWareGridStyle(pr.availableWares.length)}>
           {pr.availableWares.map((wt, i) => (
-            <button key={i} onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button key={i} onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
               <WareToken type={wt} />
             </button>
           ))}
@@ -470,16 +828,16 @@ function DraftPanel({ pr, dispatch }: { state: GameState; pr: Extract<PendingRes
   return (
     <div>
       <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Draft a {pr.draftMode === 'cards' ? 'card' : 'utility'} ({cards.length} left):</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {cards.map((cardId) => (
-          <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
-        ))}
-      </div>
+      <SelectableCardArea
+        cards={cards}
+        onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
+        onMegaView={onMegaView}
+      />
     </div>
   );
 }
 
-function SuppliesDiscardPanel({ state, dispatch }: { state: GameState; dispatch: InteractionPanelProps['dispatch'] }) {
+function SuppliesDiscardPanel({ state, dispatch, onMegaView }: { state: GameState; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const cp = state.currentPlayer;
   const hand = state.players[cp].hand;
 
@@ -487,7 +845,7 @@ function SuppliesDiscardPanel({ state, dispatch }: { state: GameState; dispatch:
     return (
       <div>
         <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>No cards to discard. Drawing until ware found...</div>
-        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })}>
+        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue
         </button>
       </div>
@@ -497,16 +855,16 @@ function SuppliesDiscardPanel({ state, dispatch }: { state: GameState; dispatch:
   return (
     <div>
       <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a card to discard:</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {hand.map((cardId) => (
-          <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
-        ))}
-      </div>
+      <SelectableCardArea
+        cards={hand}
+        onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
+        onMegaView={onMegaView}
+      />
     </div>
   );
 }
 
-function UtilityKeepPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'UTILITY_KEEP' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+function UtilityKeepPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'UTILITY_KEEP' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const cp = state.currentPlayer;
   const responder = pr.step === 'ACTIVE_CHOOSE' ? cp : (cp === 0 ? 1 : 0);
 
@@ -520,7 +878,7 @@ function UtilityKeepPanel({ state, pr, dispatch }: { state: GameState; pr: Extra
     return (
       <div>
         <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>You have no utilities.</div>
-        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: 0 })}>
+        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: 0 })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue
         </button>
       </div>
@@ -530,33 +888,33 @@ function UtilityKeepPanel({ state, pr, dispatch }: { state: GameState; pr: Extra
   return (
     <div>
       <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Choose a utility to keep (others will be discarded):</div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {utils.map((u, i) => (
-          <CardFace key={u.cardId} cardId={u.cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })} />
-        ))}
-      </div>
+      <SelectableCardArea
+        cards={utils.map((u) => u.cardId)}
+        onSelect={(_, i) => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })}
+        onMegaView={onMegaView}
+      />
     </div>
   );
 }
 
-function CrocodilePanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'CROCODILE_USE' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+function CrocodilePanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'CROCODILE_USE' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   if (pr.step === 'SELECT_UTILITY') {
     const opUtils = state.players[pr.opponentPlayer].utilities;
     return (
       <div>
         <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select opponent's utility to use and discard:</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {opUtils.map((u, i) => (
-            <CardFace key={u.cardId} cardId={u.cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })} />
-          ))}
-        </div>
+        <SelectableCardArea
+          cards={opUtils.map((u) => u.cardId)}
+          onSelect={(_, i) => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })}
+          onMegaView={onMegaView}
+        />
       </div>
     );
   }
   return <div style={{ color: 'var(--text-muted)' }}>Using opponent's utility...</div>;
 }
 
-function UtilityEffectPanel({ state, pr, dispatch }: { state: GameState; pr: Extract<PendingResolution, { type: 'UTILITY_EFFECT' }>; dispatch: InteractionPanelProps['dispatch'] }) {
+function UtilityEffectPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'UTILITY_EFFECT' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const [selectedCards, setSelectedCards] = useState<DeckCardId[]>([]);
   const cp = state.currentPlayer;
   const player = state.players[cp];
@@ -569,7 +927,7 @@ function UtilityEffectPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
       return (
         <div>
           <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>No wares to return.</div>
-          <button className="primary" onClick={() => resolve(dispatch, { type: 'RETURN_WARE', wareIndex: 0 })}>
+          <button className="primary" onClick={() => resolve(dispatch, { type: 'RETURN_WARE', wareIndex: 0 })} style={{ margin: '8px auto 0', display: 'block' }}>
             Draw a card
           </button>
         </div>
@@ -590,7 +948,7 @@ function UtilityEffectPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
       return (
         <div>
           <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Scale: Draw 2 cards, keep 1, give 1 to opponent.</div>
-          <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })}>
+          <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
             Draw cards
           </button>
         </div>
@@ -600,11 +958,11 @@ function UtilityEffectPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
     return (
       <div>
         <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Keep one card (other goes to opponent):</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {pr.selectedCards.map((cardId) => (
-            <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
-          ))}
-        </div>
+        <SelectableCardArea
+          cards={pr.selectedCards}
+          onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
+          onMegaView={onMegaView}
+        />
       </div>
     );
   }
@@ -619,7 +977,7 @@ function UtilityEffectPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
       return (
         <div>
           <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>No cards in hand.</div>
-          <button className="primary" onClick={() => resolve(dispatch, dummyResponse)}>
+          <button className="primary" onClick={() => resolve(dispatch, dummyResponse)} style={{ margin: '8px auto 0', display: 'block' }}>
             Continue
           </button>
         </div>
@@ -636,11 +994,11 @@ function UtilityEffectPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
       return (
         <div>
           <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>Select a card from your hand:</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {player.hand.map((cardId) => (
-              <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
-            ))}
-          </div>
+          <SelectableCardArea
+            cards={player.hand}
+            onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
+            onMegaView={onMegaView}
+          />
         </div>
       );
     }
@@ -650,12 +1008,13 @@ function UtilityEffectPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
         <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
           Select 1-2 cards from your hand ({selectedCards.length} selected):
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {player.hand.map((cardId) => (
-            <CardFace key={cardId} cardId={cardId} small selected={selectedCards.includes(cardId)} onClick={() => toggleCard(cardId)} />
-          ))}
-        </div>
-        <button className="primary" disabled={selectedCards.length === 0} onClick={() => { resolve(dispatch, { type: 'SELECT_CARDS', cardIds: selectedCards }); setSelectedCards([]); }} style={{ marginTop: 8 }}>
+        <SelectableCardArea
+          cards={player.hand}
+          selectedCardIds={selectedCards}
+          onSelect={(cardId) => toggleCard(cardId)}
+          onMegaView={onMegaView}
+        />
+        <button className="primary" disabled={selectedCards.length === 0} onClick={() => { resolve(dispatch, { type: 'SELECT_CARDS', cardIds: selectedCards }); setSelectedCards([]); }} style={{ margin: '8px auto 0', display: 'block' }}>
           Confirm
         </button>
       </div>
@@ -669,7 +1028,7 @@ function UtilityEffectPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
   return <div style={{ color: 'var(--text-muted)' }}>Processing...</div>;
 }
 
-function DrawModifierPanel({ state, dispatch }: { state: GameState; dispatch: InteractionPanelProps['dispatch'] }) {
+function DrawModifierPanel({ state, dispatch, onMegaView }: { state: GameState; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const cp = state.currentPlayer;
   const hand = state.players[cp].hand;
 
@@ -679,7 +1038,7 @@ function DrawModifierPanel({ state, dispatch }: { state: GameState; dispatch: In
         <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
           {hand.length === 0 ? 'No cards in hand to trade.' : 'Discard pile is empty.'}
         </div>
-        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })}>
+        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId: '' })} style={{ margin: '8px auto 0', display: 'block' }}>
           Continue
         </button>
       </div>
@@ -691,11 +1050,11 @@ function DrawModifierPanel({ state, dispatch }: { state: GameState; dispatch: In
       <div style={{ fontSize: 14, marginBottom: 8, color: 'var(--text-muted)' }}>
         Mask of Transformation: Select a card from your hand to trade for top of discard pile:
       </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {hand.map((cardId) => (
-          <CardFace key={cardId} cardId={cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_CARD', cardId })} />
-        ))}
-      </div>
+      <SelectableCardArea
+        cards={hand}
+        onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
+        onMegaView={onMegaView}
+      />
     </div>
   );
 }

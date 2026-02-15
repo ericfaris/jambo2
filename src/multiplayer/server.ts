@@ -327,9 +327,9 @@ function handleJoinRoom(ws: WebSocket, code: string, role: ConnectionRole): void
     const publicState = extractPublicState(room.state);
     if (playerSlot !== null) {
       const privateState = extractPrivateState(room.state, playerSlot);
-      send(ws, { type: 'GAME_STATE', public: publicState, private: privateState, audioEvent: null });
+      send(ws, { type: 'GAME_STATE', public: publicState, private: privateState, audioEvent: null, aiMessage: null });
     } else {
-      send(ws, { type: 'GAME_STATE', public: publicState, private: null, audioEvent: null });
+      send(ws, { type: 'GAME_STATE', public: publicState, private: null, audioEvent: null, aiMessage: null });
     }
   }
 }
