@@ -202,7 +202,7 @@ export function getHardAiAction(state: GameState, rng: () => number = createHard
 
     const mediumKey = JSON.stringify(mediumAction);
     const mediumScored = scored.find(s => JSON.stringify(s.action) === mediumKey);
-    const divergenceThreshold = state.currentPlayer === 0 ? 100 : 20;
+    const divergenceThreshold = state.currentPlayer === 0 ? 40 : 20;
     if (mediumScored && topScore - mediumScored.score <= divergenceThreshold) {
       return mediumAction;
     }
