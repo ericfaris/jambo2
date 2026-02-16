@@ -66,7 +66,14 @@ export function PreGameSetupModal({ mode, onCancel, onStart }: PreGameSetupModal
           width: 'min(640px, 96vw)',
           borderRadius: 14,
           padding: 18,
-          background: 'rgba(20,10,5,0.72)',
+          backgroundImage: [
+            'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+            'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+            'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+            'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+          ].join(', '),
+          backgroundSize: '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px',
+          backgroundColor: 'var(--surface)',
           border: '2px solid var(--border-light)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           display: 'flex',
@@ -86,7 +93,7 @@ export function PreGameSetupModal({ mode, onCancel, onStart }: PreGameSetupModal
           border: '1px solid var(--border-light)',
           borderRadius: 10,
           padding: 12,
-          background: 'rgba(20,10,5,0.38)',
+          background: 'var(--surface-light)',
         }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Cast Mode
@@ -113,7 +120,7 @@ export function PreGameSetupModal({ mode, onCancel, onStart }: PreGameSetupModal
           border: '1px solid var(--border-light)',
           borderRadius: 10,
           padding: 12,
-          background: 'rgba(20,10,5,0.38)',
+          background: 'var(--surface-light)',
         }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
             First Player

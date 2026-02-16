@@ -1,54 +1,109 @@
-/* MainMenu component styles */
+.main-menu-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
 
 .image-container {
-  /* Set the container position to relative so the absolute text is positioned within it */
   position: relative;
-  /* Ensure the container only takes up the space of its content (the image) */
-  display: inline-block;
-  /* Optional: Center the text horizontally within the container */
+  width: min(1200px, 100%);
   text-align: center;
-  color: white; /* Optional: Set text color for better visibility */
 }
 
 .image-container img {
-  /* Ensure the image is responsive */
   width: 100%;
   height: auto;
-  display: block; /* Removes default margin issues */
+  display: block;
+  border-radius: 14px;
+  border: 2px solid var(--border-light);
+  box-shadow: 0 10px 32px rgba(0,0,0,0.45);
 }
 
 .overlay-text {
-  /* Position the text absolutely within the container */
   position: absolute;
-  /* Place the text to the right of the image */
-  top: calc(50% + 20px); /* Move down 20px from center */
-  left: 100%; /* Position relative to the image's right edge */
-  /* Use transform to center vertically */
+  right: 20px;
+  top: 50%;
   transform: translateY(-50%);
-  /* Display as vertical column */
+  width: min(300px, 36vw);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  /* Optional: Add styling for readability */
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 18px;
-  margin-left: -120px; /* Move another 15px to the left (-105px - 15px = -120px) */
+  gap: 8px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(20,10,5,0.68);
 }
 
-.overlay-text button {
-  background: none;
-  border: none;
-  color: black;
-  font-size: inherit;
-  font-family: inherit;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+.menu-title {
+  color: var(--gold);
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 2px;
   text-align: left;
 }
 
-.overlay-text button:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+.menu-subtitle {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.menu-action {
+  background: var(--surface-light);
+  border: 1px solid var(--border-light);
+  color: var(--text);
+  font-size: 16px;
+  font-family: var(--font-heading);
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background-color var(--motion-fast) var(--anim-ease-standard);
+  text-align: left;
+}
+
+.menu-action:hover:enabled {
+  background: var(--surface-accent);
+}
+
+.menu-action:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.menu-error {
+  color: var(--accent-red);
+  font-size: 12px;
+  text-align: left;
+}
+
+.menu-select-row {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.menu-select {
+  background: var(--surface-light);
+  border: 1px solid var(--border-light);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .overlay-text {
+    position: static;
+    transform: none;
+    width: 100%;
+    margin-top: 12px;
+  }
 }

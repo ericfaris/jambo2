@@ -125,12 +125,29 @@ export function Router() {
 
     // Placeholder for remaining screens
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl mb-4">{screen.charAt(0).toUpperCase() + screen.slice(1)} - Coming Soon</h1>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div className="etched-wood-border dialog-pop" style={{
+          width: 'min(560px, 96vw)',
+          borderRadius: 12,
+          padding: 20,
+          background: 'var(--surface)',
+          color: 'var(--text)',
+          textAlign: 'center',
+        }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontSize: 28, margin: '0 0 10px 0' }}>
+            {screen.charAt(0).toUpperCase() + screen.slice(1)}
+          </h1>
+          <div style={{ color: 'var(--text-muted)', marginBottom: 16 }}>This screen is coming soon.</div>
           <button
             onClick={() => setScreen('menu')}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            style={{
+              background: 'var(--surface-accent)',
+              border: '1px solid var(--border-light)',
+              color: 'var(--gold)',
+              borderRadius: 8,
+              padding: '10px 16px',
+              cursor: 'pointer',
+            }}
           >
             Back to Menu
           </button>

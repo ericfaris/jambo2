@@ -10,7 +10,6 @@ import type { PublicGameState, PrivateGameState } from '../multiplayer/types.ts'
 import type { GameAction, DeckCardId, WareType, GameState } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { validatePlayCard, validateActivateUtility } from '../engine/validation/actionValidator.ts';
-import { MarketDisplay } from './MarketDisplay.tsx';
 import { UtilityArea } from './UtilityArea.tsx';
 import { HandDisplay } from './HandDisplay.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
@@ -50,6 +49,21 @@ interface PlayerScreenProps {
   ws: WebSocketGameState;
 }
 
+interface AuthSessionResponse {
+  authenticated: boolean;
+  user?: {
+    name: string;
+    email: string;
+    picture: string;
+  };
+}
+
+interface AuthUserProfile {
+  name: string;
+  email: string;
+  picture: string;
+}
+
 export function PlayerScreen({ ws }: PlayerScreenProps) {
   const pub = ws.publicState;
   const priv = ws.privateState;
@@ -62,6 +76,10 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
   const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
+  const [authUser, setAuthUser] = useState<AuthUserProfile | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarLabel, setAvatarLabel] = useState('U');
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
@@ -112,6 +130,58 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     }
     window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(highContrast));
   }, [highContrast]);
+
+  const refreshAuthSession = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/session', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load auth session');
+      }
+
+      const data = (await response.json()) as AuthSessionResponse;
+      if (!data.authenticated || !data.user) {
+        setAuthUser(null);
+        setAvatarUrl(null);
+        setAvatarLabel('U');
+        return;
+      }
+
+      setAuthUser(data.user);
+      setAvatarUrl(data.user.picture || null);
+      const firstChar = data.user.name.trim().charAt(0).toUpperCase();
+      setAvatarLabel(firstChar || 'U');
+      setAuthError(null);
+    } catch {
+      setAuthError('Profile unavailable');
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshAuthSession();
+  }, [refreshAuthSession]);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+      setMenuOpen(false);
+      setAuthUser(null);
+      setAvatarUrl(null);
+      setAvatarLabel('U');
+      setAuthError(null);
+    } catch {
+      setAuthError('Sign out failed');
+    }
+  }, []);
 
   if (!pub || !priv || slot === null) return null;
 
@@ -335,7 +405,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
       }}>
-        {/* Own market + utilities */}
+        {/* Own utilities */}
         <div style={{
           display: 'flex',
           gap: 12,
@@ -345,7 +415,6 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
           padding: 12,
           border: '1px solid var(--border)',
         }}>
-          <MarketDisplay market={myPublic.market} label="Your Market" />
           <UtilityArea
             utilities={myPublic.utilities}
             onActivate={(i) => {
@@ -368,9 +437,22 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         {inPlayPhase && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
             <button
-              className="danger"
               disabled={actionsDisabled}
               onClick={() => dispatch({ type: 'END_TURN' })}
+              style={{
+                background: 'linear-gradient(135deg, #c04030 0%, #a03020 50%, #c04030 100%)',
+                border: '2px solid #ff6b5a',
+                borderRadius: 8,
+                padding: '12px 24px',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: 16,
+                cursor: actionsDisabled ? 'default' : 'pointer',
+                boxShadow: '0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                animation: 'shimmer 2s ease-in-out infinite alternate',
+                transition: 'all var(--motion-fast) var(--anim-ease-standard)',
+                opacity: actionsDisabled ? 0.6 : 1,
+              }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                 <div>End Turn</div>
@@ -411,6 +493,8 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
             disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
             cardError={cardError}
             useWoodBackground={false}
+            layoutMode="twoRowAlternate"
+            fixedOverlapPx={40}
             onMegaView={setMegaCardId}
           />
         </div>
@@ -468,19 +552,31 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
             height: 42,
             padding: 0,
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 4,
             background: menuOpen ? 'var(--surface-accent)' : 'var(--surface-light)',
             border: '1px solid var(--border-light)',
-            borderRadius: 8,
+            borderRadius: '50%',
+            overflow: 'hidden',
           }}
-          title="Settings"
+          title="Profile & Settings"
         >
-          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
-          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
-          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt="User avatar"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <span style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: 16,
+              fontWeight: 700,
+              color: 'var(--text)',
+            }}>
+              {avatarLabel}
+            </span>
+          )}
         </button>
 
         {menuOpen && (
@@ -497,6 +593,45 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
           }}>
             <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--gold)', marginBottom: 12 }}>
               Player Settings
+            </div>
+            <div style={{
+              padding: 10,
+              border: '1px solid var(--border-light)',
+              borderRadius: 8,
+              background: 'var(--surface-light)',
+              marginBottom: 10,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
+                {authUser ? `Welcome, ${authUser.name}` : 'Welcome, Trader'}
+              </div>
+              {authUser && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {authUser.email}
+                </div>
+              )}
+              {authError && (
+                <div style={{ fontSize: 12, color: 'var(--accent-red)', marginTop: 4 }}>
+                  {authError}
+                </div>
+              )}
+              {authUser && (
+                <button
+                  onClick={() => void handleLogout()}
+                  style={{
+                    marginTop: 8,
+                    width: '100%',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border-light)',
+                    color: 'var(--text)',
+                    borderRadius: 6,
+                    padding: '6px 8px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  Logout
+                </button>
+              )}
             </div>
             <label style={{
               display: 'flex',
@@ -766,7 +901,23 @@ function DrawModal({ pub, priv, dispatch, disabled, onClose, slot }: {
                   onClick={handleDrawCard}
                   style={{ flex: 1, padding: '12px' }}
                 >
-                  Draw Card ({pub.actionsLeft} actions left)
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <div>Draw Card</div>
+                    <div style={{ display: 'flex', gap: 3 }}>
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
+                            border: '2px solid var(--gold)',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </button>
                 <button
                   disabled={disabled}

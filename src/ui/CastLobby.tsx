@@ -7,6 +7,7 @@ import { useState } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { ConnectionRole, RoomMode } from '../multiplayer/types.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
+import { ResolveMegaView } from './ResolveMegaView.tsx';
 
 interface CastLobbyProps {
   ws: WebSocketGameState;
@@ -192,16 +193,32 @@ function PlayerLobby({ ws }: { ws: WebSocketGameState }) {
 
 function LobbyContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      padding: 24,
-    }}>
-      {children}
-    </div>
+    <ResolveMegaView verticalAlign="center">
+      <div
+        className="etched-wood-border dialog-pop"
+        style={{
+          width: 'min(720px, 96vw)',
+          borderRadius: 14,
+          padding: 22,
+          backgroundImage: [
+            'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+            'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
+            'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+            'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
+          ].join(', '),
+          backgroundSize: '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px',
+          backgroundColor: 'var(--surface)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+        }}
+      >
+        {children}
+      </div>
+    </ResolveMegaView>
   );
 }
 
@@ -220,10 +237,11 @@ function LobbyButton({ children, onClick, disabled }: {
         padding: '14px 32px',
         background: disabled ? 'var(--surface-light)' : 'var(--surface-accent)',
         color: disabled ? 'var(--text-muted)' : 'var(--gold)',
-        border: '2px solid var(--border-light)',
+        border: '1px solid var(--border-light)',
         borderRadius: 12,
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.5 : 1,
+        transition: 'background-color var(--motion-fast) var(--anim-ease-standard)',
       }}
     >
       {children}

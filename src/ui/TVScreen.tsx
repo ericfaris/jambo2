@@ -182,13 +182,14 @@ export function TVScreen({ ws }: TVScreenProps) {
       gap: 16,
       padding: '16px 20px',
       minHeight: '100vh',
+      position: 'relative',
     }}>
       {/* Main board */}
       <div style={{
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        gap: 12,
+        gap: 10,
         minWidth: 0,
       }}>
         {/* Player 2 area (top) */}
@@ -204,10 +205,7 @@ export function TVScreen({ ws }: TVScreenProps) {
         />
 
         {/* Center row */}
-        <TVCenterRow pub={pub} visualFeedback={visualFeedback} />
-
-        {/* Ware supply */}
-        <TVWareSupply supply={pub.wareSupply} />
+        <TVCenterRow pub={pub} visualFeedback={visualFeedback} supply={pub.wareSupply} />
 
         {/* Waiting indicator */}
         <TVWaitingIndicator pub={pub} />
@@ -242,15 +240,16 @@ export function TVScreen({ ws }: TVScreenProps) {
             <button
               onClick={() => setShowLog(false)}
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
+                background: 'var(--surface-light)',
+                border: '1px solid var(--border-light)',
+                color: 'var(--text)',
                 cursor: 'pointer',
-                fontSize: 16,
-                padding: '2px 6px',
+                fontSize: 13,
+                borderRadius: 6,
+                padding: '4px 8px',
               }}
             >
-              x
+              Hide
             </button>
           </div>
           <GameLog log={pub.log} />
@@ -273,6 +272,7 @@ export function TVScreen({ ws }: TVScreenProps) {
             background: menuOpen ? 'var(--surface-accent)' : 'var(--surface-light)',
             border: '1px solid var(--border-light)',
             borderRadius: 8,
+            cursor: 'pointer',
           }}
           title="Settings"
         >
@@ -389,6 +389,7 @@ export function TVScreen({ ws }: TVScreenProps) {
                 padding: '8px 10px',
                 cursor: 'pointer',
                 textAlign: 'left',
+                fontSize: 14,
               }}
             >
               Reset UI Preferences
@@ -452,26 +453,52 @@ function TVPlayerArea({ player, label, isActive, flipWoodBackground, aiMessage, 
   marketFlashSlots?: number[];
 }) {
   return (
-    <div style={{ position: 'relative' }}>
-      <SpeechBubble
-        message={aiMessage || ''}
-        visible={!!aiMessage}
-        onHide={onMessageHide || (() => {})}
-      />
-      <div style={{
-        background: isActive
-          ? 'linear-gradient(180deg, rgba(90,64,48,0.5) 0%, rgba(30,18,8,0.8) 100%)'
-          : 'linear-gradient(180deg, var(--surface) 0%, rgba(30,18,8,0.8) 100%)',
+    <div className={`etched-wood-border turn-emphasis ${isActive ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{ position: 'relative', borderRadius: 12, background: 'rgba(20,10,5,0.34)', padding: 12 }}>
+      <div style={{ position: 'absolute', top: 150, right: 0, zIndex: 9999, pointerEvents: 'none' }}>
+        <SpeechBubble
+          message={aiMessage || ''}
+          visible={!!aiMessage}
+          onHide={onMessageHide || (() => {})}
+        />
+      </div>
+      <div className="etched-wood-border" style={{
+        position: 'relative',
         borderRadius: 10,
-        padding: 14,
-        border: isActive ? '2px solid var(--gold)' : '1px solid var(--border)',
-        transition: 'border-color 0.3s ease',
+        padding: 10,
+        overflow: 'hidden',
+        background: 'rgba(20,10,5,0.24)',
       }}>
+        <img
+          src="/assets/panels/wood_1.png"
+          alt=""
+          aria-hidden
+          draggable={false}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transform: flipWoodBackground ? 'scaleY(-1)' : undefined,
+            pointerEvents: 'none',
+          }}
+        />
         <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(20,10,5,0.54)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{ position: 'relative', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+          <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" />
+          <UtilityArea utilities={player.utilities} disabled label="Utilities" />
+        </div>
+        <div style={{
+          position: 'relative',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 10,
+          marginTop: 10,
         }}>
           <span style={{
             fontFamily: 'var(--font-heading)',
@@ -502,44 +529,12 @@ function TVPlayerArea({ player, label, isActive, flipWoodBackground, aiMessage, 
             </span>
           </div>
         </div>
-        <div style={{
-          position: 'relative',
-          borderRadius: 10,
-          padding: 10,
-          overflow: 'hidden',
-        }}>
-          <img
-            src="/assets/panels/wood_1.png"
-            alt=""
-            aria-hidden
-            draggable={false}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              transform: flipWoodBackground ? 'scaleY(-1)' : undefined,
-              pointerEvents: 'none',
-            }}
-          />
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(20,10,5,0.54)',
-            pointerEvents: 'none',
-          }} />
-          <div style={{ position: 'relative', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-            <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" />
-            <UtilityArea utilities={player.utilities} disabled label="Utilities" />
-          </div>
-        </div>
       </div>
     </div>
   );
 }
 
-function TVCenterRow({ pub, visualFeedback }: { pub: PublicGameState; visualFeedback: ReturnType<typeof useVisualFeedback> }) {
+function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; visualFeedback: ReturnType<typeof useVisualFeedback>; supply: Record<WareType, number> }) {
   const phaseLabel = pub.phase === 'DRAW'
     ? `Draw Phase (${pub.drawsThisPhase}/5)`
     : pub.phase === 'PLAY'
@@ -593,13 +588,14 @@ function TVCenterRow({ pub, visualFeedback }: { pub: PublicGameState; visualFeed
   }, [pub.log.length]);
 
   return (
-    <div style={{
+    <div className="etched-wood-border" style={{
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 32,
-      padding: '12px 0',
+      padding: '14px 12px',
       position: 'relative',
+      borderRadius: 10,
+      background: 'rgba(20,10,5,0.24)',
     }}>
       {visualFeedback.trail && (
         <div
@@ -627,91 +623,110 @@ function TVCenterRow({ pub, visualFeedback }: { pub: PublicGameState; visualFeed
         </div>
       )}
 
-      {/* Deck */}
-      <div key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-        {pub.deckCount > 0 ? (
-          <CardFace cardId="guard_1" faceDown small />
-        ) : (
-          <div style={{
-            width: 96, height: 128, borderRadius: 10,
-            border: '2px dashed var(--border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--text-muted)', fontSize: 13,
-          }}>Empty</div>
-        )}
-        <div className="panel-section-title" style={{ marginBottom: 0 }}>
-          Deck ({pub.deckCount})
-        </div>
-      </div>
-
-      {/* Phase indicator */}
-      <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{
-        background: phaseColor + '20',
-        borderRadius: 10,
-        padding: '10px 24px',
-        border: `1px solid ${phaseColor}`,
-        textAlign: 'center',
-      }}>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}
-        </div>
-        <div style={{ fontWeight: 700, fontSize: 17, color: phaseColor }}>
-          {phaseLabel}
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-          {pub.actionsLeft} actions left
-        </div>
-        {pub.endgame && (
-          <div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>
-            {pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24, margin: '0 auto' }}>
+        {/* Deck */}
+        <div key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          {pub.deckCount > 0 ? (
+            <CardFace cardId="guard_1" faceDown />
+          ) : (
+            <div style={{
+              width: 140, height: 187, borderRadius: 10,
+              border: '2px dashed var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--text-muted)', fontSize: 14,
+            }}>Empty</div>
+          )}
+          <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 16 }}>
+            Deck ({pub.deckCount})
           </div>
-        )}
-      </div>
-
-      {/* Discard */}
-      <div key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-        {displayDiscardCard ? (
-          <CardFace cardId={displayDiscardCard} small />
-        ) : (
-          <div style={{
-            width: 96, height: 128, borderRadius: 10,
-            border: '2px dashed var(--border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--text-muted)', fontSize: 13,
-          }}>Empty</div>
-        )}
-        <div className="panel-section-title" style={{ marginBottom: 0 }}>
-          Discard ({pub.discardPile.length})
         </div>
-      </div>
-    </div>
-  );
-}
 
-function TVWareSupply({ supply }: { supply: Record<WareType, number> }) {
-  return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      gap: 16,
-      padding: '8px 0',
-    }}>
-      {WARE_TYPES.map(w => (
-        <div key={w} style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          background: 'var(--surface)',
-          borderRadius: 8,
-          padding: '4px 10px',
-          border: '1px solid var(--border)',
+        {/* Phase indicator */}
+        <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{
+          background: phaseColor + '20',
+          borderRadius: 12,
+          padding: '14px 30px',
+          border: `1px solid ${phaseColor}`,
+          textAlign: 'center',
+          minWidth: 270,
         }}>
-          <WareToken type={w} />
-          <span style={{ fontFamily: 'var(--font-heading)', fontSize: 14, color: 'var(--text-muted)' }}>
-            x{supply[w]}
-          </span>
+          <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+            Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 21, color: phaseColor }}>
+            {phaseLabel}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginTop: 6 }}>
+            {Array.from({ length: 5 }, (_, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
+                  border: '2px solid var(--gold)',
+                }}
+              />
+            ))}
+          </div>
+          {pub.endgame && (
+            <div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>
+              {pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}
+            </div>
+          )}
         </div>
-      ))}
+
+        {/* Discard */}
+        <div key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          {displayDiscardCard ? (
+            <CardFace cardId={displayDiscardCard} />
+          ) : (
+            <div style={{
+              width: 140, height: 187, borderRadius: 10,
+              border: '2px dashed var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--text-muted)', fontSize: 14,
+            }}>Empty</div>
+          )}
+          <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 16 }}>
+            Discard ({pub.discardPile.length})
+          </div>
+        </div>
+      </div>
+
+      <div className="etched-wood-border" style={{
+        position: 'absolute',
+        left: 12,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+        gap: 14,
+        padding: '14px 16px',
+        borderRadius: 10,
+        background: 'rgba(20,10,5,0.24)',
+        minWidth: 360,
+      }}>
+        {WARE_TYPES.map((wareType) => (
+          <div key={wareType} style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            background: 'var(--surface)',
+            borderRadius: 8,
+            padding: '10px 12px',
+            border: '1px solid var(--border)',
+            minHeight: 62,
+          }}>
+            <WareToken type={wareType} />
+            <span style={{ fontFamily: 'var(--font-heading)', fontSize: 20, color: 'var(--text-muted)', fontWeight: 700 }}>
+              x{supply[wareType]}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -734,13 +749,9 @@ function TVWaitingIndicator({ pub }: { pub: PublicGameState }) {
   }
 
   return (
-    <div style={{
+    <div className="disabled-hint" style={{
       textAlign: 'center',
       padding: '8px 16px',
-      background: 'rgba(90,154,176,0.15)',
-      borderRadius: 8,
-      border: '1px solid rgba(90,154,176,0.3)',
-      color: '#5a9ab0',
       fontSize: 15,
       fontFamily: 'var(--font-heading)',
     }}>

@@ -123,26 +123,26 @@ export function LoginModal({ onClose }: LoginModalProps) {
             'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
           ].join(', '),
           backgroundSize: '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px',
-          backgroundColor: 'var(--text)',
+          backgroundColor: 'var(--surface)',
           border: '2px solid var(--border-light)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           display: 'flex',
           flexDirection: 'column',
           gap: 12,
-          color: 'var(--surface)',
+          color: 'var(--text)',
         }}
       >
-        <div style={{ fontSize: 24, fontWeight: 700 }}>Login</div>
-        <div style={{ fontSize: 15, lineHeight: 1.4, color: 'var(--surface-accent)' }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 28, fontWeight: 700, color: 'var(--gold)' }}>Login</div>
+        <div style={{ fontSize: 15, lineHeight: 1.4, color: 'var(--text-muted)' }}>
           Sign in with Google to link your local Jambo profile and keep your multiplayer identity consistent.
         </div>
 
-        <div style={{ fontSize: 13, color: 'var(--surface-accent)' }}>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
           Local profile: <strong>{localProfileId}</strong>
         </div>
 
         {loadingSession && (
-          <div style={{ fontSize: 14, color: 'var(--surface-accent)' }}>Checking sign-in status…</div>
+          <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>Checking sign-in status…</div>
         )}
 
         {!loadingSession && session?.authenticated && session.user && (
@@ -157,14 +157,14 @@ export function LoginModal({ onClose }: LoginModalProps) {
           }}>
             <div style={{ fontSize: 14, fontWeight: 700 }}>Signed in as {session.user.name}</div>
             <div style={{ fontSize: 13 }}>{session.user.email}</div>
-            <div style={{ fontSize: 12, color: 'var(--surface-accent)' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Linked profile: {session.user.localProfileId ?? 'none'}
             </div>
           </div>
         )}
 
         {authStatus && (
-          <div style={{ fontSize: 13, color: 'var(--surface-accent)' }}>{authStatus}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{authStatus}</div>
         )}
 
         {error && (

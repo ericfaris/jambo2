@@ -10,9 +10,11 @@ interface HandDisplayProps {
   onMegaView?: (cardId: DeckCardId) => void;
   useWoodBackground?: boolean;
   transparentBackground?: boolean;
+  layoutMode?: 'fan' | 'grid3' | 'twoRowAlternate';
+  fixedOverlapPx?: number;
 }
 
-function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false }: HandDisplayProps) {
+function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, layoutMode = 'fan', fixedOverlapPx }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile screen size
@@ -26,29 +28,23 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const cardWidth = 140; // Card width
-  const minGap = hand.length <= 8 ? 20 : 10; // More space for 1-8 cards, tighter for 9+
-  const containerWidth = 600; // Approximate container width
+  const cardWidth = 140;
+  const minGap = hand.length <= 8 ? 20 : 10;
+  const containerWidth = 600;
 
-  // Smooth overlap calculation starting from 9 cards
   let overlapAmount = 0;
   if (isMobile) {
-    // On mobile, overlap all cards by 40px
     overlapAmount = 40;
   } else if (hand.length >= 9) {
-    const cardsOverBase = hand.length - 9; // Start counting from 9 cards
-    
-    // Different algorithms for different ranges
+    const cardsOverBase = hand.length - 9;
+
     let baseOverlap = 0;
     if (hand.length <= 11) {
-      // 9-11 cards: specific values
       baseOverlap = hand.length === 9 ? 4 : hand.length === 10 ? 14.5 : 25;
     } else {
-      // 12+ cards: gentler increase from 25px base
-      baseOverlap = 25 + (cardsOverBase - 2) * 8; // 8px per additional card beyond 11
+      baseOverlap = 25 + (cardsOverBase - 2) * 8;
     }
 
-    // Calculate space-aware overlap
     const totalCardWidth = hand.length * cardWidth;
     const totalGapSpace = (hand.length - 1) * minGap;
     const totalNeededSpace = totalCardWidth + totalGapSpace;
@@ -59,14 +55,73 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
       spaceBasedOverlap = excessSpace / (hand.length - 1);
     }
 
-    // Use the larger of base overlap or space-based overlap, but cap at reasonable limits
-    overlapAmount = Math.min(baseOverlap, spaceBasedOverlap); // Prefer minimal overlap
-    overlapAmount = Math.min(overlapAmount, cardWidth * 0.6); // Max 60% overlap
-    overlapAmount = Math.max(overlapAmount, 0); // Ensure non-negative
+    overlapAmount = Math.max(baseOverlap, spaceBasedOverlap);
+    overlapAmount = Math.min(overlapAmount, cardWidth * 0.72);
+    overlapAmount = Math.max(overlapAmount, 0);
   }
 
-  // Calculate spacing between cards
+  if (fixedOverlapPx !== undefined) {
+    overlapAmount = fixedOverlapPx;
+  }
+
   const spacing = overlapAmount > 0 ? -overlapAmount : minGap;
+  const isGrid3 = layoutMode === 'grid3';
+  const isTwoRowAlternate = layoutMode === 'twoRowAlternate';
+
+  const renderCardTile = (cardId: DeckCardId, index: number, marginLeft: number, zIndex: number) => (
+    <div
+      key={`${cardId}-${index}`}
+      style={{
+        marginLeft,
+        flexShrink: 0,
+        zIndex,
+        position: 'relative',
+      }}
+    >
+      <CardFace
+        cardId={cardId}
+        onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
+        onMegaView={onMegaView}
+      />
+      {cardError && cardError.cardId === cardId && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(255, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          fontSize: 14,
+          fontWeight: 600,
+          textAlign: 'center',
+          padding: 8,
+          borderRadius: 8,
+          zIndex: 1000,
+          animation: 'cardErrorFadeOut 5s linear forwards',
+        }}>
+          {cardError.message}
+        </div>
+      )}
+    </div>
+  );
+
+  const indexedCards = hand.map((cardId, index) => ({ cardId, index }));
+  const topRow = indexedCards.length <= 6 ? indexedCards.slice(0, 3) : indexedCards.slice(0, 3);
+  const bottomRow = indexedCards.length <= 6 ? indexedCards.slice(3, 6) : indexedCards.slice(3, 6);
+  if (indexedCards.length > 6) {
+    const remaining = indexedCards.slice(6);
+    remaining.forEach((entry, entryIndex) => {
+      if (entryIndex % 2 === 0) {
+        topRow.push(entry);
+      } else {
+        bottomRow.push(entry);
+      }
+    });
+  }
 
   return (
     <div 
@@ -85,16 +140,20 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
             }),
         border: '1px dashed var(--border)',
         borderRadius: 10,
-        minHeight: 200, // Increased to accommodate card height (187px) + padding
-        overflowX: isMobile ? 'auto' : 'hidden', // Horizontal scroll on mobile
-        overflowY: 'hidden', // Never vertical scroll
-        display: 'flex',
-        justifyContent: isMobile ? 'flex-start' : 'center', // Left-align on mobile for scrolling
+        minHeight: 200,
+        overflowX: isGrid3 ? 'hidden' : (isMobile || isTwoRowAlternate ? 'auto' : 'hidden'),
+        overflowY: isGrid3 ? 'auto' : 'hidden',
+        display: isGrid3 ? 'grid' : 'flex',
+        gridTemplateColumns: isGrid3 ? 'repeat(3, minmax(0, 1fr))' : undefined,
+        flexDirection: isTwoRowAlternate ? 'column' : undefined,
+        justifyContent: isGrid3 ? undefined : (isMobile || isTwoRowAlternate ? 'flex-start' : 'center'),
+        justifyItems: isGrid3 ? 'center' : undefined,
         alignItems: 'flex-start',
+        gap: isGrid3 || isTwoRowAlternate ? 10 : undefined,
         scrollbarWidth: 'thin',
         scrollbarColor: 'rgba(90,64,48,0.3) transparent',
-        WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
-        touchAction: 'pan-x',
+        WebkitOverflowScrolling: 'touch',
+        touchAction: isGrid3 ? 'auto' : 'pan-x',
       } as any}
     >
       {!disabled && !!onPlayCard && hand.length > 0 && (
@@ -112,46 +171,57 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
           No cards in hand
         </div>
       )}
-      {hand.map((cardId, index) => (
-        <div
-          key={cardId}
-          style={{
-            marginLeft: index === 0 ? 0 : spacing,
-            flexShrink: 0,
-            zIndex: index,
-            position: 'relative',
-          }}
-        >
-          <CardFace
-            cardId={cardId}
-            onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
-            onMegaView={onMegaView}
-          />
-          {cardError && cardError.cardId === cardId && (
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(255, 0, 0, 0.8)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: 14,
-              fontWeight: 600,
-              textAlign: 'center',
-              padding: 8,
-              borderRadius: 8,
-              zIndex: 1000,
-              animation: 'cardErrorFadeOut 5s linear forwards',
-            }}>
-              {cardError.message}
-            </div>
-          )}
-        </div>
-      ))}
+      {isTwoRowAlternate ? (
+        <>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+            {topRow.map((entry, rowIndex) => renderCardTile(entry.cardId, entry.index, rowIndex === 0 ? 0 : spacing, entry.index))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+            {bottomRow.map((entry, rowIndex) => renderCardTile(entry.cardId, entry.index, rowIndex === 0 ? 0 : spacing, entry.index))}
+          </div>
+        </>
+      ) : (
+        hand.map((cardId, index) => (
+          <div
+            key={cardId}
+            style={{
+              marginLeft: isGrid3 ? 0 : (index === 0 ? 0 : spacing),
+              flexShrink: 0,
+              zIndex: isGrid3 ? 1 : index,
+              position: 'relative',
+            }}
+          >
+            <CardFace
+              cardId={cardId}
+              onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
+              onMegaView={onMegaView}
+            />
+            {cardError && cardError.cardId === cardId && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: 14,
+                fontWeight: 600,
+                textAlign: 'center',
+                padding: 8,
+                borderRadius: 8,
+                zIndex: 1000,
+                animation: 'cardErrorFadeOut 5s linear forwards',
+              }}>
+                {cardError.message}
+              </div>
+            )}
+          </div>
+        ))
+      )}
     </div>
   );
 }

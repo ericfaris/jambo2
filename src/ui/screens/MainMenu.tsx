@@ -98,43 +98,43 @@ export function MainMenu({ onSelectOption, aiDifficulty, onChangeAiDifficulty }:
     : 'Trader';
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4">
+    <div className="main-menu-root">
       <div className="image-container">
         <img
           src="/assets/menu/main_menu.png"
           alt="Jambo Main Menu"
         />
-        <div className="overlay-text">
-          <div style={{ color: '#f4e7c3', fontSize: 15, marginBottom: 4, fontWeight: 600 }}>
+        <div className="overlay-text etched-wood-border dialog-pop">
+          <div className="menu-title">
             Welcome, {welcomeName}
           </div>
           {statsSummary && (
-            <div style={{ color: '#f4e7c3', fontSize: 12, marginBottom: 6 }}>
+            <div className="menu-subtitle">
               Record: {statsSummary.wins}-{statsSummary.losses} ({Math.round(statsSummary.winRate * 100)}%)
             </div>
           )}
-          <button onClick={() => onSelectOption('solo')}>Play Solo</button>
-          <button onClick={() => onSelectOption('multiplayer')}>Multiplayer</button>
-          <button onClick={() => onSelectOption('settings')}>Settings</button>
-          <button onClick={() => void handleAuthAction()} disabled={isAuthLoading}>
+          <button className="menu-action" onClick={() => onSelectOption('solo')}>Play Solo</button>
+          <button className="menu-action" onClick={() => onSelectOption('multiplayer')}>Multiplayer</button>
+          <button className="menu-action" onClick={() => onSelectOption('settings')}>Settings</button>
+          <button className="menu-action" onClick={() => void handleAuthAction()} disabled={isAuthLoading}>
             {isAuthLoading ? 'Checking Profile...' : session?.authenticated ? 'Logout' : 'Login'}
           </button>
           {authError && (
-            <div style={{ color: '#f4e7c3', fontSize: 12, maxWidth: 220 }}>
+            <div className="menu-error">
               {authError}
             </div>
           )}
           {statsError && (
-            <div style={{ color: '#f4e7c3', fontSize: 12, maxWidth: 220 }}>
+            <div className="menu-error">
               {statsError}
             </div>
           )}
-          <label style={{ marginTop: 8, color: '#f4e7c3', fontSize: 14 }}>
+          <label className="menu-select-row">
             AI Difficulty
             <select
               value={aiDifficulty}
               onChange={(event) => onChangeAiDifficulty(event.target.value as AIDifficulty)}
-              style={{ marginLeft: 8 }}
+              className="menu-select"
             >
               <option value="easy">Easy</option>
               <option value="medium">Medium</option>
