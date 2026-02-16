@@ -1145,7 +1145,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       )}
 
       {/* Endgame overlay */}
-      <EndgameOverlay state={state} onNewGame={() => newGame()} />
+      <EndgameOverlay state={state} onNewGame={() => newGame()} onMainMenu={onBackToMenu} />
 
       {/* Resolve mega view */}
       {hasPendingInteraction && !isAiTurn && (

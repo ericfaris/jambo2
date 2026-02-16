@@ -6,7 +6,6 @@
 import { useEffect, useRef } from 'react';
 
 const BACKGROUND_MUSIC = [
-  '/audio/River Paths, Village Hearts.mp3',
   '/audio/River Paths, Village Hearts Voice.mp3'
 ];
 

@@ -4,9 +4,10 @@ import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 interface EndgameOverlayProps {
   state: GameState;
   onNewGame: () => void;
+  onMainMenu?: () => void;
 }
 
-export function EndgameOverlay({ state, onNewGame }: EndgameOverlayProps) {
+export function EndgameOverlay({ state, onNewGame, onMainMenu }: EndgameOverlayProps) {
   if (state.phase !== 'GAME_OVER') return null;
 
   const winner = getWinner(state);
@@ -61,9 +62,24 @@ export function EndgameOverlay({ state, onNewGame }: EndgameOverlayProps) {
         <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 20 }}>
           Turns played: {state.turn}
         </div>
-        <button className="primary" onClick={onNewGame} style={{ fontSize: 18, padding: '12px 32px' }}>
-          New Game
-        </button>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+          <button className="primary" onClick={onNewGame} style={{ fontSize: 18, padding: '12px 32px' }}>
+            New Game
+          </button>
+          {onMainMenu && (
+            <button onClick={onMainMenu} style={{
+              fontSize: 18,
+              padding: '12px 32px',
+              background: 'var(--surface-accent)',
+              border: '1px solid var(--border-light)',
+              color: 'var(--gold)',
+              borderRadius: 8,
+              cursor: 'pointer',
+            }}>
+              Main Menu
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
