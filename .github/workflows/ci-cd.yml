@@ -59,6 +59,10 @@ jobs:
           username: ${{ secrets[env.DOCKERHUB_USERNAME_SECRET] }}
           password: ${{ secrets[env.DOCKERHUB_TOKEN_SECRET] }}
 
+      - name: Read package version
+        id: version
+        run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -67,6 +71,7 @@ jobs:
           tags: |
             type=sha
             type=raw,value=latest
+            type=raw,value=${{ steps.version.outputs.APP_VERSION }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -76,3 +81,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: APP_VERSION=${{ steps.version.outputs.APP_VERSION }}
