@@ -19,8 +19,6 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/src ./src
 COPY --from=build /app/tsconfig.json ./
 
-EXPOSE 3001
-ENV PORT=3001
 ENV STATIC_DIR=/app/dist
 
 CMD ["npx", "tsx", "src/multiplayer/server.ts"]
