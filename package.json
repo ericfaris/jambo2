@@ -1,7 +1,7 @@
 {
   "name": "jambo2",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.9.24",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,10 @@
     "server": "tsx src/multiplayer/server.ts",
     "ai:bench:short": "tsx scripts/ai-benchmark.ts short",
     "ai:bench:medium": "tsx scripts/ai-benchmark.ts medium",
-    "ai:bench:long": "tsx scripts/ai-benchmark.ts long"
+    "ai:bench:long": "tsx scripts/ai-benchmark.ts long",
+    "version:bump": "tsx scripts/bump-version.ts patch",
+    "version:minor": "tsx scripts/bump-version.ts minor",
+    "version:major": "tsx scripts/bump-version.ts major"
   },
   "dependencies": {
     "mongodb": "^7.1.0",
