@@ -63,7 +63,6 @@ function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, labe
           >
             <CardFace
               cardId={u.cardId}
-              style={{ width: 96 * 1.2, height: 128 * 1.2 }}
               small
               onClick={!disabled && onActivate && !u.usedThisTurn ? () => onActivate(i) : undefined}
             />
