@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import './MainMenu.css';
-import type { AIDifficulty } from '../../ai/difficulties/index.ts';
 import { fetchUserStatsSummary } from '../../persistence/userStatsApi.ts';
 import type { UserStatsSummary } from '../../persistence/userStatsApi.ts';
 
 interface MainMenuProps {
   onSelectOption: (option: 'login' | 'solo' | 'multiplayer' | 'settings') => void;
-  aiDifficulty: AIDifficulty;
-  onChangeAiDifficulty: (difficulty: AIDifficulty) => void;
+  onTutorial?: () => void;
 }
 
 interface AuthSessionResponse {
@@ -18,7 +16,7 @@ interface AuthSessionResponse {
   };
 }
 
-export function MainMenu({ onSelectOption, aiDifficulty, onChangeAiDifficulty }: MainMenuProps) {
+export function MainMenu({ onSelectOption, onTutorial }: MainMenuProps) {
   const [session, setSession] = useState<AuthSessionResponse | null>(null);
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -116,6 +114,9 @@ export function MainMenu({ onSelectOption, aiDifficulty, onChangeAiDifficulty }:
           <button className="menu-action" onClick={() => onSelectOption('solo')}>Play Solo</button>
           <button className="menu-action" onClick={() => onSelectOption('multiplayer')}>Multiplayer</button>
           <button className="menu-action" onClick={() => onSelectOption('settings')}>Settings</button>
+          {onTutorial && (
+            <button className="menu-action" onClick={onTutorial}>How to Play</button>
+          )}
           <button className="menu-action" onClick={() => void handleAuthAction()} disabled={isAuthLoading}>
             {isAuthLoading ? 'Checking Profile...' : session?.authenticated ? 'Logout' : 'Login'}
           </button>
@@ -129,18 +130,6 @@ export function MainMenu({ onSelectOption, aiDifficulty, onChangeAiDifficulty }:
               {statsError}
             </div>
           )}
-          <label className="menu-select-row">
-            AI Difficulty
-            <select
-              value={aiDifficulty}
-              onChange={(event) => onChangeAiDifficulty(event.target.value as AIDifficulty)}
-              className="menu-select"
-            >
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-          </label>
         </div>
       </div>
     </div>

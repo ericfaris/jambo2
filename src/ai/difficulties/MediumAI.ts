@@ -4,6 +4,7 @@ import { getValidActions } from '../../engine/validation/actionValidator.ts';
 import { getRandomAiAction } from '../RandomAI.ts';
 import { createRng } from '../../utils/rng.ts';
 import {
+  getAuctionMaxBid,
   getCardEconomyValue,
   getCardPressureBonus,
   getHandRiskPenalty,
@@ -123,7 +124,35 @@ function scoreAction(state: GameState, action: GameAction): number {
   }
 }
 
+function getMediumAuctionBidAction(state: GameState): GameAction | null {
+  const pr = state.pendingResolution;
+  if (!pr || pr.type !== 'AUCTION' || pr.wares.length < 2) return null;
+
+  const me = pr.nextBidder;
+  const bidAmount = pr.currentBid + 1;
+  const player = state.players[me];
+
+  if (player.gold < bidAmount) {
+    return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
+  }
+
+  // Use valuation ceiling — medium is slightly more willing than easy (which uses random pass)
+  const maxBid = getAuctionMaxBid(state, me, pr.wares);
+
+  if (bidAmount > maxBid) {
+    return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
+  }
+
+  return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_BID', amount: bidAmount } };
+}
+
 export function getMediumAiAction(state: GameState, rng: () => number = createMediumRng(state)): GameAction | null {
+  // Special handling for auction bidding — use valuation
+  if (state.pendingResolution?.type === 'AUCTION' && state.pendingResolution.wares.length >= 2) {
+    const auctionAction = getMediumAuctionBidAction(state);
+    if (auctionAction) return auctionAction;
+  }
+
   if (state.pendingResolution || state.pendingGuardReaction || state.pendingWareCardReaction) {
     return getRandomAiAction(state, rng);
   }

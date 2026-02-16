@@ -5,6 +5,7 @@ import { validateAction } from '../engine/validation/actionValidator.ts';
 import { processAction } from '../engine/GameEngine.ts';
 import { createRng } from '../utils/rng.ts';
 import {
+  getAuctionMaxBid,
   pickBestUtilityIndex,
   pickBestWareType,
   pickDiscardCardForValue,
@@ -205,11 +206,12 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
         if (available.length === 0) return { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' }; // guard handles
         return { type: 'SELECT_WARE_TYPE', wareType: pickBestWareType(state, cp, available) };
       }
-      // Bidding rounds
+      // Bidding rounds — use value-based bidding
       const bidAmount = pr.currentBid + 1;
       const bidder = state.players[pr.nextBidder];
-      // Only bid if we can afford it
-      if (rng() < 0.5 && bidder.gold >= bidAmount) {
+      const maxBid = getAuctionMaxBid(state, pr.nextBidder, pr.wares);
+      // Only bid if we can afford it AND the price is within our valuation
+      if (bidAmount <= maxBid && bidder.gold >= bidAmount) {
         return { type: 'AUCTION_BID', amount: bidAmount };
       }
       return { type: 'AUCTION_PASS' };

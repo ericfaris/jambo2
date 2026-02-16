@@ -1,62 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useState } from 'react';
 import { ResolveMegaView } from '../ResolveMegaView.tsx';
+import type { AIDifficulty } from '../../ai/difficulties/index.ts';
 
 type PreGameMode = 'solo' | 'multiplayer';
 
 interface PreGameSetupModalProps {
   mode: PreGameMode;
+  aiDifficulty: AIDifficulty;
   onCancel: () => void;
-  onStart: (options: { castMode: boolean; firstPlayer: 0 | 1 }) => void;
+  onStart: (options: { castMode: boolean; aiDifficulty: AIDifficulty }) => void;
 }
 
-function getRandomFirstPlayer(): 0 | 1 {
-  return Math.random() < 0.5 ? 0 : 1;
-}
-
-export function PreGameSetupModal({ mode, onCancel, onStart }: PreGameSetupModalProps) {
+export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCancel, onStart }: PreGameSetupModalProps) {
   const [castMode, setCastMode] = useState(mode === 'multiplayer');
-  const [isFlipping, setIsFlipping] = useState(true);
-  const [firstPlayer, setFirstPlayer] = useState<0 | 1 | null>(null);
-  const flipTimerRef = useRef<number | null>(null);
-
-  const triggerFlip = () => {
-    if (flipTimerRef.current !== null) {
-      window.clearTimeout(flipTimerRef.current);
-    }
-
-    setIsFlipping(true);
-    setFirstPlayer(null);
-
-    flipTimerRef.current = window.setTimeout(() => {
-      setFirstPlayer(getRandomFirstPlayer());
-      setIsFlipping(false);
-      flipTimerRef.current = null;
-    }, 850);
-  };
-
-  useEffect(() => {
-    triggerFlip();
-  }, [mode]);
-
-  useEffect(() => {
-    return () => {
-      if (flipTimerRef.current !== null) {
-        window.clearTimeout(flipTimerRef.current);
-      }
-    };
-  }, [mode]);
+  const [difficulty, setDifficulty] = useState<AIDifficulty>(initialDifficulty);
 
   const modeTitle = mode === 'solo' ? 'Solo Game Setup' : 'Multiplayer Setup';
   const modeSubtitle = mode === 'solo'
     ? 'Prepare your match against AI before entering the game.'
     : 'Prepare your multiplayer session and choose how you want to play.';
-
-  const firstPlayerLabel = useMemo(() => {
-    if (isFlipping || firstPlayer === null) {
-      return 'Flipping for first player...';
-    }
-    return firstPlayer === 0 ? 'You go first' : 'Opponent goes first';
-  }, [firstPlayer, isFlipping]);
 
   return (
     <ResolveMegaView verticalAlign="center">
@@ -116,32 +78,41 @@ export function PreGameSetupModal({ mode, onCancel, onStart }: PreGameSetupModal
           </div>
         </div>
 
-        <div style={{
-          border: '1px solid var(--border-light)',
-          borderRadius: 10,
-          padding: 12,
-          background: 'var(--surface-light)',
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            First Player
+        {mode === 'solo' && (
+          <div style={{
+            border: '1px solid var(--border-light)',
+            borderRadius: 10,
+            padding: 12,
+            background: 'var(--surface-light)',
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              AI Difficulty
+            </div>
+            <select
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value as AIDifficulty)}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border-light)',
+                color: 'var(--text)',
+                borderRadius: 8,
+                padding: '8px 10px',
+                cursor: 'pointer',
+                fontSize: 15,
+                width: '100%',
+              }}
+            >
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
+              {difficulty === 'easy' && 'Relaxed play — AI makes simple decisions.'}
+              {difficulty === 'medium' && 'Balanced challenge — AI uses basic strategy.'}
+              {difficulty === 'hard' && 'Tough opponent — AI evaluates board state deeply.'}
+            </div>
           </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: isFlipping ? 'var(--text-muted)' : 'var(--gold)', marginBottom: 8 }}>
-            {firstPlayerLabel}
-          </div>
-          <button
-            onClick={triggerFlip}
-            style={{
-              background: 'var(--surface-light)',
-              border: '1px solid var(--border-light)',
-              color: 'var(--text)',
-              borderRadius: 8,
-              padding: '8px 10px',
-              cursor: 'pointer',
-            }}
-          >
-            Flip Again
-          </button>
-        </div>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button
@@ -158,21 +129,14 @@ export function PreGameSetupModal({ mode, onCancel, onStart }: PreGameSetupModal
             Cancel
           </button>
           <button
-            onClick={() => {
-              if (firstPlayer === null) {
-                return;
-              }
-              onStart({ castMode, firstPlayer });
-            }}
-            disabled={firstPlayer === null}
+            onClick={() => onStart({ castMode, aiDifficulty: difficulty })}
             style={{
               background: 'var(--surface-accent)',
               border: '1px solid var(--border-light)',
               color: 'var(--gold)',
               borderRadius: 8,
               padding: '10px 14px',
-              cursor: firstPlayer === null ? 'default' : 'pointer',
-              opacity: firstPlayer === null ? 0.6 : 1,
+              cursor: 'pointer',
             }}
           >
             Continue

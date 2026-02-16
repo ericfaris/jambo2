@@ -148,6 +148,15 @@ if (hand.length === 0) {
 4. Handle empty state in UI (`InteractionPanel.tsx`)
 5. Run `npx tsc --noEmit` to verify
 
+## Draft Panel Visibility — IMPORTANT
+
+Draft resolutions (Elephant/Ape/Lion) alternate between players picking items from a shared pool. The resolve panel **stays visible** during the opponent's pick so the human player can watch the pool shrink in real time.
+
+Implementation:
+- **GameScreen.tsx**: The `ResolveMegaView` renders when `hasPendingInteraction && (!isAiTurn || state.pendingResolution?.type === 'DRAFT')`
+- **InteractionPanel.tsx `DraftPanel`**: When `isMyPick === false`, shows the available pool read-only (wares at 0.6 opacity, cards non-clickable) with "Opponent is picking..." prompt
+- Card/utility drafts render the same `SelectableCardArea` but with a no-op `onSelect` so `onMegaView` (zoom) still works during opponent's turn
+
 ## Card Design IDs
 
 ### Animals

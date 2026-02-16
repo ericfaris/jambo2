@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getStatsSummary, recordCompletedGame } from './statsStore.ts';
+import { getSession } from './authStore.ts';
 
 interface RecordGameRequest {
   localProfileId: string;
@@ -66,19 +67,49 @@ function validateRecordRequest(payload: unknown): payload is RecordGameRequest {
   return true;
 }
 
+const COOKIE_NAME = 'jambo_session';
+
+function parseCookies(req: IncomingMessage): Record<string, string> {
+  const rawCookie = req.headers.cookie;
+  if (!rawCookie) return {};
+  const parsed: Record<string, string> = {};
+  for (const part of rawCookie.split(';')) {
+    const [key, ...rest] = part.trim().split('=');
+    if (!key) continue;
+    parsed[key] = decodeURIComponent(rest.join('='));
+  }
+  return parsed;
+}
+
+/**
+ * If the user is authenticated and has a linked profile, use that as the
+ * canonical profile ID so stats are consistent across devices.
+ */
+async function resolveProfileId(req: IncomingMessage, clientProfileId: string): Promise<string> {
+  const cookies = parseCookies(req);
+  const sessionId = cookies[COOKIE_NAME];
+  if (!sessionId) return clientProfileId;
+
+  const session = await getSession(sessionId);
+  if (!session) return clientProfileId;
+
+  return session.user.localProfileId ?? clientProfileId;
+}
+
 export async function handleStatsApi(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const method = req.method ?? 'GET';
   const host = req.headers.host ?? 'localhost:3001';
   const requestUrl = new URL(req.url ?? '/', `http://${host}`);
 
   if (method === 'GET' && requestUrl.pathname === '/api/stats/summary') {
-    const localProfileId = requestUrl.searchParams.get('localProfileId');
-    if (!isValidProfileId(localProfileId)) {
+    const clientProfileId = requestUrl.searchParams.get('localProfileId');
+    if (!isValidProfileId(clientProfileId)) {
       sendJson(res, 400, { error: 'localProfileId is required and must be alphanumeric with ._- only' });
       return true;
     }
 
-    const summary = await getStatsSummary(localProfileId);
+    const profileId = await resolveProfileId(req, clientProfileId);
+    const summary = await getStatsSummary(profileId);
     sendJson(res, 200, { summary });
     return true;
   }
@@ -90,8 +121,10 @@ export async function handleStatsApi(req: IncomingMessage, res: ServerResponse):
       return true;
     }
 
+    const profileId = await resolveProfileId(req, body.localProfileId);
+
     await recordCompletedGame({
-      localProfileId: body.localProfileId,
+      localProfileId: profileId,
       aiDifficulty: body.aiDifficulty,
       winner: body.winner,
       playerGold: body.playerGold,
@@ -101,7 +134,7 @@ export async function handleStatsApi(req: IncomingMessage, res: ServerResponse):
       completedAt: body.completedAt ?? Date.now(),
     });
 
-    const summary = await getStatsSummary(body.localProfileId);
+    const summary = await getStatsSummary(profileId);
     sendJson(res, 200, { ok: true, summary });
     return true;
   }

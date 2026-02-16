@@ -19,6 +19,7 @@ import { GameLog } from './GameLog.tsx';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { MegaView } from './MegaView.tsx';
+import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason } from './uiHints.ts';
 import { fetchUserStatsSummary, recordCompletedGame } from '../persistence/userStatsApi.ts';
@@ -31,6 +32,7 @@ const SHOW_LOG_STORAGE_KEY = 'jambo.showGameLog';
 const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
 const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
 const UX_DEBUG_STORAGE_KEY = 'jambo.uxDebugCounters';
+const TUTORIAL_SEEN_STORAGE_KEY = 'jambo.tutorialSeen';
 
 function getInitialAnimationSpeed(): AnimationSpeed {
   if (typeof window === 'undefined') return 'normal';
@@ -98,6 +100,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [statsError, setStatsError] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarLabel, setAvatarLabel] = useState('U');
+  const [showTutorial, setShowTutorial] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(TUTORIAL_SEEN_STORAGE_KEY) !== 'true';
+  });
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const [uxDebugCounts, setUxDebugCounts] = useState({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
@@ -539,6 +545,11 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     return () => window.clearInterval(intervalId);
   }, [showUxDebug, hasPendingInteraction, playActionsDisabled, drawActionsDisabled, state.phase, state.currentPlayer, viewerPlayer]);
 
+  const handleCloseTutorial = useCallback(() => {
+    setShowTutorial(false);
+    window.localStorage.setItem(TUTORIAL_SEEN_STORAGE_KEY, 'true');
+  }, []);
+
   const resetUiPrefs = useCallback(() => {
     setShowLog(false);
     setAnimationSpeed('normal');
@@ -558,6 +569,11 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       window.localStorage.removeItem(UX_DEBUG_STORAGE_KEY);
     }
   }, []);
+
+  // Block the entire game UI until the tutorial is dismissed
+  if (showTutorial) {
+    return <TutorialOverlay onClose={handleCloseTutorial} />;
+  }
 
   return (
     <div className={showUxDebug ? 'ux-debug' : undefined} style={{
@@ -882,10 +898,29 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                     padding: '8px 10px',
                     cursor: 'pointer',
                     textAlign: 'left',
-                    marginBottom: 10,
+                    marginBottom: 6,
                   }}
                 >
                   Back to Menu
+                </button>
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setShowTutorial(true);
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface-light)',
+                    border: '1px solid var(--border-light)',
+                    color: 'var(--text)',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    marginBottom: 10,
+                  }}
+                >
+                  How to Play
                 </button>
                 <div style={{ height: 1, background: 'var(--border-light)', marginBottom: 10 }} />
               </>
@@ -1147,8 +1182,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       {/* Endgame overlay */}
       <EndgameOverlay state={state} onNewGame={() => newGame()} onMainMenu={onBackToMenu} />
 
-      {/* Resolve mega view */}
-      {hasPendingInteraction && !isAiTurn && (
+      {/* Resolve mega view — also stay visible during drafts when AI is picking */}
+      {hasPendingInteraction && (!isAiTurn || state.pendingResolution?.type === 'DRAFT') && (
         <ResolveMegaView verticalAlign="center">
           <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={setMegaCardId} />
         </ResolveMegaView>
@@ -1158,6 +1193,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       {megaCardId && (
         <MegaView cardId={megaCardId} onClose={() => setMegaCardId(null)} />
       )}
+
     </div>
   );
 }

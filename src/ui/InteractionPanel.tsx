@@ -856,19 +856,25 @@ function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }:
 function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<PendingResolution, { type: 'DRAFT' }>; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const isMyPick = pr.currentPicker === viewerPlayer;
 
-  if (!isMyPick) {
-    return <div className="ui-helper-text">Waiting for opponent to pick...</div>;
-  }
-
   if (pr.draftMode === 'wares') {
     return (
       <div>
-        <div className="ui-prompt-text">Draft step: pick 1 ware ({pr.availableWares.length} left).</div>
+        <div className="ui-prompt-text">
+          {isMyPick
+            ? `Draft step: pick 1 ware (${pr.availableWares.length} left).`
+            : `Opponent is picking a ware... (${pr.availableWares.length} left)`}
+        </div>
         <div style={getWareGridStyle(pr.availableWares.length)}>
           {pr.availableWares.map((wt, i) => (
-            <button key={i} onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-              <WareToken type={wt} />
-            </button>
+            isMyPick ? (
+              <button key={i} onClick={() => resolve(dispatch, { type: 'SELECT_WARE', wareIndex: i })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                <WareToken type={wt} />
+              </button>
+            ) : (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
+                <WareToken type={wt} />
+              </div>
+            )
           ))}
         </div>
       </div>
@@ -878,12 +884,24 @@ function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<Pe
   const cards = pr.availableCards || [];
   return (
     <div>
-      <div className="ui-prompt-text">Draft step: pick 1 {pr.draftMode === 'cards' ? 'card' : 'utility'} ({cards.length} left).</div>
-      <SelectableCardArea
-        cards={cards}
-        onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
-        onMegaView={onMegaView}
-      />
+      <div className="ui-prompt-text">
+        {isMyPick
+          ? `Draft step: pick 1 ${pr.draftMode === 'cards' ? 'card' : 'utility'} (${cards.length} left).`
+          : `Opponent is picking a ${pr.draftMode === 'cards' ? 'card' : 'utility'}... (${cards.length} left)`}
+      </div>
+      {isMyPick ? (
+        <SelectableCardArea
+          cards={cards}
+          onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
+          onMegaView={onMegaView}
+        />
+      ) : (
+        <SelectableCardArea
+          cards={cards}
+          onSelect={() => {}}
+          onMegaView={onMegaView}
+        />
+      )}
     </div>
   );
 }

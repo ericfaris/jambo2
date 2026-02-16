@@ -370,6 +370,73 @@ function getWareTypeDemandScore(state: GameState, playerIndex: 0 | 1, wareType: 
   return score;
 }
 
+/**
+ * Estimate the maximum gold a player should bid for a set of auction wares.
+ * Returns a ceiling price — the AI should not bid above this.
+ *
+ * Valuation factors:
+ * - Base: 2 wares have a baseline worth of ~1g each (just supply value).
+ * - Sell-readiness: if the wares help complete a ware card in hand that can be sold,
+ *   the profit from that sell greatly increases their value.
+ * - Market space: if the player has no room, the wares are worthless.
+ * - Gold pressure: don't spend more than ~40% of gold on speculative wares.
+ */
+export function getAuctionMaxBid(state: GameState, playerIndex: 0 | 1, auctionWares: WareType[]): number {
+  const player = state.players[playerIndex];
+  const { counts, empty } = countMarket(player);
+
+  // No market space → wares are worthless
+  if (empty < auctionWares.length) return 0;
+
+  // Simulate adding the auction wares to market counts
+  const hypotheticalCounts = { ...counts };
+  for (const w of auctionWares) {
+    hypotheticalCounts[w] += 1;
+  }
+
+  // Check each ware card in hand — does having these wares unlock or get closer to a sell?
+  let bestSellProfit = 0;
+  for (const cardId of player.hand) {
+    const card = getCard(cardId);
+    if (card.type !== 'ware' || !card.wares) continue;
+
+    const neededBefore = getNeededByType(card.wares, counts);
+    const missingBefore = WARE_TYPES.reduce((sum, type) => sum + neededBefore[type], 0);
+
+    const neededAfter = getNeededByType(card.wares, hypotheticalCounts);
+    const missingAfter = WARE_TYPES.reduce((sum, type) => sum + neededAfter[type], 0);
+
+    // Only care if the auction wares actually help (reduce missing count)
+    if (missingAfter >= missingBefore) continue;
+
+    const sellPrice = card.wares.sellPrice + state.turnModifiers.sellBonus;
+
+    if (missingAfter === 0) {
+      // Auction wares complete the sell — value is the sell profit
+      // But discount because it still costs an action to sell
+      bestSellProfit = Math.max(bestSellProfit, sellPrice - 1);
+    } else if (missingAfter <= 1) {
+      // Getting close — partial value
+      bestSellProfit = Math.max(bestSellProfit, Math.floor(sellPrice * 0.4));
+    } else if (missingAfter <= 2) {
+      bestSellProfit = Math.max(bestSellProfit, Math.floor(sellPrice * 0.2));
+    }
+  }
+
+  // Base value: 2 wares from supply ≈ 2g (comparable to Basket Maker which costs 2g for 2 wares)
+  const baseValue = auctionWares.length;
+
+  // Combine: base value + sell profit potential
+  let maxBid = baseValue + bestSellProfit;
+
+  // Cap at ~40% of current gold to avoid overcommitting
+  const goldCap = Math.floor(player.gold * 0.4);
+  maxBid = Math.min(maxBid, goldCap);
+
+  // Absolute floor: always willing to bid at least 1g if we have market space
+  return Math.max(1, maxBid);
+}
+
 export function pickBestWareType(state: GameState, playerIndex: 0 | 1, candidates: readonly WareType[]): WareType {
   let bestType = candidates[0] ?? 'trinkets';
   let bestScore = Number.NEGATIVE_INFINITY;

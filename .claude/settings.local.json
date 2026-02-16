@@ -43,7 +43,12 @@
       "Bash(wc:*)",
       "Bash(git push:*)",
       "Bash(npm test:*)",
-      "Bash(npm run version:bump:*)"
+      "Bash(npm run version:bump:*)",
+      "mcp__MongoDB__connect",
+      "mcp__MongoDB__list-collections",
+      "mcp__MongoDB__count",
+      "mcp__MongoDB__find",
+      "mcp__MongoDB__update-many"
     ]
   }
 }

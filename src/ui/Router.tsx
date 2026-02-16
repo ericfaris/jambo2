@@ -3,7 +3,7 @@
 // No hash → normal local game | /#/tv → TV screen | /#/play → Player screen
 // ============================================================================
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { GameScreen } from './GameScreen.tsx';
 import { CastLobby } from './CastLobby.tsx';
 import { TVScreen } from './TVScreen.tsx';
@@ -11,6 +11,8 @@ import { PlayerScreen } from './PlayerScreen.tsx';
 import { MainMenu } from './screens/MainMenu.tsx';
 import { LoginModal } from './screens/LoginModal.tsx';
 import { PreGameSetupModal } from './screens/PreGameSetupModal.tsx';
+import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
+import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { useWebSocketGame } from '../multiplayer/client.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
@@ -25,12 +27,19 @@ function getRoute(): Route {
   return 'local';
 }
 
+function getRandomFirstPlayer(): 0 | 1 {
+  return Math.random() < 0.5 ? 0 : 1;
+}
+
 export function Router() {
   const [route, setRoute] = useState<Route>(getRoute);
   const [screen, setScreen] = useState<Screen>('menu');
   const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>('medium');
   const [pendingMode, setPendingMode] = useState<'solo' | 'multiplayer' | null>(null);
   const [showPreGameSetup, setShowPreGameSetup] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [revealFirstPlayer, setRevealFirstPlayer] = useState<0 | 1 | null>(null);
+  const [pendingScreen, setPendingScreen] = useState<'solo' | 'multiplayer' | null>(null);
   const newGame = useGameStore((store) => store.newGame);
 
   useEffect(() => {
@@ -55,16 +64,17 @@ export function Router() {
 
   const handleStartFromPreGameSetup = ({
     castMode,
-    firstPlayer,
+    aiDifficulty: selectedDifficulty,
   }: {
     castMode: boolean;
-    firstPlayer: 0 | 1;
+    aiDifficulty: AIDifficulty;
   }) => {
     if (!pendingMode) {
       return;
     }
 
     setShowPreGameSetup(false);
+    setAiDifficulty(selectedDifficulty);
 
     if (castMode) {
       window.location.hash = '#/tv';
@@ -73,17 +83,30 @@ export function Router() {
       return;
     }
 
-    if (pendingMode === 'solo') {
-      newGame(undefined, firstPlayer);
-      setScreen('solo');
-      setPendingMode(null);
-      return;
-    }
-
+    const firstPlayer = getRandomFirstPlayer();
     newGame(undefined, firstPlayer);
-    setScreen('multiplayer');
+    setRevealFirstPlayer(firstPlayer);
+    setPendingScreen(pendingMode);
     setPendingMode(null);
   };
+
+  const handleRevealComplete = useCallback(() => {
+    if (pendingScreen) {
+      setScreen(pendingScreen);
+    }
+    setRevealFirstPlayer(null);
+    setPendingScreen(null);
+  }, [pendingScreen]);
+
+  // Show first-player reveal overlay on top of the menu
+  if (revealFirstPlayer !== null) {
+    return (
+      <FirstPlayerReveal
+        firstPlayer={revealFirstPlayer}
+        onComplete={handleRevealComplete}
+      />
+    );
+  }
 
   if (route === 'local') {
     if (screen === 'menu') {
@@ -91,16 +114,17 @@ export function Router() {
         <>
           <MainMenu
             onSelectOption={handleMenuSelect}
-            aiDifficulty={aiDifficulty}
-            onChangeAiDifficulty={setAiDifficulty}
+            onTutorial={() => setShowTutorial(true)}
           />
           {showPreGameSetup && pendingMode && (
             <PreGameSetupModal
               mode={pendingMode}
+              aiDifficulty={aiDifficulty}
               onCancel={handleClosePreGameSetup}
               onStart={handleStartFromPreGameSetup}
             />
           )}
+          {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
         </>
       );
     }
@@ -109,10 +133,10 @@ export function Router() {
         <>
           <MainMenu
             onSelectOption={handleMenuSelect}
-            aiDifficulty={aiDifficulty}
-            onChangeAiDifficulty={setAiDifficulty}
+            onTutorial={() => setShowTutorial(true)}
           />
           <LoginModal onClose={() => setScreen('menu')} />
+          {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
         </>
       );
     }

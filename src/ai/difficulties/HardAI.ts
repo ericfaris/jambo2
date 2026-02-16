@@ -6,6 +6,7 @@ import { getMediumAiAction } from './MediumAI.ts';
 import { getRandomAiAction } from '../RandomAI.ts';
 import { createRng } from '../../utils/rng.ts';
 import {
+  getAuctionMaxBid,
   getCardEconomyValue,
   getCardPressureBonus,
   getHandRiskPenalty,
@@ -196,7 +197,65 @@ function scoreAction(state: GameState, action: GameAction): number {
   }
 }
 
+function getHardAuctionBidAction(state: GameState): GameAction | null {
+  const pr = state.pendingResolution;
+  if (!pr || pr.type !== 'AUCTION' || pr.wares.length < 2) return null;
+
+  const me = pr.nextBidder;
+  const bidAmount = pr.currentBid + 1;
+  const player = state.players[me];
+
+  if (player.gold < bidAmount) {
+    return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
+  }
+
+  // Use valuation-based ceiling from heuristics
+  const maxBid = getAuctionMaxBid(state, me, pr.wares);
+
+  if (bidAmount > maxBid) {
+    return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
+  }
+
+  // Simulate the pass outcome to see if letting the opponent win cheaply is bad
+  try {
+    const passAction: GameAction = { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
+    const afterPass = processAction(state, passAction);
+    const passScore = evaluateBoard(afterPass, me);
+    const currentScore = evaluateBoard(state, me);
+
+    // If passing gives opponent cheap wares that hurt us significantly, bid
+    // If passing is neutral or good (no real loss), still bid if within valuation
+    // Only refuse to bid if we're ABOVE valuation (already handled above)
+    const passHurts = passScore < currentScore - 3;
+
+    if (passHurts) {
+      // Opponent benefits from cheap wares — bid to deny or win
+      return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_BID', amount: bidAmount } };
+    }
+
+    // Pass doesn't hurt much — still bid if price is low relative to value
+    if (bidAmount <= Math.ceil(maxBid * 0.7)) {
+      return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_BID', amount: bidAmount } };
+    }
+
+    // Price is high relative to value and pass isn't terrible — pass
+    return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
+  } catch {
+    // Fallback: use valuation ceiling
+    if (bidAmount <= maxBid) {
+      return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_BID', amount: bidAmount } };
+    }
+    return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
+  }
+}
+
 export function getHardAiAction(state: GameState, rng: () => number = createHardRng(state)): GameAction | null {
+  // Special handling for auction bidding — use board evaluation
+  if (state.pendingResolution?.type === 'AUCTION' && state.pendingResolution.wares.length >= 2) {
+    const auctionAction = getHardAuctionBidAction(state);
+    if (auctionAction) return auctionAction;
+  }
+
   if (state.pendingResolution || state.pendingGuardReaction || state.pendingWareCardReaction) {
     return getRandomAiAction(state, rng);
   }
