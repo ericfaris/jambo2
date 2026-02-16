@@ -7,6 +7,8 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { resolve, join, extname } from 'node:path';
 import { createInitialState } from '../engine/GameState.ts';
 import { processAction } from '../engine/GameEngine.ts';
 import { getAiActionByDifficulty } from '../ai/difficulties/index.ts';
@@ -541,7 +543,56 @@ setInterval(() => {
 
 const PORT = parseInt(process.env['PORT'] ?? '3001', 10);
 
+// --- Static File Serving ---
+
+const STATIC_DIR = resolve(process.env['STATIC_DIR'] ?? join(import.meta.dirname ?? '.', '../../dist'));
+
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+  '.webm': 'audio/webm',
+};
+
+function serveStaticFile(res: import('node:http').ServerResponse, filePath: string): boolean {
+  try {
+    if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+      return false;
+    }
+    const ext = extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] ?? 'application/octet-stream';
+    const content = readFileSync(filePath);
+
+    // Cache hashed assets (contain content hash in filename) for 1 year
+    const isHashedAsset = filePath.includes('/assets/') || filePath.includes('\\assets\\');
+    res.setHeader('Cache-Control', isHashedAsset ? 'public, max-age=31536000, immutable' : 'no-cache');
+    res.setHeader('Content-Type', contentType);
+    res.statusCode = 200;
+    res.end(content);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const server = createServer((req, res) => {
+  // API routes
   if ((req.url ?? '').startsWith('/api/')) {
     void handleStatsApi(req, res).then((handledStats) => {
       if (handledStats) {
@@ -571,9 +622,20 @@ const server = createServer((req, res) => {
     return;
   }
 
+  // Static file serving
+  const urlPath = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`).pathname;
+  const safePath = urlPath.replace(/\.\./g, ''); // prevent directory traversal
+
+  // Try exact file match
+  const filePath = join(STATIC_DIR, safePath);
+  if (serveStaticFile(res, filePath)) return;
+
+  // SPA fallback: serve index.html for all non-file routes
+  const indexPath = join(STATIC_DIR, 'index.html');
+  if (serveStaticFile(res, indexPath)) return;
+
   res.statusCode = 404;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify({ error: 'Not found' }));
+  res.end('Not found');
 });
 
 const wss = new WebSocketServer({ noServer: true });
