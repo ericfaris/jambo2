@@ -21,6 +21,9 @@ import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { MegaView } from './MegaView.tsx';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason } from './uiHints.ts';
+import { fetchUserStatsSummary, recordCompletedGame } from '../persistence/userStatsApi.ts';
+import type { UserStatsSummary } from '../persistence/userStatsApi.ts';
+import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -60,6 +63,21 @@ function isDevMode(): boolean {
   return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 }
 
+interface AuthSessionResponse {
+  authenticated: boolean;
+  user?: {
+    name: string;
+    email: string;
+    picture: string;
+  };
+}
+
+interface AuthUserProfile {
+  name: string;
+  email: string;
+  picture: string;
+}
+
 export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty }) {
   const { state, dispatch, error, newGame, exportReplay, importReplay } = useGameStore();
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
@@ -74,6 +92,12 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
   const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
   const [showUxDebug, setShowUxDebug] = useState(() => getInitialUxDebug());
+  const [authUser, setAuthUser] = useState<AuthUserProfile | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarLabel, setAvatarLabel] = useState('U');
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const [uxDebugCounts, setUxDebugCounts] = useState({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
@@ -81,6 +105,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
   const pendingSecondsRef = useRef(0);
   const blockedPlaySecondsRef = useRef(0);
   const blockedDrawSecondsRef = useRef(0);
+  const prevPhaseRef = useRef(state.phase);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -112,6 +137,112 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(UX_DEBUG_STORAGE_KEY, String(showUxDebug));
   }, [showUxDebug]);
+
+  const refreshAuthSession = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/session', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load auth session');
+      }
+
+      const data = (await response.json()) as AuthSessionResponse;
+      if (!data.authenticated || !data.user) {
+        setAuthUser(null);
+        setAvatarUrl(null);
+        setAvatarLabel('U');
+        return;
+      }
+
+      setAuthUser(data.user);
+      setAvatarUrl(data.user.picture || null);
+      const firstChar = data.user.name.trim().charAt(0).toUpperCase();
+      setAvatarLabel(firstChar || 'U');
+      setAuthError(null);
+    } catch {
+      setAuthError('Profile unavailable');
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshAuthSession();
+  }, [refreshAuthSession]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadStats = async () => {
+      try {
+        const summary = await fetchUserStatsSummary();
+        if (isMounted) {
+          setStatsSummary(summary);
+          setStatsError(null);
+        }
+      } catch {
+        if (isMounted) {
+          setStatsError('Stats unavailable');
+        }
+      }
+    };
+
+    void loadStats();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+      setMenuOpen(false);
+      setAuthUser(null);
+      setAvatarUrl(null);
+      setAvatarLabel('U');
+      setStatsSummary(null);
+      setAuthError(null);
+    } catch {
+      setAuthError('Sign out failed');
+    }
+  }, []);
+
+  useEffect(() => {
+    const wasGameOver = prevPhaseRef.current === 'GAME_OVER';
+    const isGameOver = state.phase === 'GAME_OVER';
+
+    if (!wasGameOver && isGameOver) {
+      const winner = getWinner(state);
+      if (winner === null) {
+        prevPhaseRef.current = state.phase;
+        return;
+      }
+      const scores = getFinalScores(state);
+
+      void recordCompletedGame({
+        aiDifficulty,
+        winner,
+        playerGold: scores.player0,
+        opponentGold: scores.player1,
+        turnCount: state.turn,
+        rngSeed: state.rngSeed,
+        completedAt: Date.now(),
+      }).then((summary) => {
+        setStatsSummary(summary);
+        setStatsError(null);
+      }).catch(() => {
+        setStatsError('Stats unavailable');
+      });
+    }
+
+    prevPhaseRef.current = state.phase;
+  }, [aiDifficulty, state]);
 
   const handleExportReplay = useCallback(() => {
     try {
@@ -434,34 +565,6 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
       minHeight: '100vh',
       position: 'relative',
     }}>
-      {/* Menu button */}
-      {onBackToMenu && (
-        <button
-          onClick={onBackToMenu}
-          style={{
-            position: 'absolute',
-            top: 16,
-            right: 20,
-            background: 'rgba(90,64,48,0.8)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            padding: '8px 16px',
-            color: 'white',
-            fontSize: 14,
-            cursor: 'pointer',
-            zIndex: 1000,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(90,64,48,0.9)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(90,64,48,0.8)';
-          }}
-        >
-          Menu
-        </button>
-      )}
-
       {/* Main game area */}
       <div style={{
         flex: 1,
@@ -666,19 +769,31 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
             height: 42,
             padding: 0,
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 4,
             background: menuOpen ? 'var(--surface-accent)' : 'var(--surface-light)',
             border: '1px solid var(--border-light)',
-            borderRadius: 8,
+            borderRadius: '50%',
+            overflow: 'hidden',
           }}
-          title="Settings"
+          title="Profile & Settings"
         >
-          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
-          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
-          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt="User avatar"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <span style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: 16,
+              fontWeight: 700,
+              color: 'var(--text)',
+            }}>
+              {avatarLabel}
+            </span>
+          )}
         </button>
 
         {menuOpen && (
@@ -694,6 +809,85 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
             boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           }}>
             <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--gold)', marginBottom: 12 }}>
+              Settings
+            </div>
+            <div style={{
+              padding: 10,
+              border: '1px solid var(--border-light)',
+              borderRadius: 8,
+              background: 'var(--surface-light)',
+              marginBottom: 10,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
+                {authUser ? `Welcome, ${authUser.name}` : 'Welcome, Trader'}
+              </div>
+              {authUser && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {authUser.email}
+                </div>
+              )}
+              {authError && (
+                <div style={{ fontSize: 12, color: 'var(--accent-red)', marginTop: 4 }}>
+                  {authError}
+                </div>
+              )}
+              {statsSummary && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                  {statsSummary.wins}-{statsSummary.losses} · {Math.round(statsSummary.winRate * 100)}% win · {statsSummary.gamesPlayed} games
+                </div>
+              )}
+              {statsError && (
+                <div style={{ fontSize: 12, color: 'var(--accent-red)', marginTop: 4 }}>
+                  {statsError}
+                </div>
+              )}
+              {authUser && (
+                <button
+                  onClick={() => void handleLogout()}
+                  style={{
+                    marginTop: 8,
+                    width: '100%',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border-light)',
+                    color: 'var(--text)',
+                    borderRadius: 6,
+                    padding: '6px 8px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  Logout
+                </button>
+              )}
+            </div>
+            {onBackToMenu && (
+              <>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Menu
+                </div>
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onBackToMenu();
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface-light)',
+                    border: '1px solid var(--border-light)',
+                    color: 'var(--text)',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    marginBottom: 10,
+                  }}
+                >
+                  Back to Menu
+                </button>
+                <div style={{ height: 1, background: 'var(--border-light)', marginBottom: 10 }} />
+              </>
+            )}
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Settings
             </div>
             <label style={{

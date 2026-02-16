@@ -1,0 +1,110 @@
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { getStatsSummary, recordCompletedGame } from './statsStore.ts';
+
+interface RecordGameRequest {
+  localProfileId: string;
+  aiDifficulty: 'easy' | 'medium' | 'hard';
+  winner: 0 | 1;
+  playerGold: number;
+  opponentGold: number;
+  turnCount: number;
+  rngSeed: number;
+  completedAt?: number;
+}
+
+function sendJson(res: ServerResponse, statusCode: number, body: unknown): void {
+  const payload = JSON.stringify(body);
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(payload);
+}
+
+function isValidProfileId(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-zA-Z0-9._-]{1,128}$/.test(value);
+}
+
+function isDifficulty(value: unknown): value is 'easy' | 'medium' | 'hard' {
+  return value === 'easy' || value === 'medium' || value === 'hard';
+}
+
+function isWinner(value: unknown): value is 0 | 1 {
+  return value === 0 || value === 1;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  const raw = Buffer.concat(chunks).toString('utf8').trim();
+  if (raw.length === 0) {
+    return {};
+  }
+  return JSON.parse(raw) as unknown;
+}
+
+function validateRecordRequest(payload: unknown): payload is RecordGameRequest {
+  if (typeof payload !== 'object' || payload === null) {
+    return false;
+  }
+
+  const candidate = payload as Record<string, unknown>;
+  if (!isValidProfileId(candidate.localProfileId)) return false;
+  if (!isDifficulty(candidate.aiDifficulty)) return false;
+  if (!isWinner(candidate.winner)) return false;
+  if (!isNonNegativeInteger(candidate.playerGold)) return false;
+  if (!isNonNegativeInteger(candidate.opponentGold)) return false;
+  if (!isNonNegativeInteger(candidate.turnCount)) return false;
+  if (!isNonNegativeInteger(candidate.rngSeed)) return false;
+  if (candidate.completedAt !== undefined && !isNonNegativeInteger(candidate.completedAt)) return false;
+
+  return true;
+}
+
+export async function handleStatsApi(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+  const method = req.method ?? 'GET';
+  const host = req.headers.host ?? 'localhost:3001';
+  const requestUrl = new URL(req.url ?? '/', `http://${host}`);
+
+  if (method === 'GET' && requestUrl.pathname === '/api/stats/summary') {
+    const localProfileId = requestUrl.searchParams.get('localProfileId');
+    if (!isValidProfileId(localProfileId)) {
+      sendJson(res, 400, { error: 'localProfileId is required and must be alphanumeric with ._- only' });
+      return true;
+    }
+
+    const summary = await getStatsSummary(localProfileId);
+    sendJson(res, 200, { summary });
+    return true;
+  }
+
+  if (method === 'POST' && requestUrl.pathname === '/api/stats/game') {
+    const body = await readJsonBody(req);
+    if (!validateRecordRequest(body)) {
+      sendJson(res, 400, { error: 'Invalid game payload' });
+      return true;
+    }
+
+    await recordCompletedGame({
+      localProfileId: body.localProfileId,
+      aiDifficulty: body.aiDifficulty,
+      winner: body.winner,
+      playerGold: body.playerGold,
+      opponentGold: body.opponentGold,
+      turnCount: body.turnCount,
+      rngSeed: body.rngSeed,
+      completedAt: body.completedAt ?? Date.now(),
+    });
+
+    const summary = await getStatsSummary(body.localProfileId);
+    sendJson(res, 200, { ok: true, summary });
+    return true;
+  }
+
+  return false;
+}

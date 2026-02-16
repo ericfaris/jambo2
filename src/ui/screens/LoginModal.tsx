@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ResolveMegaView } from '../ResolveMegaView.tsx';
+import { getLocalProfileId } from '../../persistence/localProfile.ts';
 
 interface LoginModalProps {
   onClose: () => void;
@@ -14,22 +15,6 @@ interface AuthSessionResponse {
     picture: string;
     localProfileId: string | null;
   };
-}
-
-const LOCAL_PROFILE_STORAGE_KEY = 'jambo.localProfileId';
-
-function getLocalProfileId(): string {
-  const existing = window.localStorage.getItem(LOCAL_PROFILE_STORAGE_KEY);
-  if (existing && existing.trim().length > 0) {
-    return existing;
-  }
-
-  const generated = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `local_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-
-  window.localStorage.setItem(LOCAL_PROFILE_STORAGE_KEY, generated);
-  return generated;
 }
 
 export function LoginModal({ onClose }: LoginModalProps) {

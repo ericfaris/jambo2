@@ -26,6 +26,7 @@ import type {
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import { loadLocalEnv } from './loadEnv.ts';
 import { handleAuthApi } from './auth.ts';
+import { handleStatsApi } from './statsApi.ts';
 
 loadLocalEnv();
 
@@ -542,8 +543,13 @@ const PORT = parseInt(process.env['PORT'] ?? '3001', 10);
 
 const server = createServer((req, res) => {
   if ((req.url ?? '').startsWith('/api/')) {
-    void handleAuthApi(req, res).then((handled) => {
-      if (handled) {
+    void handleStatsApi(req, res).then((handledStats) => {
+      if (handledStats) {
+        return;
+      }
+      return handleAuthApi(req, res);
+    }).then((handledAuth) => {
+      if (handledAuth) {
         return;
       }
       res.statusCode = 404;
