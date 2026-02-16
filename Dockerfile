@@ -20,5 +20,11 @@ COPY --from=build /app/src ./src
 COPY --from=build /app/tsconfig.json ./
 
 ENV STATIC_DIR=/app/dist
+ENV MONGODB_URI=
+ENV MONGODB_DB=jambo
+ENV GOOGLE_CLIENT_ID=
+ENV GOOGLE_CLIENT_SECRET=
+ENV GOOGLE_REDIRECT_URI=
+ENV APP_BASE_URL=
 
 CMD ["npx", "tsx", "src/multiplayer/server.ts"]
