@@ -5,6 +5,7 @@
 // ============================================================================
 
 import { WebSocketServer, WebSocket } from 'ws';
+import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { createInitialState } from '../engine/GameState.ts';
 import { processAction } from '../engine/GameEngine.ts';
@@ -23,6 +24,10 @@ import type {
   AudioEvent,
 } from './types.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
+import { loadLocalEnv } from './loadEnv.ts';
+import { handleAuthApi } from './auth.ts';
+
+loadLocalEnv();
 
 // --- Room ---
 
@@ -534,7 +539,42 @@ setInterval(() => {
 // --- Start Server ---
 
 const PORT = parseInt(process.env['PORT'] ?? '3001', 10);
-const wss = new WebSocketServer({ port: PORT });
+
+const server = createServer((req, res) => {
+  if ((req.url ?? '').startsWith('/api/')) {
+    void handleAuthApi(req, res).then((handled) => {
+      if (handled) {
+        return;
+      }
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Not found' }));
+    }).catch((error: unknown) => {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Internal server error' }));
+      console.error('[HTTP] API error:', (error as Error).message);
+    });
+    return;
+  }
+
+  res.statusCode = 404;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify({ error: 'Not found' }));
+});
+
+const wss = new WebSocketServer({ noServer: true });
+
+server.on('upgrade', (req, socket, head) => {
+  if (!(req.url ?? '').startsWith('/ws')) {
+    socket.destroy();
+    return;
+  }
+
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.emit('connection', ws, req);
+  });
+});
 
 wss.on('connection', (ws: WebSocket) => {
   ws.on('message', (data: Buffer | string) => {
@@ -560,4 +600,6 @@ wss.on('connection', (ws: WebSocket) => {
   ws.on('close', () => handleDisconnect(ws));
 });
 
-console.log(`Jambo Cast Server running on ws://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Jambo Cast Server running on http://localhost:${PORT} (ws path: /ws)`);
+});

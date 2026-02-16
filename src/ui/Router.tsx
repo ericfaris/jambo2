@@ -9,6 +9,7 @@ import { CastLobby } from './CastLobby.tsx';
 import { TVScreen } from './TVScreen.tsx';
 import { PlayerScreen } from './PlayerScreen.tsx';
 import { MainMenu } from './screens/MainMenu.tsx';
+import { LoginModal } from './screens/LoginModal.tsx';
 import { useWebSocketGame } from '../multiplayer/client.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
 
@@ -39,7 +40,25 @@ export function Router() {
 
   if (route === 'local') {
     if (screen === 'menu') {
-      return <MainMenu onSelectOption={handleMenuSelect} aiDifficulty={aiDifficulty} onChangeAiDifficulty={setAiDifficulty} />;
+      return (
+        <MainMenu
+          onSelectOption={handleMenuSelect}
+          aiDifficulty={aiDifficulty}
+          onChangeAiDifficulty={setAiDifficulty}
+        />
+      );
+    }
+    if (screen === 'login') {
+      return (
+        <>
+          <MainMenu
+            onSelectOption={handleMenuSelect}
+            aiDifficulty={aiDifficulty}
+            onChangeAiDifficulty={setAiDifficulty}
+          />
+          <LoginModal onClose={() => setScreen('menu')} />
+        </>
+      );
     }
     if (screen === 'solo') {
       return <GameScreen onBackToMenu={() => setScreen('menu')} aiDifficulty={aiDifficulty} />;

@@ -16,6 +16,7 @@
     "ai:bench:long": "tsx scripts/ai-benchmark.ts long"
   },
   "dependencies": {
+    "mongodb": "^7.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tsx": "^4.21.0",

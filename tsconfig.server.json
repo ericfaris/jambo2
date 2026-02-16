@@ -14,5 +14,6 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true
   },
-  "include": ["src/multiplayer/server.ts", "src/multiplayer/types.ts", "src/multiplayer/stateSplitter.ts", "src/engine/**/*", "src/ai/**/*"]
+  "include": ["src/multiplayer/**/*.ts", "src/engine/**/*", "src/ai/**/*"],
+  "exclude": ["src/multiplayer/client.ts"]
 }

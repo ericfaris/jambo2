@@ -18,6 +18,29 @@ npx vite build
 npm test
 ```
 
+## Google OAuth + MongoDB Setup
+
+The multiplayer/auth server now serves both WebSocket and HTTP auth endpoints on port `3001`.
+
+1. Copy `.env.example` to `.env` and set:
+	- `MONGODB_URI` (Atlas connection string)
+	- `GOOGLE_CLIENT_ID`
+	- `GOOGLE_CLIENT_SECRET`
+2. In Google Cloud Console, add OAuth redirect URI:
+	- `http://localhost:5173/api/auth/google/callback`
+3. Start app + server:
+
+```bash
+npm run dev
+npm run server
+```
+
+Auth endpoints used by UI:
+- `GET /api/auth/google/start`
+- `GET /api/auth/google/callback`
+- `GET /api/auth/session`
+- `POST /api/auth/logout`
+
 ## Tech Stack
 
 - React 19 + TypeScript + Vite
