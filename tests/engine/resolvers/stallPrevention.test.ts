@@ -359,8 +359,10 @@ describe('Leopard Statue: requires 2g and empty market slot', () => {
 });
 
 describe('Mask of Transformation: requires hand cards and discard pile', () => {
+  // Mask can only be activated during DRAW phase (before drawing), so tests use DRAW phase state
+
   it('blocks with empty hand', () => {
-    let s = toPlayPhase(createTestState());
+    let s = createTestState(); // DRAW phase
     s = withHand(s, 0, []);
     s = withGold(s, 0, 20);
     s = withDiscard(s, ['ware_3k_1']);
@@ -369,7 +371,7 @@ describe('Mask of Transformation: requires hand cards and discard pile', () => {
   });
 
   it('blocks with empty discard pile', () => {
-    let s = toPlayPhase(createTestState());
+    let s = createTestState(); // DRAW phase
     s = withHand(s, 0, ['ware_3k_1']);
     s = withGold(s, 0, 20);
     s = { ...s, discardPile: [] };
@@ -378,7 +380,7 @@ describe('Mask of Transformation: requires hand cards and discard pile', () => {
   });
 
   it('auto-resolves if hand becomes empty before response', () => {
-    let s = toPlayPhase(createTestState());
+    let s = createTestState(); // DRAW phase
     s = withHand(s, 0, ['ware_3k_1']);
     s = withGold(s, 0, 20);
     s = withDiscard(s, ['ware_3h_1']);
@@ -393,7 +395,7 @@ describe('Mask of Transformation: requires hand cards and discard pile', () => {
   });
 
   it('auto-resolves stale card selection instead of throwing', () => {
-    let s = toPlayPhase(createTestState());
+    let s = createTestState(); // DRAW phase
     s = withHand(s, 0, ['ware_3k_1']);
     s = withGold(s, 0, 20);
     s = withDiscard(s, ['ware_3h_1']);

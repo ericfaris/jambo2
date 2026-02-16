@@ -280,6 +280,12 @@ export function validatePlayCard(
     if (isDesign(cardId, 'shaman') && !player.market.some(w => w !== null)) {
       return fail('Cannot play Shaman: no wares in market to trade');
     }
+    // Arabian Merchant: player needs at least 2 empty market slots to receive auctioned wares
+    if (isDesign(cardId, 'arabian_merchant')) {
+      if (player.market.filter(w => w === null).length < 2) {
+        return fail('Cannot play Arabian Merchant: need at least 2 empty market slots');
+      }
+    }
   }
 
   return ok;
@@ -299,22 +305,19 @@ export function validateActivateUtility(state: GameState, utilityIndex: number):
 
   const utility = player.utilities[utilityIndex];
 
-  const isPlayPhaseActivation = state.phase === 'PLAY';
-  const isPreDrawMaskActivation =
-    state.phase === 'DRAW' &&
-    state.drawnCard === null &&
-    utility.designId === 'mask_of_transformation';
-
-  if (!isPlayPhaseActivation && !isPreDrawMaskActivation) {
-    return fail('Can only activate utilities during PLAY phase');
-  }
-
-  if (state.phase === 'DRAW' && utility.designId !== 'mask_of_transformation') {
-    return fail('Only Mask of Transformation can be activated before drawing');
-  }
-
-  if (state.phase === 'DRAW' && state.drawnCard !== null) {
-    return fail('Cannot activate utility after drawing a card');
+  // Mask of Transformation can ONLY be activated during DRAW phase (before drawing).
+  // All other utilities can ONLY be activated during PLAY phase.
+  if (utility.designId === 'mask_of_transformation') {
+    if (state.phase !== 'DRAW') {
+      return fail('Mask of Transformation can only be activated before drawing');
+    }
+    if (state.drawnCard !== null) {
+      return fail('Cannot activate Mask of Transformation after drawing a card');
+    }
+  } else {
+    if (state.phase !== 'PLAY') {
+      return fail('Can only activate utilities during PLAY phase');
+    }
   }
 
   if (utility.usedThisTurn) {

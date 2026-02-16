@@ -20,6 +20,7 @@ import {
   market,
 } from '../../helpers/testHelpers.ts';
 import { getCard } from '../../../src/engine/cards/CardDatabase.ts';
+import { getValidActions } from '../../../src/engine/validation/actionValidator.ts';
 
 describe('Shaman (Ware Trade)', () => {
   function setupShaman() {
@@ -433,5 +434,51 @@ describe('Supplies (Binary Choice → draw-until-ware)', () => {
     // Should have drawn until a ware card was found (or deck exhausted)
     // Gold decreased by 1
     expect(gold(s3, 0)).toBe(20 - 1);
+  });
+});
+
+describe('Arabian Merchant market space restriction', () => {
+  it('cannot play Arabian Merchant with fewer than 2 empty market slots', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['arabian_merchant_1']);
+    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withGold(s, 0, 20);
+    // Fill market completely — no empty slots
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' })).toThrow(
+      /need at least 2 empty market slots/
+    );
+  });
+
+  it('cannot play Arabian Merchant with only 1 empty market slot', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['arabian_merchant_1']);
+    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withGold(s, 0, 20);
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', null]);
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' })).toThrow(
+      /need at least 2 empty market slots/
+    );
+  });
+
+  it('allowed with 2+ empty market slots', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['arabian_merchant_1']);
+    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withGold(s, 0, 20);
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', null, null]);
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
+    expect(s2.pendingResolution!.type).toBe('AUCTION');
+  });
+
+  it('does not appear in getValidActions with full market', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['arabian_merchant_1']);
+    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withGold(s, 0, 20);
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
+    const actions = getValidActions(s);
+    const playActions = actions.filter(a => a.type === 'PLAY_CARD' && a.cardId === 'arabian_merchant_1');
+    expect(playActions).toHaveLength(0);
   });
 });

@@ -12,11 +12,13 @@ import {
   withMarket,
   withGold,
   withUtility,
+  withDiscard,
   hand,
   gold,
   market,
   utilities,
 } from '../../helpers/testHelpers.ts';
+import { getValidActions } from '../../../src/engine/validation/actionValidator.ts';
 
 describe('Well (Pay 1g, draw 1)', () => {
   function setupWell() {
@@ -256,5 +258,69 @@ describe('Utility activation basics', () => {
   it('cannot activate invalid utility index', () => {
     let s = toPlayPhase(createTestState());
     expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 99 })).toThrow();
+  });
+});
+
+describe('Mask of Transformation phase restriction', () => {
+  it('cannot activate Mask during PLAY phase', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['ware_3k_1']);
+    s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
+    s = withDiscard(s, ['ware_3h_1']);
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(
+      /Mask of Transformation can only be activated before drawing/
+    );
+  });
+
+  it('Mask does not appear in getValidActions during PLAY phase', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['ware_3k_1']);
+    s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
+    s = withDiscard(s, ['ware_3h_1']);
+
+    const actions = getValidActions(s);
+    const utilityActivations = actions.filter(a => a.type === 'ACTIVATE_UTILITY');
+    expect(utilityActivations).toHaveLength(0);
+  });
+
+  it('Mask appears in getValidActions during DRAW phase (before drawing)', () => {
+    let s = createTestState();
+    s = withHand(s, 0, ['ware_3k_1']);
+    s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
+    s = withDiscard(s, ['ware_3h_1']);
+    // State is in DRAW phase with no drawnCard — Mask should be available
+    const actions = getValidActions(s);
+    const utilityActivations = actions.filter(a => a.type === 'ACTIVATE_UTILITY');
+    expect(utilityActivations).toHaveLength(1);
+    expect(utilityActivations[0]).toEqual({ type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+  });
+
+  it('Mask cannot be activated after a card has been drawn', () => {
+    let s = createTestState();
+    s = withHand(s, 0, ['ware_3k_1']);
+    s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
+    s = withDiscard(s, ['ware_3h_1']);
+    // Draw a card first
+    s = act(s, { type: 'DRAW_CARD' });
+    expect(s.drawnCard).not.toBeNull();
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(
+      /Cannot activate Mask of Transformation after drawing a card/
+    );
+  });
+
+  it('other utilities still work during PLAY phase alongside Mask', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['ware_3k_1']);
+    s = withGold(s, 0, 20);
+    s = withUtility(s, 0, 'mask_of_transformation_1', 'mask_of_transformation');
+    s = withUtility(s, 0, 'well_1', 'well'); // index 1 on player 0's utilities
+    s = withDiscard(s, ['ware_3h_1']);
+
+    // Well (index 1) should work during PLAY, Mask (index 0) should not
+    const actions = getValidActions(s);
+    const utilityActivations = actions.filter(a => a.type === 'ACTIVATE_UTILITY');
+    // Only well (index 1) should appear
+    expect(utilityActivations).toHaveLength(1);
+    expect(utilityActivations[0]).toEqual({ type: 'ACTIVATE_UTILITY', utilityIndex: 1 });
   });
 });
