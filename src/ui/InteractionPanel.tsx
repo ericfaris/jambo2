@@ -491,6 +491,8 @@ function ResolutionContent({ state, pr, dispatch, viewerPlayer, onMegaView }: { 
       return <SuppliesDiscardPanel state={state} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'UTILITY_KEEP':
       return <UtilityKeepPanel state={state} pr={pr} viewerPlayer={viewerPlayer} dispatch={dispatch} onMegaView={onMegaView} />;
+    case 'UTILITY_REPLACE':
+      return <UtilityReplacePanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'CROCODILE_USE':
       return <CrocodilePanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'UTILITY_EFFECT':
@@ -909,6 +911,35 @@ function SuppliesDiscardPanel({ state, dispatch, onMegaView }: { state: GameStat
       <SelectableCardArea
         cards={hand}
         onSelect={(cardId) => resolve(dispatch, { type: 'SELECT_CARD', cardId })}
+        onMegaView={onMegaView}
+      />
+    </div>
+  );
+}
+
+function UtilityReplacePanel({ state, pr: _pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'UTILITY_REPLACE' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
+  const cp = state.currentPlayer;
+  const utils = state.players[cp].utilities;
+
+  if (utils.length === 0) {
+    return (
+      <div>
+        <div className="ui-prompt-text">No utilities to replace.</div>
+        <button className="primary" onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: 0 })} style={{ margin: '8px auto 0', display: 'block' }}>
+          Continue
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="ui-prompt-text">
+        Select a utility to replace with the new one.
+      </div>
+      <SelectableCardArea
+        cards={utils.map((u) => u.cardId)}
+        onSelect={(_, i) => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })}
         onMegaView={onMegaView}
       />
     </div>

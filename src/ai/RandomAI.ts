@@ -296,6 +296,14 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
       return { type: 'SELECT_CARD', cardId: pick(player.hand, rng) };
     }
 
+    case 'UTILITY_REPLACE': {
+      const utils = state.players[cp].utilities;
+      // Pick a random utility to replace (guard handles < max case)
+      if (utils.length === 0) return { type: 'SELECT_UTILITY', utilityIndex: 0 };
+      const utilityIndex = Math.floor(rng() * utils.length);
+      return { type: 'SELECT_UTILITY', utilityIndex };
+    }
+
     case 'UTILITY_KEEP': {
       const responder = pr.step === 'ACTIVE_CHOOSE' ? cp : (cp === 0 ? 1 : 0);
       const utils = state.players[responder].utilities;
@@ -563,6 +571,13 @@ function getFallbackInteractionResponses(state: GameState): InteractionResponse[
         : [{ type: 'SELECT_CARD', cardId: '' }];
     }
 
+    case 'UTILITY_REPLACE': {
+      const utils = state.players[cp].utilities;
+      return utils.length > 0
+        ? utils.map((_, utilityIndex) => ({ type: 'SELECT_UTILITY' as const, utilityIndex }))
+        : [{ type: 'SELECT_UTILITY' as const, utilityIndex: 0 }];
+    }
+
     case 'UTILITY_KEEP': {
       const responder = pr.step === 'ACTIVE_CHOOSE' ? cp : (cp === 0 ? 1 : 0);
       const utils = state.players[responder].utilities;
@@ -731,11 +746,8 @@ export function getRandomAiAction(state: GameState, rng: RngFn = createAiRngFrom
           if (tryAction(state, action) && safeExec(state, action)) return action;
         }
       } else if (cardDef.type === 'utility') {
-        // Check utility count limit
-        if (player.utilities.length < CONSTANTS.MAX_UTILITIES) {
-          const action: GameAction = { type: 'PLAY_CARD', cardId };
-          if (tryAction(state, action) && safeExec(state, action)) return action;
-        }
+        const action: GameAction = { type: 'PLAY_CARD', cardId };
+        if (tryAction(state, action) && safeExec(state, action)) return action;
       } else if (cardDef.type === 'stand') {
         const standCost = player.smallMarketStands === 0 ? CONSTANTS.FIRST_STAND_COST : CONSTANTS.ADDITIONAL_STAND_COST;
         if (player.gold >= standCost) {

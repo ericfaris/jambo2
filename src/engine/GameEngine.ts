@@ -480,8 +480,16 @@ function handlePlayUtility(
   const cp = state.currentPlayer;
   const player = state.players[cp];
 
+  // At max utilities — trigger replacement flow
   if (player.utilities.length >= CONSTANTS.MAX_UTILITIES) {
-    throw new Error(`Cannot play utility: already have ${CONSTANTS.MAX_UTILITIES} utilities`);
+    return {
+      ...state,
+      pendingResolution: {
+        type: 'UTILITY_REPLACE',
+        sourceCard: cardId,
+        newUtilityDesignId: designId,
+      },
+    };
   }
 
   const newUtilities = [

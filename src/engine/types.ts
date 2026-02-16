@@ -253,6 +253,12 @@ export interface PendingCrocodileUse {
   opponentPlayer: 0 | 1;
 }
 
+export interface PendingUtilityReplace {
+  type: 'UTILITY_REPLACE';
+  sourceCard: DeckCardId;
+  newUtilityDesignId: UtilityDesignId;
+}
+
 export type PendingResolution =
   | PendingOpponentDiscard
   | PendingAuction
@@ -276,7 +282,8 @@ export type PendingResolution =
   | PendingSuppliesDiscard
   | PendingCarrierWareSelect
   | PendingUtilityKeep
-  | PendingCrocodileUse;
+  | PendingCrocodileUse
+  | PendingUtilityReplace;
 
 // --- Turn Modifiers (active for current turn) ---
 export interface TurnModifiers {

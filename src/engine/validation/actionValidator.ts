@@ -201,13 +201,6 @@ export function validatePlayCard(
     }
   }
 
-  // Utility card validation
-  if (cardDef.type === 'utility') {
-    if (player.utilities.length >= CONSTANTS.MAX_UTILITIES) {
-      return fail(`Cannot play utility: already have ${CONSTANTS.MAX_UTILITIES} utilities`);
-    }
-  }
-
   // Animal card preconditions
   if (cardDef.type === 'animal') {
     const opponent: 0 | 1 = state.currentPlayer === 0 ? 1 : 0;

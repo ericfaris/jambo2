@@ -25,6 +25,7 @@ import { resolveUtilityKeep } from './resolvers/utilityKeepResolver.ts';
 import { resolveCrocodileUse } from './resolvers/crocodileResolver.ts';
 import { resolveCarrierWareSelect } from './resolvers/carrierWareSelectResolver.ts';
 import { resolveSuppliesDiscard } from './resolvers/suppliesDiscardResolver.ts';
+import { resolveUtilityReplace } from './resolvers/utilityReplaceResolver.ts';
 
 /**
  * Initialize a pending resolution when a card is played.
@@ -313,6 +314,8 @@ export function resolveInteraction(
       return resolveCarrierWareSelect(state, pending, response);
     case 'SUPPLIES_DISCARD':
       return resolveSuppliesDiscard(state, pending, response);
+    case 'UTILITY_REPLACE':
+      return resolveUtilityReplace(state, pending, response);
     default:
       throw new Error(`Unknown pending resolution type`);
   }
