@@ -545,17 +545,24 @@ const server = createServer((req, res) => {
   if ((req.url ?? '').startsWith('/api/')) {
     void handleStatsApi(req, res).then((handledStats) => {
       if (handledStats) {
-        return;
+        return true;
       }
       return handleAuthApi(req, res);
     }).then((handledAuth) => {
       if (handledAuth) {
         return;
       }
+      if (res.headersSent) {
+        return;
+      }
       res.statusCode = 404;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'Not found' }));
     }).catch((error: unknown) => {
+      if (res.headersSent) {
+        console.error('[HTTP] API error after response sent:', (error as Error).message);
+        return;
+      }
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'Internal server error' }));
