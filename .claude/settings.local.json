@@ -41,7 +41,9 @@
       "Bash(git -C C:/code/jambo2 commit -m \"$\\(cat <<''EOF''\nfeat: add mega view modal for image cards\n\nClicking the info overlay \\(name + description\\) on image cards opens a\nfull-size modal with large artwork, type badge, and readable description.\nClick backdrop to dismiss. Self-contained in CardFace with no store changes.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git -C C:/code/jambo2 push)",
       "Bash(wc:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run version:bump:*)"
     ]
   }
 }
