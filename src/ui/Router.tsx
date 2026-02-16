@@ -10,8 +10,10 @@ import { TVScreen } from './TVScreen.tsx';
 import { PlayerScreen } from './PlayerScreen.tsx';
 import { MainMenu } from './screens/MainMenu.tsx';
 import { LoginModal } from './screens/LoginModal.tsx';
+import { PreGameSetupModal } from './screens/PreGameSetupModal.tsx';
 import { useWebSocketGame } from '../multiplayer/client.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
+import { useGameStore } from '../hooks/useGameStore.ts';
 
 type Route = 'local' | 'tv' | 'play';
 type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings';
@@ -27,6 +29,9 @@ export function Router() {
   const [route, setRoute] = useState<Route>(getRoute);
   const [screen, setScreen] = useState<Screen>('menu');
   const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>('medium');
+  const [pendingMode, setPendingMode] = useState<'solo' | 'multiplayer' | null>(null);
+  const [showPreGameSetup, setShowPreGameSetup] = useState(false);
+  const newGame = useGameStore((store) => store.newGame);
 
   useEffect(() => {
     const onHashChange = () => setRoute(getRoute());
@@ -35,17 +40,68 @@ export function Router() {
   }, []);
 
   const handleMenuSelect = (option: 'login' | 'solo' | 'multiplayer' | 'settings') => {
+    if (option === 'solo' || option === 'multiplayer') {
+      setPendingMode(option);
+      setShowPreGameSetup(true);
+      return;
+    }
     setScreen(option);
+  };
+
+  const handleClosePreGameSetup = () => {
+    setShowPreGameSetup(false);
+    setPendingMode(null);
+  };
+
+  const handleStartFromPreGameSetup = ({
+    castMode,
+    firstPlayer,
+  }: {
+    castMode: boolean;
+    firstPlayer: 0 | 1;
+  }) => {
+    if (!pendingMode) {
+      return;
+    }
+
+    setShowPreGameSetup(false);
+
+    if (castMode) {
+      window.location.hash = '#/tv';
+      setScreen('menu');
+      setPendingMode(null);
+      return;
+    }
+
+    if (pendingMode === 'solo') {
+      newGame(undefined, firstPlayer);
+      setScreen('solo');
+      setPendingMode(null);
+      return;
+    }
+
+    newGame(undefined, firstPlayer);
+    setScreen('multiplayer');
+    setPendingMode(null);
   };
 
   if (route === 'local') {
     if (screen === 'menu') {
       return (
-        <MainMenu
-          onSelectOption={handleMenuSelect}
-          aiDifficulty={aiDifficulty}
-          onChangeAiDifficulty={setAiDifficulty}
-        />
+        <>
+          <MainMenu
+            onSelectOption={handleMenuSelect}
+            aiDifficulty={aiDifficulty}
+            onChangeAiDifficulty={setAiDifficulty}
+          />
+          {showPreGameSetup && pendingMode && (
+            <PreGameSetupModal
+              mode={pendingMode}
+              onCancel={handleClosePreGameSetup}
+              onStart={handleStartFromPreGameSetup}
+            />
+          )}
+        </>
       );
     }
     if (screen === 'login') {
@@ -63,7 +119,11 @@ export function Router() {
     if (screen === 'solo') {
       return <GameScreen onBackToMenu={() => setScreen('menu')} aiDifficulty={aiDifficulty} />;
     }
-    // Placeholder for other screens
+    if (screen === 'multiplayer') {
+      return <GameScreen onBackToMenu={() => setScreen('menu')} aiDifficulty={aiDifficulty} localMultiplayer />;
+    }
+
+    // Placeholder for remaining screens
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

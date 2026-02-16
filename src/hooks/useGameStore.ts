@@ -14,7 +14,7 @@ interface GameStore {
   error: string | null;
   replayActions: GameAction[];
   dispatch: (action: GameAction) => void;
-  newGame: (seed?: number) => void;
+  newGame: (seed?: number, startingPlayer?: 0 | 1) => void;
   exportReplay: () => string;
   importReplay: (payload: string) => void;
 }
@@ -39,8 +39,15 @@ export const useGameStore = create<GameStore>((set) => ({
     });
   },
 
-  newGame: (seed?: number) => {
-    set({ state: createInitialState(seed), error: null, replayActions: [] });
+  newGame: (seed?: number, startingPlayer: 0 | 1 = 0) => {
+    const initial = createInitialState(seed);
+    const next = startingPlayer === 0
+      ? initial
+      : {
+          ...initial,
+          currentPlayer: 1 as const,
+        };
+    set({ state: next, error: null, replayActions: [] });
   },
 
   exportReplay: () => {

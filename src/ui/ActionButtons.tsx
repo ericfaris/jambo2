@@ -124,21 +124,22 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
   );
 }
 
-export function DrawModal({ state, dispatch, disabled, disabledReason, onClose }: {
+export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, viewerPlayer = 0 }: {
   state: GameState;
   dispatch: (action: import('../engine/types.ts').GameAction) => void;
   disabled: boolean;
   disabledReason?: string | null;
   onClose: () => void;
+  viewerPlayer?: 0 | 1;
 }) {
   const [showCardBack, setShowCardBack] = useState(false);
   
   // Show modal if we have a drawn card OR if we're in draw phase (even without a drawn card yet)
-  const shouldShowModal = state.drawnCard || (state.phase === 'DRAW' && state.currentPlayer === 0);
+  const shouldShowModal = state.drawnCard || (state.phase === 'DRAW' && state.currentPlayer === viewerPlayer);
   if (!shouldShowModal && !showCardBack) return null;
 
-  const canAct = state.currentPlayer === 0 && !disabled;
-  const maskUtilityIndex = state.players[0].utilities.findIndex(
+  const canAct = state.currentPlayer === viewerPlayer && !disabled;
+  const maskUtilityIndex = state.players[viewerPlayer].utilities.findIndex(
     (utility) => utility.designId === 'mask_of_transformation' && !utility.usedThisTurn,
   );
   const canUseMaskBeforeDraw =

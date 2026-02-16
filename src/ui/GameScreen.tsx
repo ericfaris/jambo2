@@ -78,7 +78,7 @@ interface AuthUserProfile {
   picture: string;
 }
 
-export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty }) {
+export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultiplayer = false }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty; localMultiplayer?: boolean }) {
   const { state, dispatch, error, newGame, exportReplay, importReplay } = useGameStore();
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
   const [showLog, setShowLog] = useState(() => getInitialShowLog());
@@ -106,6 +106,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
   const blockedPlaySecondsRef = useRef(0);
   const blockedDrawSecondsRef = useRef(0);
   const prevPhaseRef = useRef(state.phase);
+  const viewerPlayer: 0 | 1 = localMultiplayer ? state.currentPlayer : 0;
+  const opponentPlayer: 0 | 1 = viewerPlayer === 0 ? 1 : 0;
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -319,7 +321,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
     return getPendingResponder(state, state.pendingResolution) === 1;
   };
 
-  const isAiTurn = state.phase !== 'GAME_OVER' && (
+  const isAiTurn = !localMultiplayer && state.phase !== 'GAME_OVER' && (
     state.pendingResolution !== null ? isAiResponder(state) :
     state.pendingGuardReaction !== null ? state.pendingGuardReaction.targetPlayer === 1 :
     state.pendingWareCardReaction !== null ? state.pendingWareCardReaction.targetPlayer === 1 :
@@ -406,12 +408,12 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
 
   // Auto-open draw modal when entering draw phase
   useEffect(() => {
-    if (state.phase === 'DRAW' && state.currentPlayer === 0 && !drawModalOpen) {
+    if (state.phase === 'DRAW' && state.currentPlayer === viewerPlayer && !drawModalOpen) {
       setDrawModalOpen(true);
     } else if (state.phase !== 'DRAW' && drawModalOpen) {
       setDrawModalOpen(false);
     }
-  }, [state.phase, state.currentPlayer, drawModalOpen]);
+  }, [state.phase, state.currentPlayer, drawModalOpen, viewerPlayer]);
 
   useEffect(() => {
     if (!cardError) return;
@@ -430,14 +432,14 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
   );
   const canTakePlayActions =
     state.phase === 'PLAY' &&
-    state.currentPlayer === 0 &&
+    state.currentPlayer === viewerPlayer &&
     state.actionsLeft > 0 &&
     !hasPendingInteraction;
   const playActionsDisabled = !canTakePlayActions;
 
   const canTakeDrawActions =
     state.phase === 'DRAW' &&
-    state.currentPlayer === 0 &&
+    state.currentPlayer === viewerPlayer &&
     !isAiTurn;
   const drawActionsDisabled = !canTakeDrawActions;
   const playDisabledReason = getPlayDisabledReason({
@@ -509,13 +511,13 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
         pendingSecondsRef.current = 0;
       }
 
-      if (state.phase === 'PLAY' && state.currentPlayer === 0 && playActionsDisabled) {
+      if (state.phase === 'PLAY' && state.currentPlayer === viewerPlayer && playActionsDisabled) {
         blockedPlaySecondsRef.current += 1;
       } else {
         blockedPlaySecondsRef.current = 0;
       }
 
-      if (state.phase === 'DRAW' && state.currentPlayer === 0 && drawActionsDisabled) {
+      if (state.phase === 'DRAW' && state.currentPlayer === viewerPlayer && drawActionsDisabled) {
         blockedDrawSecondsRef.current += 1;
       } else {
         blockedDrawSecondsRef.current = 0;
@@ -535,7 +537,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [showUxDebug, hasPendingInteraction, playActionsDisabled, drawActionsDisabled, state.phase, state.currentPlayer]);
+  }, [showUxDebug, hasPendingInteraction, playActionsDisabled, drawActionsDisabled, state.phase, state.currentPlayer, viewerPlayer]);
 
   const resetUiPrefs = useCallback(() => {
     setShowLog(false);
@@ -574,16 +576,17 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
         minWidth: 0,
       }}>
         {/* Opponent area */}
-        <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === 1 ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
+        <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === opponentPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
           borderRadius: 12,
           background: 'rgba(20,10,5,0.34)',
         }}>
           <OpponentArea
-            player={state.players[1]}
+            player={state.players[opponentPlayer]}
             aiMessage={aiMessage}
             onMessageHide={handleAiMessageHide}
-            goldDelta={visualFeedback.goldDeltas[1]}
-            marketFlashSlots={visualFeedback.marketFlashSlots[1]}
+            goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
+            marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}
+            label={localMultiplayer ? `Opponent (Player ${opponentPlayer + 1})` : 'Opponent (AI)'}
           />
         </div>
 
@@ -593,7 +596,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
         </div>
 
         {/* Player sections */}
-        <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === 0 ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
+        <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === viewerPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
           borderRadius: 12,
           padding: '12px',
           background: 'rgba(20,10,5,0.28)',
@@ -618,18 +621,18 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
           </div>
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
             <MarketDisplay
-              market={state.players[0].market}
-              flashSlots={visualFeedback.marketFlashSlots[0]}
+              market={state.players[viewerPlayer].market}
+              flashSlots={visualFeedback.marketFlashSlots[viewerPlayer]}
               flashVariant="soft"
-              label="Your Market"
+              label={localMultiplayer ? `Player ${viewerPlayer + 1} Market` : 'Your Market'}
             />
             <UtilityArea
-              utilities={state.players[0].utilities}
+              utilities={state.players[viewerPlayer].utilities}
               onActivate={(i) => {
                 const validation = validateActivateUtility(state, i);
                 if (!validation.valid) {
                   const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot activate utility');
-                  setCardError({ cardId: state.players[0].utilities[i].cardId, message: friendlyMessage });
+                  setCardError({ cardId: state.players[viewerPlayer].utilities[i].cardId, message: friendlyMessage });
                   return;
                 }
                 setCardError(null);
@@ -637,7 +640,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
               }}
               disabled={playActionsDisabled}
               cardError={cardError}
-              label="Your Utilities"
+              label={localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}
             />
           </div>
         </div>
@@ -659,28 +662,28 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
           }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <div className="panel-section-title" style={{ fontSize: 15, marginBottom: 0 }}>
-              Your Hand ({state.players[0].hand.length} cards)
+              {localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'} ({state.players[viewerPlayer].hand.length} cards)
             </div>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span key={`my-gold-${visualFeedback.goldDeltas[0]}`} className={visualFeedback.goldDeltas[0] !== 0 ? 'gold-pop gold-pop-soft' : undefined} style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)', position: 'relative' }}>
-                {state.players[0].gold}g
-                {visualFeedback.goldDeltas[0] !== 0 && (
+              <span key={`my-gold-${visualFeedback.goldDeltas[viewerPlayer]}`} className={visualFeedback.goldDeltas[viewerPlayer] !== 0 ? 'gold-pop gold-pop-soft' : undefined} style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)', position: 'relative' }}>
+                {state.players[viewerPlayer].gold}g
+                {visualFeedback.goldDeltas[viewerPlayer] !== 0 && (
                   <span className="gold-delta-text gold-delta-text-soft" style={{
                     position: 'absolute',
                     top: -18,
                     right: -20,
-                    color: visualFeedback.goldDeltas[0] > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                    color: visualFeedback.goldDeltas[viewerPlayer] > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
                     fontSize: 12,
                     fontWeight: 700,
                   }}>
-                    {visualFeedback.goldDeltas[0] > 0 ? `+${visualFeedback.goldDeltas[0]}g` : `${visualFeedback.goldDeltas[0]}g`}
+                    {visualFeedback.goldDeltas[viewerPlayer] > 0 ? `+${visualFeedback.goldDeltas[viewerPlayer]}g` : `${visualFeedback.goldDeltas[viewerPlayer]}g`}
                   </span>
                 )}
               </span>
             </div>
           </div>
           <HandDisplay
-            hand={state.players[0].hand}
+            hand={state.players[viewerPlayer].hand}
             onPlayCard={handlePlayCard}
             disabled={playActionsDisabled}
             cardError={cardError}
@@ -691,7 +694,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
         </div>
 
         {/* End Turn button */}
-        {state.phase === 'PLAY' && state.currentPlayer === 0 && (
+        {state.phase === 'PLAY' && state.currentPlayer === viewerPlayer && (
           <div style={{
             display: 'flex',
             justifyContent: 'center',
@@ -1090,6 +1093,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
           dispatch={dispatch}
           disabled={drawActionsDisabled}
           disabledReason={drawDisabledReason}
+          viewerPlayer={viewerPlayer}
           onClose={() => setDrawModalOpen(false)}
         />
       )}
@@ -1146,7 +1150,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium' }: { onBackTo
       {/* Resolve mega view */}
       {hasPendingInteraction && !isAiTurn && (
         <ResolveMegaView verticalAlign="center">
-          <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={0} onMegaView={setMegaCardId} />
+          <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={setMegaCardId} />
         </ResolveMegaView>
       )}
 

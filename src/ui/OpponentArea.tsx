@@ -10,9 +10,10 @@ interface OpponentAreaProps {
   onMessageHide?: () => void;
   goldDelta?: number;
   marketFlashSlots?: number[];
+  label?: string;
 }
 
-function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0, marketFlashSlots }: OpponentAreaProps) {
+function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0, marketFlashSlots, label = 'Opponent (AI)' }: OpponentAreaProps) {
   return (
     <div style={{ position: 'relative' }}>
       <SpeechBubble
@@ -31,7 +32,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
         alignItems: 'center',
         marginBottom: 10,
       }}>
-        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18 }}>Opponent (AI)</span>
+        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18 }}>{label}</span>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <span key={`opp-gold-${goldDelta}`} className={goldDelta !== 0 ? 'gold-pop gold-pop-strong' : undefined} style={{ color: 'var(--gold)', fontWeight: 700, fontSize: 16, position: 'relative' }}>
             {player.gold}g
