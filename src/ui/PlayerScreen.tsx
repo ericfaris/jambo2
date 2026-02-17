@@ -8,7 +8,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { PublicGameState, PrivateGameState } from '../multiplayer/types.ts';
 import type { GameAction, DeckCardId, WareType, GameState } from '../engine/types.ts';
-import { getCard } from '../engine/cards/CardDatabase.ts';
+import { getCard, isValidDeckCardId, ALL_DECK_CARD_IDS } from '../engine/cards/CardDatabase.ts';
 import { validatePlayCard, validateActivateUtility } from '../engine/validation/actionValidator.ts';
 import { UtilityArea } from './UtilityArea.tsx';
 import { HandDisplay } from './HandDisplay.tsx';
@@ -279,6 +279,8 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
 
   const inPlayPhase = pub.phase === 'PLAY' && pub.currentPlayer === slot;
   const actionsDisabled = !isMyTurn || (hasPendingInteraction && pub.phase !== 'DRAW');
+  const opponentAction = getLatestOpponentAction(pub, slot);
+  const showOpponentActionPanel = !hasPendingInteraction && !isMyTurn && opponentAction !== null && pub.phase !== 'GAME_OVER';
 
   const playDisabledReason = getPlayDisabledReason({
     phase: pub.phase,
@@ -407,6 +409,11 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       {hasPendingInteraction && (
         <ResolveMegaView verticalAlign="center">
           <CastInteractionPanel pub={pub} priv={priv} slot={slot} dispatch={dispatch} onMegaView={setMegaCardId} />
+        </ResolveMegaView>
+      )}
+      {showOpponentActionPanel && opponentAction && (
+        <ResolveMegaView verticalAlign="center">
+          <OpponentActionPanel {...opponentAction} />
         </ResolveMegaView>
       )}
 
@@ -875,11 +882,12 @@ function CastInteractionPanel({ pub, priv, slot, dispatch, onMegaView }: {
 
   // InteractionPanel expects GameState — cast as any since we're providing a subset
   if (!syntheticState.pendingResolution && pub.pendingResolutionType) {
+    const resolvingMessage = getResolutionStatusMessage(pub.pendingResolutionType);
     return (
       <div className="panel-slide" style={{ maxWidth: 460, margin: '0 auto', width: '100%' }}>
         <div className="dialog-pop" style={{ borderRadius: 14, padding: 12 }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Resolving {pub.pendingResolutionType}...</div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>{resolvingMessage}</div>
           </div>
         </div>
       </div>
@@ -894,6 +902,310 @@ function CastInteractionPanel({ pub, priv, slot, dispatch, onMegaView }: {
       onMegaView={onMegaView}
     />
   );
+}
+
+interface OpponentActionInfo {
+  cardId: DeckCardId | null;
+  message: string;
+  wareStolen?: WareType | null;
+  wareGivenBack?: WareType | null;
+  affectedUtilityCardId?: DeckCardId | null;
+}
+
+function OpponentActionPanel({
+  cardId,
+  message,
+  wareStolen,
+  wareGivenBack,
+  affectedUtilityCardId,
+}: OpponentActionInfo) {
+  const card = cardId ? getCard(cardId) : null;
+  const affectedUtility = affectedUtilityCardId ? getCard(affectedUtilityCardId) : null;
+  return (
+    <div className="panel-slide" style={{ maxWidth: 460, margin: '0 auto', width: '100%' }}>
+      <div className="dialog-pop" style={{ borderRadius: 14, padding: 12 }}>
+        <div style={{ textAlign: 'center', fontWeight: 700, marginBottom: 8 }}>
+          Opponent Action
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          {card && (
+            <img
+              src={`/assets/cards/${card.designId}.png`}
+              alt={card.name}
+              draggable={false}
+              style={{ width: 116, borderRadius: 8, display: 'block' }}
+            />
+          )}
+          <div style={{ maxWidth: 260, textAlign: 'left' }}>
+            {card && <div style={{ fontWeight: 700, marginBottom: 4 }}>{card.name}</div>}
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{message}</div>
+            {(wareStolen || wareGivenBack || affectedUtility) && (
+              <div style={{ marginTop: 8, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {wareStolen && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Stole</span>
+                    <img
+                      src={`/assets/wares/${wareStolen}.png`}
+                      alt={`${wareStolen} ware`}
+                      draggable={false}
+                      style={{ width: 28, height: 28, borderRadius: 5, border: '1px solid var(--border-light)' }}
+                    />
+                  </div>
+                )}
+                {wareGivenBack && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Gave</span>
+                    <img
+                      src={`/assets/wares/${wareGivenBack}.png`}
+                      alt={`${wareGivenBack} ware`}
+                      draggable={false}
+                      style={{ width: 28, height: 28, borderRadius: 5, border: '1px solid var(--border-light)' }}
+                    />
+                  </div>
+                )}
+                {affectedUtility && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Your Utility</span>
+                    <img
+                      src={`/assets/cards/${affectedUtility.designId}.png`}
+                      alt={affectedUtility.name}
+                      draggable={false}
+                      style={{ width: 46, borderRadius: 6, display: 'block' }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getResolutionStatusMessage(type: NonNullable<PublicGameState['pendingResolutionType']>): string {
+  switch (type) {
+    case 'AUCTION':
+      return 'Resolving auction...';
+    case 'DRAFT':
+      return 'Resolving draft picks...';
+    case 'OPPONENT_DISCARD':
+      return 'Opponent is choosing cards to discard...';
+    case 'OPPONENT_CHOICE':
+    case 'BINARY_CHOICE':
+      return 'Waiting for a decision...';
+    case 'HAND_SWAP':
+      return 'Resolving hand swap...';
+    case 'WARE_TRADE':
+    case 'WARE_SELECT_MULTIPLE':
+    case 'WARE_SELL_BULK':
+    case 'WARE_RETURN':
+    case 'WARE_CASH_CONVERSION':
+    case 'CARRIER_WARE_SELECT':
+      return 'Resolving ware transaction...';
+    case 'WARE_THEFT_SINGLE':
+    case 'WARE_THEFT_SWAP':
+      return 'Resolving ware theft...';
+    case 'UTILITY_THEFT_SINGLE':
+    case 'UTILITY_KEEP':
+    case 'UTILITY_REPLACE':
+    case 'UTILITY_EFFECT':
+    case 'CROCODILE_USE':
+      return 'Resolving utility effect...';
+    case 'SUPPLIES_DISCARD':
+      return 'Resolving Supplies card...';
+    case 'DECK_PEEK':
+      return 'Resolving card selection...';
+    case 'DISCARD_PICK':
+      return 'Resolving discard pile pick...';
+    case 'DRAW_MODIFIER':
+      return 'Resolving draw effect...';
+    case 'TURN_MODIFIER':
+      return 'Applying turn effect...';
+    default:
+      return 'Resolving card effect...';
+  }
+}
+
+function getLatestOpponentAction(pub: PublicGameState, slot: 0 | 1): OpponentActionInfo | null {
+  const opponent: 0 | 1 = slot === 0 ? 1 : 0;
+  for (let i = pub.log.length - 1; i >= 0; i--) {
+    const entry = pub.log[i];
+    if (!entry || entry.player === slot) continue;
+    if (entry.turn !== pub.turn) continue;
+    if (!isOpponentActionForPanel(entry.action)) continue;
+    const actionInfo = parseOpponentAction(entry.action, entry.details ?? '', pub, opponent);
+    if (!actionInfo) continue;
+    return actionInfo;
+  }
+  return null;
+}
+
+function isOpponentActionForPanel(action: string): boolean {
+  return (
+    action.startsWith('PLAY_') ||
+    action === 'ACTIVATE_UTILITY' ||
+    action === 'DRAW_CARD' ||
+    action === 'KEEP_CARD' ||
+    action === 'DISCARD_DRAWN' ||
+    action === 'SKIP_DRAW' ||
+    action === 'DRAW_ACTION' ||
+    action === 'PARROT_STEAL' ||
+    action === 'THRONE_SWAP' ||
+    action === 'CROCODILE_DISCARD' ||
+    action === 'CROCODILE_USE' ||
+    action === 'HYENA_SWAP'
+  );
+}
+
+function parseOpponentAction(
+  action: string,
+  details: string,
+  pub: PublicGameState,
+  opponent: 0 | 1,
+): OpponentActionInfo | null {
+  if (action === 'ACTIVATE_UTILITY') {
+    const cardId = extractPlayedCardId(details, pub, opponent);
+    if (!cardId) return { cardId: null, message: 'Opponent activated a utility card.' };
+    return { cardId, message: `Opponent activated ${getCard(cardId).name}.` };
+  }
+
+  if (action === 'DRAW_CARD') return { cardId: null, message: 'Opponent drew a card and is deciding whether to keep it.' };
+  if (action === 'KEEP_CARD') return { cardId: null, message: 'Opponent kept the drawn card.' };
+  if (action === 'DISCARD_DRAWN') return { cardId: null, message: 'Opponent discarded the drawn card.' };
+  if (action === 'SKIP_DRAW') return { cardId: null, message: 'Opponent skipped the draw phase.' };
+  if (action === 'DRAW_ACTION') return { cardId: null, message: 'Opponent drew a card using an action.' };
+
+  if (action.startsWith('PLAY_')) {
+    const cardId = extractPlayedCardId(details, pub, opponent);
+    if (!cardId) return null;
+    return { cardId, message: details || `${getCard(cardId).name} was used.` };
+  }
+
+  if (action === 'PARROT_STEAL') {
+    const ware = extractWareFromSteal(details);
+    return {
+      cardId: findAnyCardIdByDesign('parrot'),
+      message: ware ? 'Opponent stole one of your wares.' : (details || 'Opponent stole one of your wares.'),
+      wareStolen: ware,
+    };
+  }
+
+  if (action === 'THRONE_SWAP') {
+    const stole = asWareType(details.match(/Stole\s+([a-z_]+)/i)?.[1]);
+    const gave = asWareType(details.match(/gave\s+([a-z_]+)/i)?.[1]);
+    return {
+      cardId: findUtilityCardIdByDesign(pub, opponent, 'throne') ?? findAnyCardIdByDesign('throne'),
+      message: stole && gave
+        ? 'Opponent swapped wares with you.'
+        : stole
+          ? 'Opponent stole one of your wares.'
+          : (details || 'Opponent swapped wares using Throne.'),
+      wareStolen: stole,
+      wareGivenBack: gave,
+    };
+  }
+
+  if (action === 'CROCODILE_DISCARD') {
+    const removedCardId = details.match(/Discarded opponent's\s+([a-z0-9_]+)/i)?.[1]?.trim() ?? null;
+    const utilityCardId = removedCardId && isValidDeckCardId(removedCardId) ? removedCardId : null;
+    return {
+      cardId: findAnyCardIdByDesign('crocodile'),
+      message: utilityCardId ? 'Opponent discarded one of your utility cards.' : (details || 'Opponent discarded one of your utility cards.'),
+      affectedUtilityCardId: utilityCardId,
+    };
+  }
+
+  if (action === 'CROCODILE_USE') {
+    const usedName = details.match(/opponent's\s+([A-Za-z ]+?)(?:\s+\(|$)/i)?.[1]?.trim() ?? null;
+    return {
+      cardId: findAnyCardIdByDesign('crocodile'),
+      message: usedName ? 'Opponent used one of your utility cards.' : (details || 'Opponent used one of your utilities.'),
+      affectedUtilityCardId: usedName ? findUtilityCardIdByName(pub, slotForOpponent(opponent), usedName) : null,
+    };
+  }
+
+  if (action === 'HYENA_SWAP') {
+    return { cardId: findAnyCardIdByDesign('hyena'), message: details || 'Opponent swapped cards with your hand.' };
+  }
+
+  return null;
+}
+
+function extractWareFromSteal(details: string): WareType | null {
+  return asWareType(details.match(/Stole\s+([a-z_]+)\s+from opponent/i)?.[1]);
+}
+
+function extractPlayedCardId(
+  details: string,
+  pub: PublicGameState,
+  opponent: 0 | 1,
+): DeckCardId | null {
+  for (const pattern of [/\bPlaced\s+([a-z0-9_]+)\s+in play area\b/i, /\bvia\s+([a-z0-9_]+)\b/i]) {
+    const raw = details.match(pattern)?.[1]?.trim();
+    if (raw && isValidDeckCardId(raw)) return raw;
+  }
+
+  const cardName = details.match(/^Played\s+(.+?)(?:\s+\(|\s+-|$)/i)?.[1]?.trim();
+  const utilityName = details.match(/^Activated\s+(.+?)(?:\s+\(|\s+-|$)/i)?.[1]?.trim()
+    ?? details.match(/^([A-Za-z ]+):/)?.[1]?.trim()
+    ?? null;
+
+  if (cardName) {
+    const normalized = cardName.toLowerCase();
+    for (const id of ALL_DECK_CARD_IDS) {
+      if (getCard(id).name.toLowerCase() === normalized) return id;
+    }
+  }
+
+  if (utilityName) {
+    const normalizedUtility = utilityName.toLowerCase();
+    const utilityMatch = pub.players[opponent].utilities.find(
+      (utility) => getCard(utility.cardId).name.toLowerCase() === normalizedUtility,
+    );
+    if (utilityMatch) return utilityMatch.cardId;
+  }
+
+  return null;
+}
+
+function findAnyCardIdByDesign(designId: string): DeckCardId | null {
+  for (const id of ALL_DECK_CARD_IDS) {
+    if (getCard(id).designId === designId) return id;
+  }
+  return null;
+}
+
+function findUtilityCardIdByDesign(pub: PublicGameState, player: 0 | 1, designId: string): DeckCardId | null {
+  const match = pub.players[player].utilities.find((utility) => utility.designId === designId);
+  return match?.cardId ?? null;
+}
+
+function findUtilityCardIdByName(pub: PublicGameState, player: 0 | 1, utilityName: string): DeckCardId | null {
+  const normalizedName = utilityName.trim().toLowerCase();
+  const match = pub.players[player].utilities.find(
+    (utility) => getCard(utility.cardId).name.toLowerCase() === normalizedName,
+  );
+  return match?.cardId ?? null;
+}
+
+function asWareType(value: string | undefined | null): WareType | null {
+  const normalized = value?.trim().toLowerCase();
+  if (
+    normalized === 'trinkets' ||
+    normalized === 'hides' ||
+    normalized === 'tea' ||
+    normalized === 'silk' ||
+    normalized === 'fruit' ||
+    normalized === 'salt'
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
+function slotForOpponent(opponent: 0 | 1): 0 | 1 {
+  return opponent === 0 ? 1 : 0;
 }
 
 // --- Helpers ---
