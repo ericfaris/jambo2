@@ -95,6 +95,7 @@ export function TVScreen({ ws }: TVScreenProps) {
   const [showDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast] = useState(() => getInitialHighContrast());
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
+  const [playerSectionHeight, setPlayerSectionHeight] = useState<number | null>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
 
   if (!pub) return null;
@@ -198,6 +199,7 @@ export function TVScreen({ ws }: TVScreenProps) {
           label="Player 2"
           isActive={pub.currentPlayer === 1}
           flipWoodBackground={true}
+          fixedHeight={playerSectionHeight}
           goldDelta={visualFeedback.goldDeltas[1]}
           marketFlashSlots={visualFeedback.marketFlashSlots[1]}
           waitingMessage={waitingInfo.targetPlayer === 1 ? waitingInfo.message ?? undefined : undefined}
@@ -217,6 +219,8 @@ export function TVScreen({ ws }: TVScreenProps) {
           playerIndex={0}
           label="Player 1"
           isActive={pub.currentPlayer === 0}
+          fixedHeight={playerSectionHeight}
+          onMeasureHeight={setPlayerSectionHeight}
           goldDelta={visualFeedback.goldDeltas[0]}
           marketFlashSlots={visualFeedback.marketFlashSlots[0]}
           waitingMessage={waitingInfo.targetPlayer === 0 ? waitingInfo.message ?? undefined : undefined}
@@ -303,18 +307,53 @@ export function TVScreen({ ws }: TVScreenProps) {
 
 // --- Sub-components ---
 
-function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground, goldDelta, marketFlashSlots, waitingMessage }: {
+function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground, fixedHeight, onMeasureHeight, goldDelta, marketFlashSlots, waitingMessage }: {
   player: PublicPlayerState;
   playerIndex: 0 | 1;
   label: string;
   isActive: boolean;
   flipWoodBackground?: boolean;
+  fixedHeight?: number | null;
+  onMeasureHeight?: (height: number) => void;
   goldDelta?: number;
   marketFlashSlots?: number[];
   waitingMessage?: string;
 }) {
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!onMeasureHeight || fixedHeight !== null) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const measure = () => {
+      const height = Math.round(panel.getBoundingClientRect().height);
+      if (height > 0) {
+        onMeasureHeight(height);
+      }
+    };
+
+    measure();
+    const rafId = window.requestAnimationFrame(measure);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [fixedHeight, onMeasureHeight]);
+
   return (
-    <div data-center-target={playerIndex === 1 ? 'top' : 'bottom'} className={`etched-wood-border turn-emphasis ${isActive ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{ position: 'relative', borderRadius: 12, background: 'rgba(20,10,5,0.34)', padding: '0 12px 0' }}>
+    <div
+      ref={panelRef}
+      data-center-target={playerIndex === 1 ? 'top' : 'bottom'}
+      className={`etched-wood-border turn-emphasis ${isActive ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`}
+      style={{
+        position: 'relative',
+        borderRadius: 12,
+        background: 'rgba(20,10,5,0.34)',
+        padding: '0 12px 0',
+        height: fixedHeight ?? undefined,
+        minHeight: fixedHeight ?? undefined,
+        maxHeight: fixedHeight ?? undefined,
+        overflow: fixedHeight ? 'hidden' : undefined,
+      }}
+    >
       {waitingMessage && (
         <div style={{
           position: 'absolute',
