@@ -909,7 +909,12 @@ interface OpponentActionInfo {
   message: string;
   wareStolen?: WareType | null;
   wareGivenBack?: WareType | null;
+  wareSelected?: WareType | null;
   affectedUtilityCardId?: DeckCardId | null;
+  cardTakenId?: DeckCardId | null;
+  cardGivenId?: DeckCardId | null;
+  extraCardIds?: DeckCardId[];
+  extraWareTypes?: WareType[];
 }
 
 function OpponentActionPanel({
@@ -917,10 +922,17 @@ function OpponentActionPanel({
   message,
   wareStolen,
   wareGivenBack,
+  wareSelected,
   affectedUtilityCardId,
+  cardTakenId,
+  cardGivenId,
+  extraCardIds,
+  extraWareTypes,
 }: OpponentActionInfo) {
   const card = cardId ? getCard(cardId) : null;
   const affectedUtility = affectedUtilityCardId ? getCard(affectedUtilityCardId) : null;
+  const takenCard = cardTakenId ? getCard(cardTakenId) : null;
+  const givenCard = cardGivenId ? getCard(cardGivenId) : null;
   return (
     <div className="panel-slide" style={{ maxWidth: 460, margin: '0 auto', width: '100%' }}>
       <div className="dialog-pop" style={{ borderRadius: 14, padding: 12 }}>
@@ -939,7 +951,7 @@ function OpponentActionPanel({
           <div style={{ maxWidth: 260, textAlign: 'left' }}>
             {card && <div style={{ fontWeight: 700, marginBottom: 4 }}>{card.name}</div>}
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{message}</div>
-            {(wareStolen || wareGivenBack || affectedUtility) && (
+            {(wareStolen || wareGivenBack || wareSelected || affectedUtility || takenCard || givenCard || (extraCardIds && extraCardIds.length > 0) || (extraWareTypes && extraWareTypes.length > 0)) && (
               <div style={{ marginTop: 8, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {wareStolen && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -963,6 +975,17 @@ function OpponentActionPanel({
                     />
                   </div>
                 )}
+                {wareSelected && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Selected</span>
+                    <img
+                      src={`/assets/wares/${wareSelected}.png`}
+                      alt={`${wareSelected} ware`}
+                      draggable={false}
+                      style={{ width: 28, height: 28, borderRadius: 5, border: '1px solid var(--border-light)' }}
+                    />
+                  </div>
+                )}
                 {affectedUtility && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Your Utility</span>
@@ -974,6 +997,53 @@ function OpponentActionPanel({
                     />
                   </div>
                 )}
+                {takenCard && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Took</span>
+                    <img
+                      src={`/assets/cards/${takenCard.designId}.png`}
+                      alt={takenCard.name}
+                      draggable={false}
+                      style={{ width: 46, borderRadius: 6, display: 'block' }}
+                    />
+                  </div>
+                )}
+                {givenCard && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Gave</span>
+                    <img
+                      src={`/assets/cards/${givenCard.designId}.png`}
+                      alt={givenCard.name}
+                      draggable={false}
+                      style={{ width: 46, borderRadius: 6, display: 'block' }}
+                    />
+                  </div>
+                )}
+                {extraCardIds?.map((id) => {
+                  const c = getCard(id);
+                  return (
+                    <div key={`extra-card-${id}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Card</span>
+                      <img
+                        src={`/assets/cards/${c.designId}.png`}
+                        alt={c.name}
+                        draggable={false}
+                        style={{ width: 46, borderRadius: 6, display: 'block' }}
+                      />
+                    </div>
+                  );
+                })}
+                {extraWareTypes?.map((w, idx) => (
+                  <div key={`extra-ware-${w}-${idx}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ware</span>
+                    <img
+                      src={`/assets/wares/${w}.png`}
+                      alt={`${w} ware`}
+                      draggable={false}
+                      style={{ width: 28, height: 28, borderRadius: 5, border: '1px solid var(--border-light)' }}
+                    />
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1054,7 +1124,37 @@ function isOpponentActionForPanel(action: string): boolean {
     action === 'THRONE_SWAP' ||
     action === 'CROCODILE_DISCARD' ||
     action === 'CROCODILE_USE' ||
-    action === 'HYENA_SWAP'
+    action === 'HYENA_SWAP' ||
+    action === 'LEOPARD_STATUE_EFFECT' ||
+    action === 'LEOPARD_RETURN' ||
+    action === 'GUARD_PLAYED' ||
+    action === 'RAIN_MAKER_PLAYED' ||
+    action === 'RAIN_MAKER_DECLINED' ||
+    action === 'CHEETAH_EFFECT' ||
+    action === 'SCALE_EFFECT' ||
+    action === 'BOAT_EFFECT' ||
+    action === 'DRUMS_EFFECT' ||
+    action === 'KETTLE_EFFECT' ||
+    action === 'WEAPONS_EFFECT' ||
+    action === 'UTILITY_REPLACE' ||
+    action === 'SHAMAN_TRADE' ||
+    action === 'PORTUGUESE_SELL' ||
+    action === 'BASKET_MAKER' ||
+    action === 'CARRIER_WARES' ||
+    action === 'DANCER_CONVERSION' ||
+    action === 'DRUMMER_PICK' ||
+    action === 'PSYCHIC_PEEK' ||
+    action === 'TRIBAL_ELDER_DISCARD' ||
+    action === 'TRIBAL_ELDER_DRAW' ||
+    action === 'OPPONENT_DISCARD' ||
+    action === 'AUCTION_WON' ||
+    action === 'AUCTION_NO_WINNER' ||
+    action === 'DRAFT_COMPLETE' ||
+    action === 'SUPPLIES_DRAW' ||
+    action === 'SUPPLIES_PAY' ||
+    action === 'SUPPLIES_DISCARD_CHOICE' ||
+    action === 'ACTION_BONUS' ||
+    action === 'END_TURN'
   );
 }
 
@@ -1064,10 +1164,12 @@ function parseOpponentAction(
   pub: PublicGameState,
   opponent: 0 | 1,
 ): OpponentActionInfo | null {
+  const humanDetails = humanizeLogDetails(details);
+
   if (action === 'ACTIVATE_UTILITY') {
     const cardId = extractPlayedCardId(details, pub, opponent);
     if (!cardId) return { cardId: null, message: 'Opponent activated a utility card.' };
-    return { cardId, message: `Opponent activated ${getCard(cardId).name}.` };
+    return { cardId, message: 'Opponent activated a utility card.' };
   }
 
   if (action === 'DRAW_CARD') return { cardId: null, message: 'Opponent drew a card and is deciding whether to keep it.' };
@@ -1079,14 +1181,16 @@ function parseOpponentAction(
   if (action.startsWith('PLAY_')) {
     const cardId = extractPlayedCardId(details, pub, opponent);
     if (!cardId) return null;
-    return { cardId, message: details || `${getCard(cardId).name} was used.` };
+    if (action === 'PLAY_WARE_BUY') return { cardId, message: 'Opponent played a ware card and bought wares.' };
+    if (action === 'PLAY_WARE_SELL') return { cardId, message: 'Opponent played a ware card and sold wares.' };
+    return { cardId, message: 'Opponent played a card.' };
   }
 
   if (action === 'PARROT_STEAL') {
     const ware = extractWareFromSteal(details);
     return {
       cardId: findAnyCardIdByDesign('parrot'),
-      message: ware ? 'Opponent stole one of your wares.' : (details || 'Opponent stole one of your wares.'),
+      message: ware ? 'Opponent stole one of your wares.' : (humanDetails || 'Opponent stole one of your wares.'),
       wareStolen: ware,
     };
   }
@@ -1100,7 +1204,7 @@ function parseOpponentAction(
         ? 'Opponent swapped wares with you.'
         : stole
           ? 'Opponent stole one of your wares.'
-          : (details || 'Opponent swapped wares using Throne.'),
+          : (humanDetails || 'Opponent swapped wares using Throne.'),
       wareStolen: stole,
       wareGivenBack: gave,
     };
@@ -1111,22 +1215,140 @@ function parseOpponentAction(
     const utilityCardId = removedCardId && isValidDeckCardId(removedCardId) ? removedCardId : null;
     return {
       cardId: findAnyCardIdByDesign('crocodile'),
-      message: utilityCardId ? 'Opponent discarded one of your utility cards.' : (details || 'Opponent discarded one of your utility cards.'),
+      message: utilityCardId
+        ? 'Opponent discarded one of your utility cards.'
+        : (humanDetails || 'Opponent discarded one of your utility cards.'),
       affectedUtilityCardId: utilityCardId,
     };
   }
 
   if (action === 'CROCODILE_USE') {
     const usedName = details.match(/opponent's\s+([A-Za-z ]+?)(?:\s+\(|$)/i)?.[1]?.trim() ?? null;
+    const affectedUtilityCardId = usedName ? findUtilityCardIdByName(pub, slotForOpponent(opponent), usedName) : null;
+    const utilityName = affectedUtilityCardId ? getCard(affectedUtilityCardId).name : usedName;
     return {
       cardId: findAnyCardIdByDesign('crocodile'),
-      message: usedName ? 'Opponent used one of your utility cards.' : (details || 'Opponent used one of your utilities.'),
-      affectedUtilityCardId: usedName ? findUtilityCardIdByName(pub, slotForOpponent(opponent), usedName) : null,
+      message: utilityName
+        ? 'Opponent used one of your utility cards.'
+        : (humanDetails || 'Opponent used one of your utilities.'),
+      affectedUtilityCardId,
     };
   }
 
   if (action === 'HYENA_SWAP') {
-    return { cardId: findAnyCardIdByDesign('hyena'), message: details || 'Opponent swapped cards with your hand.' };
+    const tookCardId = details.match(/Took\s+([a-z0-9_]+)/i)?.[1]?.trim();
+    const gaveCardId = details.match(/gave\s+([a-z0-9_]+)/i)?.[1]?.trim();
+    const tookName = tookCardId && isValidDeckCardId(tookCardId) ? getCard(tookCardId).name : null;
+    const gaveName = gaveCardId && isValidDeckCardId(gaveCardId) ? getCard(gaveCardId).name : null;
+    const message = tookName || gaveName
+      ? 'Opponent swapped cards with your hand.'
+      : humanDetails || 'Opponent swapped cards with your hand.';
+    return {
+      cardId: findAnyCardIdByDesign('hyena'),
+      message,
+      cardTakenId: tookCardId && isValidDeckCardId(tookCardId) ? tookCardId : null,
+      cardGivenId: gaveCardId && isValidDeckCardId(gaveCardId) ? gaveCardId : null,
+    };
+  }
+
+  if (action === 'LEOPARD_STATUE_EFFECT') {
+    const selectedWare = asWareType(details.match(/received\s+([a-z_]+)/i)?.[1]);
+    return {
+      cardId: findUtilityCardIdByDesign(pub, opponent, 'leopard_statue') ?? findAnyCardIdByDesign('leopard_statue'),
+      message: selectedWare
+        ? 'Opponent used Leopard Statue and selected a ware.'
+        : (humanDetails || 'Opponent used Leopard Statue.'),
+      wareSelected: selectedWare,
+    };
+  }
+
+  if (action === 'RAIN_MAKER_PLAYED') {
+    const takenCardId = details.match(/took\s+([a-z0-9_]+)\s+from discard/i)?.[1]?.trim();
+    const takenCardName = takenCardId && isValidDeckCardId(takenCardId) ? getCard(takenCardId).name : null;
+    return {
+      cardId: findAnyCardIdByDesign('rain_maker'),
+      message: takenCardName
+        ? 'Opponent played Rain Maker and took a card from the discard pile.'
+        : (humanDetails || 'Opponent played Rain Maker.'),
+      extraCardIds: takenCardId && isValidDeckCardId(takenCardId) ? [takenCardId] : undefined,
+    };
+  }
+
+  if (action === 'RAIN_MAKER_DECLINED') {
+    return {
+      cardId: findAnyCardIdByDesign('rain_maker'),
+      message: 'Opponent declined to use Rain Maker.',
+    };
+  }
+
+  if (action === 'GUARD_PLAYED') {
+    return {
+      cardId: findAnyCardIdByDesign('guard'),
+      message: humanDetails || 'Opponent played Guard to cancel an attack.',
+    };
+  }
+
+  if (action === 'SCALE_EFFECT') {
+    const gaveCardId = details.match(/gave\s+([a-z0-9_]+)\s+to opponent/i)?.[1]?.trim();
+    const gaveCardName = gaveCardId && isValidDeckCardId(gaveCardId) ? getCard(gaveCardId).name : null;
+    const keptCardId = details.match(/Kept\s+([a-z0-9_]+)/i)?.[1]?.trim();
+    const keptCardName = keptCardId && isValidDeckCardId(keptCardId) ? getCard(keptCardId).name : null;
+    if (gaveCardName && keptCardName) {
+      return {
+        cardId: findUtilityCardIdByDesign(pub, opponent, 'scale') ?? findAnyCardIdByDesign('scale'),
+        message: 'Opponent used Scale and gave you a card.',
+        cardGivenId: details.match(/gave\s+([a-z0-9_]+)\s+to opponent/i)?.[1]?.trim() ?? null,
+      };
+    }
+  }
+
+  if (action === 'CHEETAH_EFFECT') {
+    return {
+      cardId: findAnyCardIdByDesign('cheetah'),
+      message: humanDetails || 'Opponent resolved Cheetah.',
+    };
+  }
+
+  if (action === 'UTILITY_REPLACE') {
+    return {
+      cardId: null,
+      message: humanDetails || 'Opponent replaced a utility card.',
+    };
+  }
+
+  if (action === 'AUCTION_WON' || action === 'AUCTION_NO_WINNER' || action === 'DRAFT_COMPLETE') {
+    return {
+      cardId: null,
+      message: humanDetails || 'Opponent resolved a shared market effect.',
+    };
+  }
+
+  if (
+    action === 'LEOPARD_RETURN' ||
+    action === 'BOAT_EFFECT' ||
+    action === 'DRUMS_EFFECT' ||
+    action === 'KETTLE_EFFECT' ||
+    action === 'WEAPONS_EFFECT' ||
+    action === 'SHAMAN_TRADE' ||
+    action === 'PORTUGUESE_SELL' ||
+    action === 'BASKET_MAKER' ||
+    action === 'CARRIER_WARES' ||
+    action === 'DANCER_CONVERSION' ||
+    action === 'DRUMMER_PICK' ||
+    action === 'PSYCHIC_PEEK' ||
+    action === 'TRIBAL_ELDER_DISCARD' ||
+    action === 'TRIBAL_ELDER_DRAW' ||
+    action === 'OPPONENT_DISCARD' ||
+    action === 'SUPPLIES_DRAW' ||
+    action === 'SUPPLIES_PAY' ||
+    action === 'SUPPLIES_DISCARD_CHOICE' ||
+    action === 'ACTION_BONUS' ||
+    action === 'END_TURN'
+  ) {
+    return {
+      cardId: null,
+      message: humanDetails || `Opponent resolved ${action.toLowerCase().replace(/_/g, ' ')}.`,
+    };
   }
 
   return null;
@@ -1206,6 +1428,14 @@ function asWareType(value: string | undefined | null): WareType | null {
 
 function slotForOpponent(opponent: 0 | 1): 0 | 1 {
   return opponent === 0 ? 1 : 0;
+}
+
+function humanizeLogDetails(details: string): string {
+  if (!details) return '';
+  return details.replace(/\b([a-z][a-z0-9]*_[a-z0-9_]+)\b/gi, (token) => {
+    if (!isValidDeckCardId(token)) return token;
+    return getCard(token).name;
+  });
 }
 
 // --- Helpers ---
