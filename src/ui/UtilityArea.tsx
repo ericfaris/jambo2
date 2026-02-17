@@ -8,9 +8,10 @@ interface UtilityAreaProps {
   disabled?: boolean;
   cardError?: {cardId: string, message: string} | null;
   label?: string;
+  cardSize?: 'small' | 'default' | 'large';
 }
 
-function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, label }: UtilityAreaProps) {
+function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, label, cardSize = 'small' }: UtilityAreaProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -41,7 +42,7 @@ function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, labe
         gap: isMobile ? 0 : 8,
         flexWrap: isMobile ? 'nowrap' : 'wrap',
         overflowX: isMobile ? 'auto' : 'visible',
-        overflowY: 'hidden',
+        overflowY: 'visible',
         paddingBottom: isMobile ? 4 : 0,
         WebkitOverflowScrolling: 'touch',
         touchAction: isMobile ? 'pan-x' : 'auto',
@@ -63,7 +64,8 @@ function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, labe
           >
             <CardFace
               cardId={u.cardId}
-              small
+              small={cardSize === 'small'}
+              large={cardSize === 'large'}
               onClick={!disabled && onActivate && !u.usedThisTurn ? () => onActivate(i) : undefined}
             />
             {u.usedThisTurn && (

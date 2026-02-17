@@ -55,6 +55,38 @@ interface TVScreenProps {
   ws: WebSocketGameState;
 }
 
+function getWaitingInfo(pub: PublicGameState): { targetPlayer: 0 | 1 | null; message: string | null } {
+  if (pub.phase === 'GAME_OVER') {
+    return { targetPlayer: null, message: null };
+  }
+
+  if (pub.pendingGuardReaction) {
+    return {
+      targetPlayer: pub.pendingGuardReaction.targetPlayer,
+      message: `Player ${pub.pendingGuardReaction.targetPlayer + 1} may play a Guard...`,
+    };
+  }
+
+  if (pub.pendingWareCardReaction) {
+    return {
+      targetPlayer: pub.pendingWareCardReaction.targetPlayer,
+      message: `Player ${pub.pendingWareCardReaction.targetPlayer + 1} may react with Rain Maker...`,
+    };
+  }
+
+  if (pub.pendingResolutionType) {
+    const who = pub.waitingOnPlayer;
+    return {
+      targetPlayer: who,
+      message: who !== null
+        ? `Player ${who + 1} is choosing... (${pub.pendingResolutionType})`
+        : `Resolving ${pub.pendingResolutionType}...`,
+    };
+  }
+
+  return { targetPlayer: null, message: null };
+}
+
 export function TVScreen({ ws }: TVScreenProps) {
   const pub = ws.publicState;
   const [showLog, setShowLog] = useState(() => getInitialShowLog());
@@ -71,6 +103,7 @@ export function TVScreen({ ws }: TVScreenProps) {
   }, []);
 
   if (!pub) return null;
+  const waitingInfo = getWaitingInfo(pub);
 
   const lastLog = pub.log.length > 0 ? pub.log[pub.log.length - 1] : null;
   const visualFeedback = useVisualFeedback({
@@ -195,6 +228,7 @@ export function TVScreen({ ws }: TVScreenProps) {
         {/* Player 2 area (top) */}
         <TVPlayerArea
           player={pub.players[1]}
+          playerIndex={1}
           label="Player 2"
           isActive={pub.currentPlayer === 1}
           flipWoodBackground={true}
@@ -202,21 +236,26 @@ export function TVScreen({ ws }: TVScreenProps) {
           onMessageHide={handleAiMessageHide}
           goldDelta={visualFeedback.goldDeltas[1]}
           marketFlashSlots={visualFeedback.marketFlashSlots[1]}
+          waitingMessage={waitingInfo.targetPlayer === 1 ? waitingInfo.message ?? undefined : undefined}
         />
 
         {/* Center row */}
         <TVCenterRow pub={pub} visualFeedback={visualFeedback} supply={pub.wareSupply} />
 
-        {/* Waiting indicator */}
-        <TVWaitingIndicator pub={pub} />
+        {/* Waiting indicator fallback (only when not tied to one player panel) */}
+        {waitingInfo.message && waitingInfo.targetPlayer === null && (
+          <TVWaitingIndicator message={waitingInfo.message} />
+        )}
 
         {/* Player 1 area (bottom) */}
         <TVPlayerArea
           player={pub.players[0]}
+          playerIndex={0}
           label="Player 1"
           isActive={pub.currentPlayer === 0}
           goldDelta={visualFeedback.goldDeltas[0]}
           marketFlashSlots={visualFeedback.marketFlashSlots[0]}
+          waitingMessage={waitingInfo.targetPlayer === 0 ? waitingInfo.message ?? undefined : undefined}
         />
       </div>
 
@@ -442,8 +481,9 @@ export function TVScreen({ ws }: TVScreenProps) {
 
 // --- Sub-components ---
 
-function TVPlayerArea({ player, label, isActive, flipWoodBackground, aiMessage, onMessageHide, goldDelta, marketFlashSlots }: {
+function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground, aiMessage, onMessageHide, goldDelta, marketFlashSlots, waitingMessage }: {
   player: PublicPlayerState;
+  playerIndex: 0 | 1;
   label: string;
   isActive: boolean;
   flipWoodBackground?: boolean;
@@ -451,21 +491,41 @@ function TVPlayerArea({ player, label, isActive, flipWoodBackground, aiMessage, 
   onMessageHide?: () => void;
   goldDelta?: number;
   marketFlashSlots?: number[];
+  waitingMessage?: string;
 }) {
   return (
-    <div className={`etched-wood-border turn-emphasis ${isActive ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{ position: 'relative', borderRadius: 12, background: 'rgba(20,10,5,0.34)', padding: 12 }}>
-      <div style={{ position: 'absolute', top: 150, right: 0, zIndex: 9999, pointerEvents: 'none' }}>
+    <div className={`etched-wood-border turn-emphasis ${isActive ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{ position: 'relative', borderRadius: 12, background: 'rgba(20,10,5,0.34)', padding: '0 12px 0' }}>
+      {waitingMessage && (
+        <div style={{
+          position: 'absolute',
+          top: 10,
+          right: 12,
+          zIndex: 20,
+          background: 'rgba(20,10,5,0.82)',
+          border: '1px solid var(--border-light)',
+          borderRadius: 8,
+          padding: '6px 10px',
+          fontSize: 13,
+          color: 'var(--text-muted)',
+          fontFamily: 'var(--font-heading)',
+          maxWidth: 360,
+          textAlign: 'right',
+        }}>
+          {waitingMessage.replace(`Player ${playerIndex + 1} `, '')}
+        </div>
+      )}
+      <div style={{ position: 'absolute', top: 0, right: 170, zIndex: 9999, pointerEvents: 'none' }}>
         <SpeechBubble
           message={aiMessage || ''}
           visible={!!aiMessage}
           onHide={onMessageHide || (() => {})}
         />
       </div>
-      <div className="etched-wood-border" style={{
+      <div style={{
         position: 'relative',
         borderRadius: 10,
         padding: 10,
-        overflow: 'hidden',
+        overflow: 'visible',
         background: 'rgba(20,10,5,0.24)',
       }}>
         <img
@@ -491,7 +551,7 @@ function TVPlayerArea({ player, label, isActive, flipWoodBackground, aiMessage, 
         }} />
         <div style={{ position: 'relative', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" />
-          <UtilityArea utilities={player.utilities} disabled label="Utilities" />
+          <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" />
         </div>
         <div style={{
           position: 'relative',
@@ -587,7 +647,7 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: '14px 12px',
+      padding: '0 12px 0',
       borderRadius: 10,
       background: 'rgba(20,10,5,0.24)',
       width: '100%'
@@ -606,19 +666,13 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
         </div>
       )}
 
-      {actionTag && (
-        <div className={`center-row-action-tag${visualFeedback?.trail?.actor === 1 ? ' center-row-action-tag-opponent' : ''}`}>
-          {actionTag}
-        </div>
-      )}
-
       {lastActionRecap && (
         <div className="center-row-recap">
           {lastActionRecap}
         </div>
       )}
 
-      <div style={{ display: 'flex', width: '100%', justifyContent: 'flex-start', alignItems: 'center', gap: 24, marginTop: 25 }}>
+      <div style={{ display: 'flex', width: '100%', justifyContent: 'flex-start', alignItems: 'center', gap: 24, marginTop: 0 }}>
         {/* Left: Ware supply */}
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignSelf: 'flex-end', marginBottom: 26 }}>
           <div style={{
@@ -660,15 +714,25 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
             <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 16 }}>Deck ({pub.deckCount})</div>
           </div>
 
-          <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{ background: phaseColor + '20', borderRadius: 12, padding: '20px 34px', border: `1px solid ${phaseColor}`, textAlign: 'center', minWidth: 320 }}>
-            <div style={{ fontSize: 15, color: 'var(--text-muted)' }}>Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}</div>
-            <div style={{ fontWeight: 700, fontSize: 24, color: phaseColor }}>{phaseLabel}</div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 8 }}>
-              {Array.from({ length: 5 }, (_, i) => (
-                <div key={i} style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '2px solid var(--gold)' }} />
-              ))}
+          <div style={{ position: 'relative' }}>
+            {actionTag && (
+              <div
+                className={`center-row-action-tag${visualFeedback?.trail?.actor === 1 ? ' center-row-action-tag-opponent' : ''}`}
+                style={{ top: -18, left: '50%', transform: 'translateX(-50%)' }}
+              >
+                {actionTag}
+              </div>
+            )}
+            <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{ background: phaseColor + '20', borderRadius: 12, padding: '20px 34px', border: `1px solid ${phaseColor}`, textAlign: 'center', minWidth: 320 }}>
+              <div style={{ fontSize: 15, color: 'var(--text-muted)' }}>Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}</div>
+              <div style={{ fontWeight: 700, fontSize: 24, color: phaseColor }}>{phaseLabel}</div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 12 }}>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div key={i} style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '2px solid var(--gold)' }} />
+                ))}
+              </div>
+              {pub.endgame && (<div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>{pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}</div>)}
             </div>
-            {pub.endgame && (<div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>{pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}</div>)}
           </div>
 
           <div key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}>
@@ -681,23 +745,7 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
   );
 }
 
-function TVWaitingIndicator({ pub }: { pub: PublicGameState }) {
-  if (pub.phase === 'GAME_OVER') return null;
-
-  let message: string;
-  if (pub.pendingGuardReaction) {
-    message = `Player ${pub.pendingGuardReaction.targetPlayer + 1} may play a Guard...`;
-  } else if (pub.pendingWareCardReaction) {
-    message = `Player ${pub.pendingWareCardReaction.targetPlayer + 1} may react with Rain Maker...`;
-  } else if (pub.pendingResolutionType) {
-    const who = pub.waitingOnPlayer;
-    message = who !== null
-      ? `Player ${who + 1} is choosing... (${pub.pendingResolutionType})`
-      : `Resolving ${pub.pendingResolutionType}...`;
-  } else {
-    return null;
-  }
-
+function TVWaitingIndicator({ message }: { message: string }) {
   return (
     <div className="disabled-hint" style={{
       textAlign: 'center',

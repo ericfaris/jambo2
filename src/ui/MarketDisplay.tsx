@@ -33,7 +33,6 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
         background: 'transparent',
         borderRadius: 10,
         padding: 10,
-        border: '1px solid var(--border)',
         boxShadow: 'none',
       }}>
         {market.map((ware, i) => (
