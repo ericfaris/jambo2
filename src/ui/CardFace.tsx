@@ -49,21 +49,31 @@ interface CardFaceProps {
   onClick?: () => void;
   selected?: boolean;
   small?: boolean;
+  medium?: boolean;
   large?: boolean;
   extraLarge?: boolean;
   faceDown?: boolean;
+  scale?: number;
   onMegaView?: (cardId: DeckCardId) => void;
 }
 
-export function CardFace({ cardId, onClick, selected, small, large, extraLarge, faceDown, onMegaView }: CardFaceProps) {
+export function CardFace({ cardId, onClick, selected, small, medium, large, extraLarge, faceDown, scale = 1, onMegaView }: CardFaceProps) {
   const [imgError, setImgError] = useState(false);
+  const baseFaceWidth = small ? 96 : medium ? 120 : extraLarge ? 364 : large ? 180 : 140;
+  const baseFaceHeight = small ? 128 : medium ? 160 : extraLarge ? 485 : large ? 240 : 187;
+  const baseFallbackWidth = small ? 80 : medium ? 100 : extraLarge ? 364 : large ? 150 : 116;
+  const baseFallbackHeight = small ? 107 : medium ? 133 : extraLarge ? 485 : large ? 200 : 155;
+  const faceWidth = Math.round(baseFaceWidth * scale);
+  const faceHeight = Math.round(baseFaceHeight * scale);
+  const fallbackWidth = Math.round(baseFallbackWidth * scale);
+  const fallbackHeight = Math.round(baseFallbackHeight * scale);
 
   if (faceDown) {
     return (
       <div
         style={{
-          width: small ? 96 : extraLarge ? 364 : large ? 180 : 140,
-          height: small ? 128 : extraLarge ? 485 : large ? 240 : 187,
+          width: faceWidth,
+          height: faceHeight,
           borderRadius: 10,
           backgroundImage: 'url(/assets/cards/card_back.png)',
           backgroundSize: 'cover',
@@ -91,14 +101,14 @@ export function CardFace({ cardId, onClick, selected, small, large, extraLarge, 
   const tooltip = tooltipLines.join('\n');
 
   if (hasImage) {
-    const pad = small ? 2 : large ? 4 : 3;
+    const pad = small || medium ? 2 : large ? 4 : 3;
     return (<>
       <div
         title={tooltip}
         onClick={onClick}
         style={{
-          width: small ? 96 : large ? 180 : 140,
-          height: small ? 128 : large ? 240 : 187,
+          width: faceWidth,
+          height: faceHeight,
           borderRadius: 10,
           padding: pad,
           boxSizing: 'border-box',
@@ -279,8 +289,8 @@ export function CardFace({ cardId, onClick, selected, small, large, extraLarge, 
       title={tooltip}
       onClick={onClick}
       style={{
-        width: small ? 80 : extraLarge ? 364 : large ? 150 : 116,
-        height: small ? 107 : extraLarge ? 485 : large ? 200 : 155,
+        width: fallbackWidth,
+        height: fallbackHeight,
         borderRadius: 10,
         border: `2px solid ${selected ? 'var(--gold)' : 'var(--border)'}`,
         background: selected ? 'var(--surface-accent)' : 'var(--surface)',

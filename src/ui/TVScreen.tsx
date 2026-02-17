@@ -3,7 +3,7 @@
 // Full shared board view for TV/large display. No private info shown.
 // ============================================================================
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { PublicGameState, PublicPlayerState } from '../multiplayer/types.ts';
 import type { WareType } from '../engine/types.ts';
@@ -89,13 +89,11 @@ function getWaitingInfo(pub: PublicGameState): { targetPlayer: 0 | 1 | null; mes
 
 export function TVScreen({ ws }: TVScreenProps) {
   const pub = ws.publicState;
-  const [showLog, setShowLog] = useState(() => getInitialShowLog());
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
-  const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
-  const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
+  const [showLog] = useState(() => getInitialShowLog());
+  const [animationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
+  const [showDevTelemetry] = useState(() => getInitialDevTelemetry());
+  const [highContrast] = useState(() => getInitialHighContrast());
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
-  const menuRef = useRef<HTMLDivElement>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
 
   const handleAiMessageHide = useCallback(() => {
@@ -171,43 +169,6 @@ export function TVScreen({ ws }: TVScreenProps) {
     newEvents.forEach((entry) => console.debug(`[JamboTV] ${entry}`));
     setTelemetryEvents((previous) => [...newEvents, ...previous].slice(0, 8));
   }, [showDevTelemetry, visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    const handleClick = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClick);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [menuOpen]);
-
-  const resetUiPrefs = useCallback(() => {
-    setShowLog(true);
-    setAnimationSpeed('normal');
-    setShowDevTelemetry(false);
-    setHighContrast(false);
-    setTelemetryEvents([]);
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(SHOW_LOG_STORAGE_KEY);
-      window.localStorage.removeItem(ANIMATION_SPEED_STORAGE_KEY);
-      window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
-      window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
-    }
-  }, []);
 
   return (
     <div style={{
@@ -295,148 +256,6 @@ export function TVScreen({ ws }: TVScreenProps) {
         </div>
       )}
 
-      {/* Settings */}
-      <div ref={menuRef} style={{ position: 'fixed', top: 12, right: 16, zIndex: 50 }}>
-        <button
-          onClick={() => setMenuOpen((previous) => !previous)}
-          style={{
-            width: 42,
-            height: 42,
-            padding: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-            background: menuOpen ? 'var(--surface-accent)' : 'var(--surface-light)',
-            border: '1px solid var(--border-light)',
-            borderRadius: 8,
-            cursor: 'pointer',
-          }}
-          title="Settings"
-        >
-          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
-          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
-          <span style={{ width: 16, height: 2, background: 'var(--text-muted)', borderRadius: 1 }} />
-        </button>
-
-        {menuOpen && (
-          <div className="dialog-pop" style={{
-            position: 'absolute',
-            top: 42,
-            right: 0,
-            background: 'var(--surface)',
-            border: '1px solid var(--border-light)',
-            borderRadius: 10,
-            padding: 12,
-            minWidth: 220,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-          }}>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--gold)', marginBottom: 12 }}>
-              TV Settings
-            </div>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              cursor: 'pointer',
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              Show Game Log
-              <input
-                type="checkbox"
-                checked={showLog}
-                onChange={() => setShowLog((previous) => !previous)}
-                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-              />
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              Animation Speed
-              <select
-                value={animationSpeed}
-                onChange={(event) => setAnimationSpeed(event.target.value as AnimationSpeed)}
-                style={{
-                  background: 'var(--surface-light)',
-                  border: '1px solid var(--border-light)',
-                  color: 'var(--text)',
-                  borderRadius: 6,
-                  padding: '4px 8px',
-                  fontSize: 14,
-                }}
-              >
-                <option value="normal">Normal</option>
-                <option value="fast">Fast</option>
-              </select>
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              cursor: 'pointer',
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
-              High Contrast Mode
-              <input
-                type="checkbox"
-                checked={highContrast}
-                onChange={() => setHighContrast((previous) => !previous)}
-                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-              />
-            </label>
-            {isDevMode() && (
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                marginTop: 10,
-                cursor: 'pointer',
-                fontSize: 15,
-                color: 'var(--text)',
-              }}>
-                Dev Telemetry Overlay
-                <input
-                  type="checkbox"
-                  checked={showDevTelemetry}
-                  onChange={() => setShowDevTelemetry((previous) => !previous)}
-                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-                />
-              </label>
-            )}
-            <button
-              onClick={resetUiPrefs}
-              style={{
-                marginTop: 12,
-                width: '100%',
-                background: 'var(--surface-light)',
-                border: '1px solid var(--border-light)',
-                color: 'var(--text)',
-                borderRadius: 8,
-                padding: '8px 10px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                fontSize: 14,
-              }}
-            >
-              Reset UI Preferences
-            </button>
-          </div>
-        )}
-      </div>
-
       {/* Endgame overlay */}
       {pub.phase === 'GAME_OVER' && <TVEndgameOverlay pub={pub} />}
 
@@ -514,7 +333,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           {waitingMessage.replace(`Player ${playerIndex + 1} `, '')}
         </div>
       )}
-      <div style={{ position: 'absolute', top: 0, right: 170, zIndex: 9999, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', top: -30, right: 170, zIndex: 9999, pointerEvents: 'none' }}>
         <SpeechBubble
           message={aiMessage || ''}
           visible={!!aiMessage}
@@ -736,7 +555,9 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
           </div>
 
           <div key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}>
-            {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large /> : <div style={{ width: 180, height: 240, borderRadius: 10, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Empty</div>}
+            <div key={`tv-discard-card-${displayDiscardCard ?? 'empty'}-${pub.discardPile.length}`} className="discard-soft-fade">
+              {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large /> : <div style={{ width: 180, height: 240, borderRadius: 10, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Empty</div>}
+            </div>
             <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 16 }}>Discard ({pub.discardPile.length})</div>
           </div>
         </div>

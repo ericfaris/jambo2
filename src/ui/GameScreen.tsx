@@ -451,6 +451,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const playDisabledReason = getPlayDisabledReason({
     phase: state.phase,
     currentPlayer: state.currentPlayer,
+    viewerPlayer,
     actionsLeft: state.actionsLeft,
     hasPendingInteraction,
     isAiTurn,
@@ -458,6 +459,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const drawDisabledReason = getDrawDisabledReason({
     phase: state.phase,
     currentPlayer: state.currentPlayer,
+    viewerPlayer,
     isAiTurn,
   });
 
@@ -657,6 +659,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               disabled={playActionsDisabled}
               cardError={cardError}
               label={localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}
+              showHelperText={false}
             />
           </div>
         </div>
@@ -705,6 +708,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             cardError={cardError}
             useWoodBackground={false}
             transparentBackground={false}
+            showHelperText={false}
             onMegaView={setMegaCardId}
           />
         </div>

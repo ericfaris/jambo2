@@ -283,6 +283,17 @@ button.danger:hover:not(:disabled) {
   to { opacity: 1; }
 }
 
+@keyframes discardSoftFadeIn {
+  from {
+    opacity: 0.45;
+    filter: brightness(0.96);
+  }
+  to {
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -534,6 +545,11 @@ button.danger:hover:not(:disabled) {
   animation: fadeIn 0.2s var(--anim-ease-standard);
 }
 
+.discard-soft-fade {
+  animation: discardSoftFadeIn 1560ms var(--anim-ease-standard);
+  will-change: opacity, filter;
+}
+
 .ux-debug .center-row-recap {
   border-color: var(--gold);
   box-shadow: 0 0 0 2px rgba(212,168,80,0.45), 0 0 14px rgba(212,168,80,0.35);
@@ -586,6 +602,10 @@ button.danger:hover:not(:disabled) {
   }
 
   .center-row-recap {
+    animation: none !important;
+  }
+
+  .discard-soft-fade {
     animation: none !important;
   }
 

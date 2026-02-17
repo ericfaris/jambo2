@@ -239,23 +239,25 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
           background: 'rgba(90,64,48,0.1)',
         })
       }}>
-        {displayDiscardCard ? (
-          <CardFace cardId={displayDiscardCard} small />
-        ) : (
-          <div style={{
-            width: 96,
-            height: 128,
-            borderRadius: 10,
-            border: '2px dashed var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-muted)',
-            fontSize: 13,
-          }}>
-            Empty
-          </div>
-        )}
+        <div key={`discard-card-${displayDiscardCard ?? 'empty'}-${state.discardPile.length}`} className="discard-soft-fade">
+          {displayDiscardCard ? (
+            <CardFace cardId={displayDiscardCard} small />
+          ) : (
+            <div style={{
+              width: 96,
+              height: 128,
+              borderRadius: 10,
+              border: '2px dashed var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-muted)',
+              fontSize: 13,
+            }}>
+              Empty
+            </div>
+          )}
+        </div>
         <div className="panel-section-title" style={{ marginBottom: 0 }}>
           Discard ({state.discardPile.length})
         </div>

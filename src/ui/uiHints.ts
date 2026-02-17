@@ -3,6 +3,7 @@ import type { PendingResolution } from '../engine/types.ts';
 interface PlayDisabledReasonInput {
   phase: 'DRAW' | 'PLAY' | 'GAME_OVER';
   currentPlayer: 0 | 1;
+  viewerPlayer: 0 | 1;
   actionsLeft: number;
   hasPendingInteraction: boolean;
   isAiTurn: boolean;
@@ -11,12 +12,13 @@ interface PlayDisabledReasonInput {
 interface DrawDisabledReasonInput {
   phase: 'DRAW' | 'PLAY' | 'GAME_OVER';
   currentPlayer: 0 | 1;
+  viewerPlayer: 0 | 1;
   isAiTurn: boolean;
 }
 
 export function getPlayDisabledReason(input: PlayDisabledReasonInput): string | null {
   if (input.phase !== 'PLAY') return 'Play cards during the Play phase.';
-  if (input.currentPlayer !== 0) return "Wait for your turn to play cards.";
+  if (input.currentPlayer !== input.viewerPlayer) return "Wait for your turn to play cards.";
   if (input.isAiTurn) return 'Opponent is resolving actions.';
   if (input.hasPendingInteraction) return 'Finish the current interaction first.';
   if (input.actionsLeft <= 0) return 'No actions remaining this turn.';
@@ -25,7 +27,7 @@ export function getPlayDisabledReason(input: PlayDisabledReasonInput): string | 
 
 export function getDrawDisabledReason(input: DrawDisabledReasonInput): string | null {
   if (input.phase !== 'DRAW') return 'Drawing is only available during the Draw phase.';
-  if (input.currentPlayer !== 0) return "Wait for your turn to draw.";
+  if (input.currentPlayer !== input.viewerPlayer) return "Wait for your turn to draw.";
   if (input.isAiTurn) return 'Opponent is resolving actions.';
   return null;
 }

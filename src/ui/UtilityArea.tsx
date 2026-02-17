@@ -8,10 +8,29 @@ interface UtilityAreaProps {
   disabled?: boolean;
   cardError?: {cardId: string, message: string} | null;
   label?: string;
-  cardSize?: 'small' | 'default' | 'large';
+  cardSize?: 'small' | 'medium' | 'default' | 'large';
+  cardScale?: number;
+  showHelperText?: boolean;
+  overlapPx?: number;
+  overlapOnDesktop?: boolean;
+  singleRow?: boolean;
+  hideScrollbar?: boolean;
 }
 
-function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, label, cardSize = 'small' }: UtilityAreaProps) {
+function UtilityAreaComponent({
+  utilities,
+  onActivate,
+  disabled,
+  cardError,
+  label,
+  cardSize = 'small',
+  cardScale = 1,
+  showHelperText = true,
+  overlapPx = 42,
+  overlapOnDesktop = false,
+  singleRow = false,
+  hideScrollbar = false,
+}: UtilityAreaProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -21,7 +40,7 @@ function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, labe
     return () => window.removeEventListener('resize', updateIsMobile);
   }, []);
 
-  const overlapAmount = 42;
+  const overlapAmount = overlapPx;
   const hasUnusedUtility = utilities.some((utility) => !utility.usedThisTurn);
   const showInteractionHint = !!onActivate && !disabled && hasUnusedUtility;
 
@@ -32,7 +51,7 @@ function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, labe
           {label}
         </div>
       )}
-      {showInteractionHint && (
+      {showHelperText && showInteractionHint && (
         <div className="ui-helper-text" style={{ marginBottom: 4 }}>
           Tap an unused utility to activate.
         </div>
@@ -40,12 +59,14 @@ function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, labe
       <div style={{
         display: 'flex',
         gap: isMobile ? 0 : 8,
-        flexWrap: isMobile ? 'nowrap' : 'wrap',
-        overflowX: isMobile ? 'auto' : 'visible',
+        flexWrap: (isMobile || singleRow) ? 'nowrap' : 'wrap',
+        overflowX: (isMobile || singleRow) ? 'auto' : 'visible',
         overflowY: 'visible',
         paddingBottom: isMobile ? 4 : 0,
         WebkitOverflowScrolling: 'touch',
-        touchAction: isMobile ? 'pan-x' : 'auto',
+        touchAction: (isMobile || singleRow) ? 'pan-x' : 'auto',
+        scrollbarWidth: hideScrollbar ? 'none' : 'auto',
+        msOverflowStyle: hideScrollbar ? 'none' : 'auto',
       }}>
         {utilities.length === 0 && (
           <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 14, padding: 6 }}>
@@ -59,13 +80,15 @@ function UtilityAreaComponent({ utilities, onActivate, disabled, cardError, labe
               position: 'relative',
               flexShrink: 0,
               zIndex: i,
-              marginLeft: isMobile && i > 0 ? -overlapAmount : 0,
+              marginLeft: (isMobile || overlapOnDesktop) && i > 0 ? -overlapAmount : 0,
             }}
           >
             <CardFace
               cardId={u.cardId}
               small={cardSize === 'small'}
+              medium={cardSize === 'medium'}
               large={cardSize === 'large'}
+              scale={cardScale}
               onClick={!disabled && onActivate && !u.usedThisTurn ? () => onActivate(i) : undefined}
             />
             {u.usedThisTurn && (

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { DeckCardId } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
+import { WARE_COLORS } from './CardFace.tsx';
 
 interface MegaViewProps {
   cardId: DeckCardId;
@@ -85,12 +86,59 @@ export function MegaView({ cardId, onClose }: MegaViewProps) {
           />
         </div>
         <div style={{ padding: '0 6px 6px', textAlign: 'center', minHeight: 96, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1714', marginBottom: 6 }}>
-            {card.name}
-          </div>
-          <div style={{ fontSize: 15, color: '#4a4540', lineHeight: 1.4, textAlign: 'center' }}>
-            {card.description}
-          </div>
+          {card.wares ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 16,
+              padding: '6px 8px',
+            }}>
+              <img
+                src={`/assets/coins/coin_${card.wares.buyPrice}.png`}
+                alt={`${card.wares.buyPrice}g`}
+                style={{ width: 54, height: 54, flexShrink: 0 }}
+                draggable={false}
+              />
+              <div style={{
+                display: 'flex',
+                gap: 10,
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                maxWidth: 200,
+              }}>
+                {card.wares.types.map((wareType, index) => (
+                  <span
+                    key={`${wareType}-${index}`}
+                    title={wareType}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      background: WARE_COLORS[wareType],
+                      border: '2px solid rgba(0,0,0,0.6)',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    }}
+                  />
+                ))}
+              </div>
+              <img
+                src={`/assets/coins/coin_${card.wares.sellPrice}.png`}
+                alt={`${card.wares.sellPrice}g`}
+                style={{ width: 54, height: 54, flexShrink: 0 }}
+                draggable={false}
+              />
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1714', marginBottom: 6 }}>
+                {card.name}
+              </div>
+              <div style={{ fontSize: 15, color: '#4a4540', lineHeight: 1.4, textAlign: 'center' }}>
+                {card.description}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

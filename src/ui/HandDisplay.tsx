@@ -10,11 +10,19 @@ interface HandDisplayProps {
   onMegaView?: (cardId: DeckCardId) => void;
   useWoodBackground?: boolean;
   transparentBackground?: boolean;
+  showBorder?: boolean;
+  showHelperText?: boolean;
+  cardScale?: number;
+  paddingBottom?: number;
+  paddingX?: number;
+  paddingLeft?: number;
+  paddingRight?: number;
+  paddingTop?: number;
   layoutMode?: 'fan' | 'grid3' | 'twoRowAlternate';
   fixedOverlapPx?: number;
 }
 
-function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, layoutMode = 'fan', fixedOverlapPx }: HandDisplayProps) {
+function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaView, useWoodBackground = true, transparentBackground = false, showBorder = true, showHelperText = true, cardScale = 1, paddingBottom = 14, paddingX = 14, paddingLeft, paddingRight, paddingTop = 14, layoutMode = 'fan', fixedOverlapPx }: HandDisplayProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile screen size
@@ -80,6 +88,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
     >
       <CardFace
         cardId={cardId}
+        scale={cardScale}
         onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
         onMegaView={onMegaView}
       />
@@ -123,11 +132,14 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
     });
   }
 
+  const resolvedPaddingLeft = paddingLeft ?? paddingX;
+  const resolvedPaddingRight = paddingRight ?? paddingX;
+
   return (
     <div 
       style={{
         position: 'relative',
-        padding: 14,
+        padding: `${paddingTop}px ${resolvedPaddingRight}px ${paddingBottom}px ${resolvedPaddingLeft}px`,
         ...(useWoodBackground
           ? {
               backgroundImage: 'linear-gradient(rgba(20,10,5,0.54), rgba(20,10,5,0.54)), url(/assets/panels/wood_1.png)',
@@ -138,7 +150,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
           : {
               background: transparentBackground ? 'transparent' : 'rgba(20,10,5,0.2)',
             }),
-        border: '1px dashed var(--border)',
+        border: showBorder ? '1px dashed var(--border)' : 'none',
         borderRadius: 10,
         minHeight: 200,
         overflowX: isGrid3 ? 'hidden' : (isMobile || isTwoRowAlternate ? 'auto' : 'hidden'),
@@ -156,7 +168,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
         touchAction: isGrid3 ? 'auto' : 'pan-x',
       } as any}
     >
-      {!disabled && !!onPlayCard && hand.length > 0 && (
+      {showHelperText && !disabled && !!onPlayCard && hand.length > 0 && (
         <div className="ui-helper-text" style={{
           position: 'absolute',
           top: 4,
@@ -193,6 +205,7 @@ function HandDisplayComponent({ hand, onPlayCard, disabled, cardError, onMegaVie
           >
             <CardFace
               cardId={cardId}
+              scale={cardScale}
               onClick={!disabled && onPlayCard ? () => onPlayCard(cardId) : undefined}
               onMegaView={onMegaView}
             />

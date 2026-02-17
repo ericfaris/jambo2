@@ -15,9 +15,10 @@ import { HandDisplay } from './HandDisplay.tsx';
 import { InteractionPanel } from './InteractionPanel.tsx';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { MegaView } from './MegaView.tsx';
-import { CardPlayDialog } from './ActionButtons.tsx';
+import { CardPlayDialog, DrawModal as SharedDrawModal } from './ActionButtons.tsx';
 import { useAudioEvents } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
+import { getPlayDisabledReason, getDrawDisabledReason } from './uiHints.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -279,6 +280,21 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const inPlayPhase = pub.phase === 'PLAY' && pub.currentPlayer === slot;
   const actionsDisabled = !isMyTurn || (hasPendingInteraction && pub.phase !== 'DRAW');
 
+  const playDisabledReason = getPlayDisabledReason({
+    phase: pub.phase,
+    currentPlayer: pub.currentPlayer,
+    viewerPlayer: slot,
+    actionsLeft: pub.actionsLeft,
+    hasPendingInteraction,
+    isAiTurn: !isMyTurn,
+  });
+  const drawDisabledReason = getDrawDisabledReason({
+    phase: pub.phase,
+    currentPlayer: pub.currentPlayer,
+    viewerPlayer: slot,
+    isAiTurn: !isMyTurn,
+  });
+
   const validationState: GameState = {
     version: 'cast-mode-validation',
     rngSeed: 0,
@@ -366,14 +382,11 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       display: 'flex',
       flexDirection: 'column',
       gap: 10,
-      padding: '12px 16px',
+      padding: '12px 0',
       minHeight: '100vh',
       maxWidth: 600,
       margin: '0 auto',
     }}>
-      {/* Turn indicator - show player identity first */}
-      <TurnIndicator pub={pub} slot={slot} isMyTurn={isMyTurn} />
-
       {/* Error */}
       {ws.error && !isCardActionValidationError(ws.error) && (
         <div style={{
@@ -392,14 +405,14 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
 
       {/* Interaction panel */}
       {hasPendingInteraction && (
-        <ResolveMegaView>
+        <ResolveMegaView verticalAlign="center">
           <CastInteractionPanel pub={pub} priv={priv} slot={slot} dispatch={dispatch} onMegaView={setMegaCardId} />
         </ResolveMegaView>
       )}
 
-      <div className={`turn-emphasis ${isMyTurn ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
+      <div style={{
         borderRadius: 12,
-        padding: 12,
+        padding: 6,
         backgroundImage: 'linear-gradient(rgba(20,10,5,0.54), rgba(20,10,5,0.54)), url(/assets/panels/wood_1.png)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -407,35 +420,39 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       }}>
         {/* Own utilities */}
         <div style={{
-          display: 'flex',
-          gap: 12,
-          flexWrap: 'wrap',
+          position: 'relative',
+          width: '100%',
           background: 'rgba(20,10,5,0.24)',
           borderRadius: 10,
-          padding: 12,
-          border: '1px solid var(--border)',
+          padding: '12px',
         }}>
-          <UtilityArea
-            utilities={myPublic.utilities}
-            onActivate={(i) => {
-              const validation = validateActivateUtility(validationState, i);
-              if (!validation.valid) {
-                const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot activate utility');
-                setCardError({ cardId: myPublic.utilities[i].cardId, message: friendlyMessage });
-                return;
-              }
-              setCardError(null);
-              dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
-            }}
-            disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
-            cardError={cardError}
-            label="Your Utilities"
-          />
-        </div>
+          <div style={{ minWidth: 0, width: '100%' }}>
+            <UtilityArea
+              utilities={myPublic.utilities}
+              onActivate={(i) => {
+                const validation = validateActivateUtility(validationState, i);
+                if (!validation.valid) {
+                  const friendlyMessage = getFriendlyErrorMessage(validation.reason || 'Cannot activate utility');
+                  setCardError({ cardId: myPublic.utilities[i].cardId, message: friendlyMessage });
+                  return;
+                }
+                setCardError(null);
+                dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: i });
+              }}
+              disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
+              cardError={cardError}
+              label="Your Utilities"
+              cardSize="default"
+              cardScale={1.25}
+              showHelperText={false}
+              overlapPx={57}
+              overlapOnDesktop
+              singleRow
+              hideScrollbar
+            />
+          </div>
 
-        {/* Play phase: End Turn button */}
-        {inPlayPhase && (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
+          {inPlayPhase && (
             <button
               disabled={actionsDisabled}
               onClick={() => dispatch({ type: 'END_TURN' })}
@@ -443,15 +460,20 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
                 background: 'linear-gradient(135deg, #c04030 0%, #a03020 50%, #c04030 100%)',
                 border: '2px solid #ff6b5a',
                 borderRadius: 8,
-                padding: '12px 24px',
+                padding: '10px 16px',
                 color: 'white',
                 fontWeight: 700,
-                fontSize: 16,
+                fontSize: 14,
                 cursor: actionsDisabled ? 'default' : 'pointer',
                 boxShadow: '0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
                 animation: 'shimmer 2s ease-in-out infinite alternate',
                 transition: 'all var(--motion-fast) var(--anim-ease-standard)',
                 opacity: actionsDisabled ? 0.6 : 1,
+                flexShrink: 0,
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                zIndex: 6,
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
@@ -461,8 +483,8 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
                     <div
                       key={i}
                       style={{
-                        width: 10,
-                        height: 10,
+                        width: 8,
+                        height: 8,
                         borderRadius: '50%',
                         backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
                         border: '2px solid var(--gold)',
@@ -472,12 +494,19 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
                 </div>
               </div>
             </button>
+          )}
+        </div>
+
+        {/* Play disabled hint */}
+        {actionsDisabled && pub.phase === 'PLAY' && playDisabledReason && (
+          <div className="disabled-hint">
+            {playDisabledReason}
           </div>
         )}
 
         {/* Hand */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 0, padding: '6px 8px 2px 14px' }}>
             <div className="panel-section-title" style={{ fontSize: 15, marginBottom: 0 }}>
               Your Hand ({priv.hand.length} cards)
             </div>
@@ -493,8 +522,15 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
             disabled={actionsDisabled || !inPlayPhase || pub.actionsLeft <= 0}
             cardError={cardError}
             useWoodBackground={false}
+            showBorder={false}
+            showHelperText={false}
+            cardScale={1.25}
+            paddingTop={6}
+            paddingBottom={6}
+            paddingX={8}
+            paddingLeft={14}
             layoutMode="twoRowAlternate"
-            fixedOverlapPx={40}
+            fixedOverlapPx={75}
             onMegaView={setMegaCardId}
           />
         </div>
@@ -723,6 +759,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
           priv={priv}
           dispatch={dispatch}
           disabled={actionsDisabled}
+          disabledReason={drawDisabledReason}
           onClose={() => setDrawModalOpen(false)}
           slot={slot}
         />
@@ -763,248 +800,41 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
 
 // --- Sub-components ---
 
-function DrawModal({ pub, priv, dispatch, disabled, onClose, slot }: {
+function DrawModal({ pub, priv, dispatch, disabled, disabledReason, onClose, slot }: {
   pub: PublicGameState;
   priv: PrivateGameState;
   dispatch: (action: GameAction) => void;
   disabled: boolean;
+  disabledReason?: string | null;
   onClose: () => void;
   slot: 0 | 1;
 }) {
-  const [showCardBack, setShowCardBack] = useState(false);
-  
-  // Show modal if we have a drawn card OR if we're in draw phase (even without a drawn card yet)
-  const shouldShowModal = priv.drawnCard || (pub.phase === 'DRAW' && pub.currentPlayer === slot);
-  if (!shouldShowModal && !showCardBack) return null;
-
-  const card = priv.drawnCard ? getCard(priv.drawnCard) : null;
-  const myUtilities = pub.players[slot].utilities;
-  const maskUtilityIndex = myUtilities.findIndex(
-    (utility) => utility.designId === 'mask_of_transformation' && !utility.usedThisTurn,
-  );
-  const canUseMaskBeforeDraw =
-    !disabled &&
-    pub.phase === 'DRAW' &&
-    pub.currentPlayer === slot &&
-    !priv.drawnCard &&
-    maskUtilityIndex !== -1 &&
-    priv.hand.length > 0 &&
-    pub.discardPile.length > 0 &&
-    pub.actionsLeft > 0;
-
-  // CSS linen finish — fine crosshatch over off-white base
-  const LINEN_BG = [
-    'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-    'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-    'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-    'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-  ].join(', ');
-  const LINEN_BG_SIZE = '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px';
-  const LINEN_BASE = '#e8e4df';
-
-  const handleDiscard = () => {
-    dispatch({ type: 'DISCARD_DRAWN' });
-    setShowCardBack(true);
-  };
-
-  const handleDrawCard = () => {
-    dispatch({ type: 'DRAW_CARD' });
-    setShowCardBack(false);
-  };
-
-  const handleSkipDraw = () => {
-    dispatch({ type: 'SKIP_DRAW' });
-    setShowCardBack(false);
-    onClose();
-  };
+  // Build a synthetic GameState matching what SharedDrawModal reads:
+  // drawnCard, phase, currentPlayer, players[slot].utilities, players[slot].hand,
+  // actionsLeft, keptCardThisDrawPhase, discardPile, wareSupply
+  const syntheticState = {
+    drawnCard: priv.drawnCard,
+    phase: pub.phase,
+    currentPlayer: pub.currentPlayer,
+    actionsLeft: pub.actionsLeft,
+    keptCardThisDrawPhase: false,
+    discardPile: pub.discardPile,
+    wareSupply: pub.wareSupply,
+    players: [
+      { ...pub.players[0], hand: slot === 0 ? priv.hand : [] as DeckCardId[] },
+      { ...pub.players[1], hand: slot === 1 ? priv.hand : [] as DeckCardId[] },
+    ],
+  } as unknown as GameState;
 
   return (
-    <div
-      className="overlay-fade"
-      onClick={() => {
-        setShowCardBack(false);
-        onClose();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 150,
-        background: 'rgba(20,10,5,0.85)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <div
-        className="dialog-pop"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 380,
-          borderRadius: 14,
-          padding: 8,
-          backgroundImage: LINEN_BG,
-          backgroundSize: LINEN_BG_SIZE,
-          backgroundColor: LINEN_BASE,
-          border: '2px solid #a89880',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-        }}
-      >
-        {showCardBack || !priv.drawnCard ? (
-          <img
-            src="/assets/cards/card_back.png"
-            alt="Card back"
-            style={{
-              width: '100%',
-              borderRadius: 10,
-              display: 'block',
-            }}
-            draggable={false}
-          />
-        ) : (
-          <>
-            <img
-              src={`/assets/cards/${card!.designId}.png`}
-              alt={card!.name}
-              style={{
-                width: '100%',
-                borderRadius: 10,
-                display: 'block',
-              }}
-              draggable={false}
-            />
-            <div style={{ padding: '0 6px 6px' }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1714', marginBottom: 6 }}>
-                {card!.name}
-              </div>
-              <div style={{ fontSize: 15, color: '#4a4540', lineHeight: 1.4 }}>
-                {card!.description}
-              </div>
-            </div>
-          </>
-        )}
-        <div style={{
-          display: 'flex',
-          gap: 12,
-          justifyContent: 'center',
-          padding: '0 6px 6px',
-          flexDirection: 'column',
-        }}>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            {showCardBack || !priv.drawnCard ? (
-              <>
-                <button
-                  className="primary"
-                  disabled={disabled || pub.actionsLeft <= 0}
-                  onClick={handleDrawCard}
-                  style={{ flex: 1, padding: '12px' }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                    <div>Draw Card</div>
-                    <div style={{ display: 'flex', gap: 3 }}>
-                      {Array.from({ length: 5 }, (_, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: '50%',
-                            backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
-                            border: '2px solid var(--gold)',
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </button>
-                <button
-                  disabled={disabled}
-                  onClick={handleSkipDraw}
-                  style={{ flex: 1, padding: '12px' }}
-                >
-                  Skip Draw Phase
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  className="primary"
-                  disabled={disabled}
-                  onClick={() => {
-                    dispatch({ type: 'KEEP_CARD' });
-                    setShowCardBack(false);
-                    onClose();
-                  }}
-                  style={{ flex: 1, padding: '12px' }}
-                >
-                  Keep Card
-                </button>
-                <button
-                  className="danger"
-                  disabled={disabled}
-                  onClick={handleDiscard}
-                  style={{ flex: 1, padding: '12px' }}
-                >
-                  Discard
-                </button>
-              </>
-            )}
-          </div>
-          {(showCardBack || !priv.drawnCard) && canUseMaskBeforeDraw && (
-            <button
-              onClick={() => {
-                dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: maskUtilityIndex });
-                setShowCardBack(false);
-                onClose();
-              }}
-              style={{ width: '100%', padding: '12px' }}
-            >
-              Use Mask of Transformation
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TurnIndicator({ pub, slot, isMyTurn }: {
-  pub: PublicGameState;
-  slot: 0 | 1;
-  isMyTurn: boolean;
-}) {
-  const phaseColor = pub.phase === 'DRAW' ? '#5a9ab0' : pub.phase === 'PLAY' ? '#7a9a4a' : '#c04030';
-
-  return (
-    <div style={{
-      textAlign: 'center',
-      padding: '8px 16px',
-      background: isMyTurn ? phaseColor + '25' : 'var(--surface)',
-      borderRadius: 8,
-      border: `1px solid ${isMyTurn ? phaseColor : 'var(--border)'}`,
-    }}>
-      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
-        You are Player {slot + 1} &middot; {pub.players[slot].gold}g
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-        Turn {pub.turn}
-      </div>
-      <div style={{
-        fontWeight: 700,
-        fontSize: 16,
-        color: isMyTurn ? phaseColor : 'var(--text-muted)',
-      }}>
-        {isMyTurn ? (pub.phase === 'DRAW' ? 'Your Draw Phase' : pub.phase === 'PLAY' ? 'Your Play Phase' : 'Game Over')
-          : pub.phase === 'GAME_OVER' ? 'Game Over' : "Opponent's Turn"}
-      </div>
-      {pub.endgame && (
-        <div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>
-          {pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}
-        </div>
-      )}
-    </div>
+    <SharedDrawModal
+      state={syntheticState}
+      dispatch={dispatch}
+      disabled={disabled}
+      disabledReason={disabledReason}
+      onClose={onClose}
+      viewerPlayer={slot}
+    />
   );
 }
 
@@ -1050,7 +880,6 @@ function CastInteractionPanel({ pub, priv, slot, dispatch, onMegaView }: {
         <div className="dialog-pop" style={{ borderRadius: 14, padding: 12 }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>Resolving {pub.pendingResolutionType}...</div>
-            <div className="ui-helper-text">Waiting for opponent action.</div>
           </div>
         </div>
       </div>

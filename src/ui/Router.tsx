@@ -22,9 +22,16 @@ type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings';
 
 function getRoute(): Route {
   const hash = window.location.hash;
-  if (hash === '#/tv' || hash === '#/tv/') return 'tv';
+  if (hash.startsWith('#/tv')) return 'tv';
   if (hash === '#/play' || hash === '#/play/') return 'play';
   return 'local';
+}
+
+function getRoomModeFromHash(): import('../multiplayer/types.ts').RoomMode | null {
+  const hash = window.location.hash;
+  if (hash.startsWith('#/tv/ai')) return 'ai';
+  if (hash.startsWith('#/tv/pvp')) return 'pvp';
+  return null;
 }
 
 function getRandomFirstPlayer(): 0 | 1 {
@@ -77,7 +84,8 @@ export function Router() {
     setAiDifficulty(selectedDifficulty);
 
     if (castMode) {
-      window.location.hash = '#/tv';
+      const roomMode = pendingMode === 'solo' ? 'ai' : 'pvp';
+      window.location.hash = `#/tv/${roomMode}`;
       setScreen('menu');
       setPendingMode(null);
       return;
@@ -185,15 +193,15 @@ export function Router() {
     return null;
   }
 
-  return <CastRouter route={route} aiDifficulty={aiDifficulty} />;
+  return <CastRouter route={route} aiDifficulty={aiDifficulty} roomMode={getRoomModeFromHash()} />;
 }
 
-function CastRouter({ route, aiDifficulty }: { route: 'tv' | 'play'; aiDifficulty: AIDifficulty }) {
+function CastRouter({ route, aiDifficulty, roomMode }: { route: 'tv' | 'play'; aiDifficulty: AIDifficulty; roomMode: import('../multiplayer/types.ts').RoomMode | null }) {
   const ws = useWebSocketGame();
 
   // Show lobby until game state arrives
   if (!ws.publicState) {
-    return <CastLobby ws={ws} role={route === 'tv' ? 'tv' : 'player'} aiDifficulty={aiDifficulty} />;
+    return <CastLobby ws={ws} role={route === 'tv' ? 'tv' : 'player'} aiDifficulty={aiDifficulty} roomMode={roomMode} />;
   }
 
   if (route === 'tv') {

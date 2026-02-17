@@ -11,21 +11,35 @@ interface PreGameSetupModalProps {
   onStart: (options: { castMode: boolean; aiDifficulty: AIDifficulty }) => void;
 }
 
+const sectionStyle = {
+  border: '1px solid var(--border-light)',
+  borderRadius: 10,
+  padding: 12,
+  background: 'var(--surface-light)',
+} as const;
+
+const sectionLabelStyle = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: 'var(--text-muted)',
+  marginBottom: 8,
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+} as const;
+
 export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCancel, onStart }: PreGameSetupModalProps) {
-  const [castMode, setCastMode] = useState(mode === 'multiplayer');
+  const [castMode, setCastMode] = useState(false);
   const [difficulty, setDifficulty] = useState<AIDifficulty>(initialDifficulty);
 
-  const modeTitle = mode === 'solo' ? 'Solo Game Setup' : 'Multiplayer Setup';
-  const modeSubtitle = mode === 'solo'
-    ? 'Prepare your match against AI before entering the game.'
-    : 'Prepare your multiplayer session and choose how you want to play.';
+  const title = mode === 'solo' ? 'New Game' : 'New Multiplayer Game';
 
   return (
     <ResolveMegaView verticalAlign="center">
       <div
         onClick={(event) => event.stopPropagation()}
         style={{
-          width: 'min(640px, 96vw)',
+          width: 'min(520px, 96vw)',
+          margin: '0 auto',
           borderRadius: 14,
           padding: 18,
           backgroundImage: [
@@ -45,75 +59,56 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
         }}
       >
         <div style={{ fontFamily: 'var(--font-heading)', fontSize: 28, color: 'var(--gold)' }}>
-          {modeTitle}
-        </div>
-        <div style={{ fontSize: 15, color: 'var(--text-muted)' }}>
-          {modeSubtitle}
+          {title}
         </div>
 
-        <div style={{
-          border: '1px solid var(--border-light)',
-          borderRadius: 10,
-          padding: 12,
-          background: 'var(--surface-light)',
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Cast Mode
-          </div>
-          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
-            <span style={{ fontSize: 15 }}>
-              Use CAST mode for this game
-            </span>
-            <input
-              type="checkbox"
-              checked={castMode}
-              onChange={() => setCastMode((previous) => !previous)}
-              style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+        {/* Screen mode */}
+        <div style={sectionStyle}>
+          <div style={sectionLabelStyle}>Screen Mode</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <OptionButton
+              selected={!castMode}
+              onClick={() => setCastMode(false)}
+              label="Local"
+              description="Everything on one screen"
             />
-          </label>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-            {castMode
-              ? 'CAST mode selected. You will continue to the TV lobby setup.'
-              : 'Local mode selected. You will start on this device.'}
+            <OptionButton
+              selected={castMode}
+              onClick={() => setCastMode(true)}
+              label="Cast"
+              description="Game view on TV, players on phone"
+            />
           </div>
         </div>
 
+        {/* AI difficulty (solo only) */}
         {mode === 'solo' && (
-          <div style={{
-            border: '1px solid var(--border-light)',
-            borderRadius: 10,
-            padding: 12,
-            background: 'var(--surface-light)',
-          }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              AI Difficulty
-            </div>
-            <select
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value as AIDifficulty)}
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border-light)',
-                color: 'var(--text)',
-                borderRadius: 8,
-                padding: '8px 10px',
-                cursor: 'pointer',
-                fontSize: 15,
-                width: '100%',
-              }}
-            >
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-              {difficulty === 'easy' && 'Relaxed play — AI makes simple decisions.'}
-              {difficulty === 'medium' && 'Balanced challenge — AI uses basic strategy.'}
-              {difficulty === 'hard' && 'Tough opponent — AI evaluates board state deeply.'}
+          <div style={sectionStyle}>
+            <div style={sectionLabelStyle}>AI Difficulty</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <OptionButton
+                selected={difficulty === 'easy'}
+                onClick={() => setDifficulty('easy')}
+                label="Easy"
+                description="Simple decisions"
+              />
+              <OptionButton
+                selected={difficulty === 'medium'}
+                onClick={() => setDifficulty('medium')}
+                label="Medium"
+                description="Basic strategy"
+              />
+              <OptionButton
+                selected={difficulty === 'hard'}
+                onClick={() => setDifficulty('hard')}
+                label="Hard"
+                description="Deep evaluation"
+              />
             </div>
           </div>
         )}
 
+        {/* Actions */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button
             onClick={onCancel}
@@ -139,10 +134,37 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
               cursor: 'pointer',
             }}
           >
-            Continue
+            Start Game
           </button>
         </div>
       </div>
     </ResolveMegaView>
+  );
+}
+
+function OptionButton({ selected, onClick, label, description }: {
+  selected: boolean;
+  onClick: () => void;
+  label: string;
+  description: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1,
+        padding: '10px 8px',
+        borderRadius: 8,
+        border: selected ? '2px solid var(--gold)' : '2px solid var(--border-light)',
+        background: selected ? 'var(--surface-accent)' : 'var(--surface)',
+        color: selected ? 'var(--gold)' : 'var(--text)',
+        cursor: 'pointer',
+        textAlign: 'center',
+        transition: 'border-color 0.15s, background 0.15s',
+      }}
+    >
+      <div style={{ fontSize: 15, fontWeight: 700 }}>{label}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{description}</div>
+    </button>
   );
 }
