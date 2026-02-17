@@ -24,7 +24,7 @@ const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
 const SHOW_LOG_STORAGE_KEY = 'jambo.showGameLog';
 const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
 const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
-const PLAYER_SECTION_EXTRA_HEIGHT_PX = 60;
+const PLAYER_SECTION_EXTRA_HEIGHT_PX = 0;
 
 function getInitialAnimationSpeed(): AnimationSpeed {
   if (typeof window === 'undefined') return 'normal';
@@ -378,6 +378,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
         position: 'relative',
         borderRadius: 10,
         padding: '10px 10px 4px',
+        height: '100%',
         overflow: 'visible',
         background: 'rgba(20,10,5,0.24)',
       }}>
@@ -402,7 +403,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           background: 'rgba(20,10,5,0.54)',
           pointerEvents: 'none',
         }} />
-        <div style={{ position: 'relative', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', display: 'flex', gap: 20, flexWrap: 'wrap', paddingBottom: 60 }}>
           <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" />
           <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" />
         </div>
