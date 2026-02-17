@@ -3,7 +3,8 @@
 // Full shared board view for TV/large display. No private info shown.
 // ============================================================================
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { PublicGameState, PublicPlayerState } from '../multiplayer/types.ts';
 import type { WareType } from '../engine/types.ts';
@@ -89,7 +90,7 @@ function getWaitingInfo(pub: PublicGameState): { targetPlayer: 0 | 1 | null; mes
 
 export function TVScreen({ ws }: TVScreenProps) {
   const pub = ws.publicState;
-  const [showLog] = useState(() => getInitialShowLog());
+  const [showLog, setShowLog] = useState(() => getInitialShowLog());
   const [animationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
   const [showDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast] = useState(() => getInitialHighContrast());
@@ -313,7 +314,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
   waitingMessage?: string;
 }) {
   return (
-    <div className={`etched-wood-border turn-emphasis ${isActive ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{ position: 'relative', borderRadius: 12, background: 'rgba(20,10,5,0.34)', padding: '0 12px 0' }}>
+    <div data-center-target={playerIndex === 1 ? 'top' : 'bottom'} className={`etched-wood-border turn-emphasis ${isActive ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{ position: 'relative', borderRadius: 12, background: 'rgba(20,10,5,0.34)', padding: '0 12px 0' }}>
       {waitingMessage && (
         <div style={{
           position: 'absolute',
@@ -426,6 +427,11 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
   const [displayDiscardCard, setDisplayDiscardCard] = useState(topDiscard);
   const [actionTag, setActionTag] = useState<string | null>(null);
   const [lastActionRecap, setLastActionRecap] = useState<string | null>(null);
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const deckPileRef = useRef<HTMLDivElement | null>(null);
+  const discardPileRef = useRef<HTMLDivElement | null>(null);
+  const [drawTrailPath, setDrawTrailPath] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
+  const [discardTrailTarget, setDiscardTrailTarget] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const trail = visualFeedback?.trail;
@@ -461,8 +467,55 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
     return () => window.clearTimeout(timer);
   }, [pub.log.length]);
 
+  useEffect(() => {
+    const updateDrawTrailPath = () => {
+      const rowEl = rowRef.current;
+      const deckEl = deckPileRef.current;
+      if (!rowEl || !deckEl) return;
+
+      const trail = visualFeedback?.trail;
+      if (!trail || trail.kind !== 'draw') return;
+
+      const targetEl = document.querySelector<HTMLElement>(`[data-center-target="${trail.actor === 1 ? 'top' : 'bottom'}"]`);
+      if (!targetEl) return;
+
+      const rowRect = rowEl.getBoundingClientRect();
+      const deckRect = deckEl.getBoundingClientRect();
+      const targetRect = targetEl.getBoundingClientRect();
+      setDrawTrailPath({
+        startX: deckRect.left + (deckRect.width / 2) - (rowRect.left + (rowRect.width / 2)),
+        startY: deckRect.top + (deckRect.height / 2) - (rowRect.top + (rowRect.height / 2)),
+        endX: targetRect.left + (targetRect.width / 2) - (rowRect.left + (rowRect.width / 2)),
+        endY: targetRect.top + (targetRect.height / 2) - (rowRect.top + (rowRect.height / 2)),
+      });
+    };
+
+    updateDrawTrailPath();
+    window.addEventListener('resize', updateDrawTrailPath);
+    return () => window.removeEventListener('resize', updateDrawTrailPath);
+  }, [visualFeedback?.trail]);
+
+  useEffect(() => {
+    const updateDiscardTrailTarget = () => {
+      const rowEl = rowRef.current;
+      const discardEl = discardPileRef.current;
+      if (!rowEl || !discardEl) return;
+
+      const rowRect = rowEl.getBoundingClientRect();
+      const discardRect = discardEl.getBoundingClientRect();
+      setDiscardTrailTarget({
+        x: discardRect.left + (discardRect.width / 2) - (rowRect.left + (rowRect.width / 2)),
+        y: discardRect.top + (discardRect.height / 2) - (rowRect.top + (rowRect.height / 2)),
+      });
+    };
+
+    updateDiscardTrailTarget();
+    window.addEventListener('resize', updateDiscardTrailTarget);
+    return () => window.removeEventListener('resize', updateDiscardTrailTarget);
+  }, []);
+
   return (
-    <div style={{
+    <div ref={rowRef} style={{
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
@@ -475,6 +528,20 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
         <div
           key={visualFeedback.trail.id}
           className={`center-row-trail center-row-trail-${visualFeedback.trail.kind}-${visualFeedback.trail.actor === 0 ? 'bottom' : 'top'}`}
+          style={(() => {
+            const vars: Record<string, string> = {};
+            if (visualFeedback.trail.kind === 'draw' && drawTrailPath) {
+              vars['--trail-draw-start-x'] = `${drawTrailPath.startX}px`;
+              vars['--trail-draw-start-y'] = `${drawTrailPath.startY}px`;
+              vars['--trail-draw-end-x'] = `${drawTrailPath.endX}px`;
+              vars['--trail-draw-end-y'] = `${drawTrailPath.endY}px`;
+            }
+            if (visualFeedback.trail.kind === 'discard' && discardTrailTarget) {
+              vars['--trail-discard-end-x'] = `${discardTrailTarget.x}px`;
+              vars['--trail-discard-end-y'] = `${discardTrailTarget.y}px`;
+            }
+            return Object.keys(vars).length > 0 ? (vars as CSSProperties) : undefined;
+          })()}
           aria-hidden
         >
           {visualFeedback.trail.kind === 'discard' && visualFeedback.trail.cardId ? (
@@ -524,7 +591,7 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
 
         {/* Right: Deck / Phase / Discard */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 24, flexShrink: 0 }}>
-          <div key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}>
+          <div ref={deckPileRef} key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}>
             {pub.deckCount > 0 ? (
               <CardFace cardId="guard_1" faceDown large />
             ) : (
@@ -554,7 +621,7 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
             </div>
           </div>
 
-          <div key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}>
+          <div ref={discardPileRef} key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}>
             <div key={`tv-discard-card-${displayDiscardCard ?? 'empty'}-${pub.discardPile.length}`} className="discard-soft-fade">
               {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large /> : <div style={{ width: 180, height: 240, borderRadius: 10, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Empty</div>}
             </div>

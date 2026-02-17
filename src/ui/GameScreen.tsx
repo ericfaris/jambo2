@@ -597,7 +597,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === opponentPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
           borderRadius: 12,
           background: 'rgba(20,10,5,0.34)',
-        }}>
+        }} data-center-target="top">
           <OpponentArea
             player={state.players[opponentPlayer]}
             aiMessage={aiMessage}
@@ -618,7 +618,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           borderRadius: 12,
           padding: '12px',
           background: 'rgba(20,10,5,0.28)',
-        }}>
+        }} data-center-target="bottom">
           {/* Player board */}
           <div className="etched-wood-border" style={{
             display: 'flex',

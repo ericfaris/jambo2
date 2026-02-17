@@ -375,27 +375,27 @@ button.danger:hover:not(:disabled) {
 }
 
 @keyframes trailDrawTop {
-  0% { opacity: 0; transform: translate(-200px, 0) scale(0.8); }
+  0% { opacity: 0; transform: translate(var(--trail-draw-start-x, -200px), var(--trail-draw-start-y, 0px)) scale(0.8); }
   20% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(-70px, -130px) scale(0.65); }
+  100% { opacity: 0; transform: translate(var(--trail-draw-end-x, -70px), var(--trail-draw-end-y, -130px)) scale(0.65); }
 }
 
 @keyframes trailDrawBottom {
-  0% { opacity: 0; transform: translate(-200px, 0) scale(0.8); }
+  0% { opacity: 0; transform: translate(var(--trail-draw-start-x, -200px), var(--trail-draw-start-y, 0px)) scale(0.8); }
   20% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(-70px, 130px) scale(0.65); }
+  100% { opacity: 0; transform: translate(var(--trail-draw-end-x, -70px), var(--trail-draw-end-y, 130px)) scale(0.65); }
 }
 
 @keyframes trailDiscardTop {
   0% { opacity: 0; transform: translate(110px, -130px) scale(0.65); }
   20% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(154px, -48px) scale(0.8); }
+  100% { opacity: 0; transform: translate(var(--trail-discard-end-x, 154px), var(--trail-discard-end-y, 0px)) scale(0.8); }
 }
 
 @keyframes trailDiscardBottom {
   0% { opacity: 0; transform: translate(110px, 130px) scale(0.65); }
   20% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(154px, -48px) scale(0.8); }
+  100% { opacity: 0; transform: translate(var(--trail-discard-end-x, 154px), var(--trail-discard-end-y, 0px)) scale(0.8); }
 }
 
 /* Overlay fade-in */
