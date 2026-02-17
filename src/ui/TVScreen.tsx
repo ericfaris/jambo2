@@ -543,9 +543,7 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
 
   const phaseColor = pub.phase === 'DRAW' ? '#5a9ab0' : pub.phase === 'PLAY' ? '#7a9a4a' : '#c04030';
 
-  const topDiscard = pub.discardPile.length > 0
-    ? pub.discardPile[0]
-    : null;
+  const topDiscard = pub.discardPile.length > 0 ? pub.discardPile[0] : null;
   const [displayDiscardCard, setDisplayDiscardCard] = useState(topDiscard);
   const [actionTag, setActionTag] = useState<string | null>(null);
   const [lastActionRecap, setLastActionRecap] = useState<string | null>(null);
@@ -568,11 +566,9 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
   useEffect(() => {
     const trail = visualFeedback?.trail;
     if (!trail) return;
-
     const actorLabel = `Player ${trail.actor + 1}`;
     const verb = trail.kind === 'draw' ? 'drew a card' : 'discarded a card';
     setActionTag(`${actorLabel} ${verb}`);
-
     const timer = window.setTimeout(() => setActionTag(null), FEEDBACK_TIMINGS.actionTagDurationMs);
     return () => window.clearTimeout(timer);
   }, [visualFeedback?.trail]);
@@ -582,20 +578,19 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
     const latest = pub.log[pub.log.length - 1];
     const recap = `P${latest.player + 1}: ${latest.action}${latest.details ? ` - ${latest.details}` : ''}`;
     setLastActionRecap(recap);
-
     const timer = window.setTimeout(() => setLastActionRecap(null), 2500);
     return () => window.clearTimeout(timer);
   }, [pub.log.length]);
 
   return (
-    <div className="etched-wood-border" style={{
+    <div style={{
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
       padding: '14px 12px',
-      position: 'relative',
       borderRadius: 10,
       background: 'rgba(20,10,5,0.24)',
+      width: '100%'
     }}>
       {visualFeedback.trail && (
         <div
@@ -623,109 +618,64 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24, margin: '0 auto' }}>
-        {/* Deck */}
-        <div key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          {pub.deckCount > 0 ? (
-            <CardFace cardId="guard_1" faceDown />
-          ) : (
-            <div style={{
-              width: 140, height: 187, borderRadius: 10,
-              border: '2px dashed var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--text-muted)', fontSize: 14,
-            }}>Empty</div>
-          )}
-          <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 16 }}>
-            Deck ({pub.deckCount})
-          </div>
-        </div>
-
-        {/* Phase indicator */}
-        <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{
-          background: phaseColor + '20',
-          borderRadius: 12,
-          padding: '14px 30px',
-          border: `1px solid ${phaseColor}`,
-          textAlign: 'center',
-          minWidth: 270,
-        }}>
-          <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-            Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}
-          </div>
-          <div style={{ fontWeight: 700, fontSize: 21, color: phaseColor }}>
-            {phaseLabel}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginTop: 6 }}>
-            {Array.from({ length: 5 }, (_, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)',
-                  border: '2px solid var(--gold)',
-                }}
-              />
+      <div style={{ display: 'flex', width: '100%', justifyContent: 'flex-start', alignItems: 'center', gap: 24, marginTop: 25 }}>
+        {/* Left: Ware supply */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignSelf: 'flex-end', marginBottom: 26 }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 16,
+            padding: '16px 18px',
+            borderRadius: 10,
+            background: 'rgba(20,10,5,0.24)',
+            minWidth: 420,
+          }}>
+            {WARE_TYPES.map((wareType) => (
+              <div key={wareType} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                background: 'var(--surface)',
+                borderRadius: 8,
+                padding: '12px 14px',
+                border: '1px solid var(--border)',
+                minHeight: 72,
+              }}>
+                <WareToken type={wareType} size={50} />
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 24, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
+              </div>
             ))}
           </div>
-          {pub.endgame && (
-            <div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>
-              {pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}
+        </div>
+
+        {/* Right: Deck / Phase / Discard */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 24, flexShrink: 0 }}>
+          <div key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}>
+            {pub.deckCount > 0 ? (
+              <CardFace cardId="guard_1" faceDown large />
+            ) : (
+              <div style={{ width: 180, height: 240, borderRadius: 10, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Empty</div>
+            )}
+            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 16 }}>Deck ({pub.deckCount})</div>
+          </div>
+
+          <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{ background: phaseColor + '20', borderRadius: 12, padding: '20px 34px', border: `1px solid ${phaseColor}`, textAlign: 'center', minWidth: 320 }}>
+            <div style={{ fontSize: 15, color: 'var(--text-muted)' }}>Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}</div>
+            <div style={{ fontWeight: 700, fontSize: 24, color: phaseColor }}>{phaseLabel}</div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 8 }}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <div key={i} style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '2px solid var(--gold)' }} />
+              ))}
             </div>
-          )}
-        </div>
+            {pub.endgame && (<div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>{pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}</div>)}
+          </div>
 
-        {/* Discard */}
-        <div key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          {displayDiscardCard ? (
-            <CardFace cardId={displayDiscardCard} />
-          ) : (
-            <div style={{
-              width: 140, height: 187, borderRadius: 10,
-              border: '2px dashed var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--text-muted)', fontSize: 14,
-            }}>Empty</div>
-          )}
-          <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 16 }}>
-            Discard ({pub.discardPile.length})
+          <div key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}>
+            {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large /> : <div style={{ width: 180, height: 240, borderRadius: 10, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Empty</div>}
+            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 16 }}>Discard ({pub.discardPile.length})</div>
           </div>
         </div>
-      </div>
-
-      <div className="etched-wood-border" style={{
-        position: 'absolute',
-        left: 12,
-        top: '50%',
-        transform: 'translateY(-50%)',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-        gap: 14,
-        padding: '14px 16px',
-        borderRadius: 10,
-        background: 'rgba(20,10,5,0.24)',
-        minWidth: 360,
-      }}>
-        {WARE_TYPES.map((wareType) => (
-          <div key={wareType} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            background: 'var(--surface)',
-            borderRadius: 8,
-            padding: '10px 12px',
-            border: '1px solid var(--border)',
-            minHeight: 62,
-          }}>
-            <WareToken type={wareType} />
-            <span style={{ fontFamily: 'var(--font-heading)', fontSize: 20, color: 'var(--text-muted)', fontWeight: 700 }}>
-              x{supply[wareType]}
-            </span>
-          </div>
-        ))}
       </div>
     </div>
   );

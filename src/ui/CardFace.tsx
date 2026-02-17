@@ -360,15 +360,15 @@ export function CardFace({ cardId, onClick, selected, small, large, extraLarge, 
   );
 }
 
-export function WareToken({ type, onClick, selected }: { type: WareType; onClick?: () => void; selected?: boolean }) {
+export function WareToken({ type, onClick, selected, size = 42 }: { type: WareType; onClick?: () => void; selected?: boolean; size?: number }) {
   return (
     <img
       src={`/assets/tokens/${type}.png`}
       alt={type}
       onClick={onClick}
       style={{
-        width: 42,
-        height: 42,
+        width: size,
+        height: size,
         cursor: onClick ? 'pointer' : 'default',
         flexShrink: 0,
         outline: selected ? '2px solid var(--gold)' : 'none',
