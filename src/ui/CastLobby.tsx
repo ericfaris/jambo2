@@ -3,7 +3,7 @@
 // TV: create room → show code. Player: enter code → join.
 // ============================================================================
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { ConnectionRole, RoomMode } from '../multiplayer/types.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
@@ -13,18 +13,38 @@ interface CastLobbyProps {
   ws: WebSocketGameState;
   role: ConnectionRole;
   aiDifficulty: AIDifficulty;
+  roomMode: RoomMode | null;
 }
 
-export function CastLobby({ ws, role, aiDifficulty }: CastLobbyProps) {
+export function CastLobby({ ws, role, aiDifficulty, roomMode }: CastLobbyProps) {
   if (role === 'tv') {
-    return <TVLobby ws={ws} aiDifficulty={aiDifficulty} />;
+    return <TVLobby ws={ws} aiDifficulty={aiDifficulty} roomMode={roomMode ?? 'ai'} />;
   }
   return <PlayerLobby ws={ws} />;
 }
 
-function TVLobby({ ws, aiDifficulty }: { ws: WebSocketGameState; aiDifficulty: AIDifficulty }) {
-  const [mode, setMode] = useState<RoomMode | null>(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<AIDifficulty>(aiDifficulty);
+function TVLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiDifficulty: AIDifficulty; roomMode: RoomMode }) {
+  const lastCreateAttemptAt = useRef(0);
+
+  const requestCreateRoom = useCallback(() => {
+    const now = Date.now();
+    if (now - lastCreateAttemptAt.current < 1200) {
+      return;
+    }
+    lastCreateAttemptAt.current = now;
+    ws.createRoom(roomMode, aiDifficulty);
+  }, [ws.createRoom, roomMode, aiDifficulty]);
+
+  useEffect(() => {
+    if (!ws.connected || ws.roomCode) {
+      return;
+    }
+
+    // Immediate attempt, then retry until ROOM_CREATED arrives.
+    requestCreateRoom();
+    const timer = window.setInterval(() => requestCreateRoom(), 2000);
+    return () => window.clearInterval(timer);
+  }, [ws.connected, ws.roomCode, requestCreateRoom]);
 
   if (!ws.connected) {
     return (
@@ -34,50 +54,28 @@ function TVLobby({ ws, aiDifficulty }: { ws: WebSocketGameState; aiDifficulty: A
     );
   }
 
-  // Step 1: choose mode
-  if (!ws.roomCode && !mode) {
+  if (!ws.roomCode) {
     return (
       <LobbyContainer>
-        <div style={{ fontSize: 28, fontFamily: 'var(--font-heading)', color: 'var(--gold)', marginBottom: 24 }}>
-          Cast Mode
-        </div>
-        <div style={{ fontSize: 16, color: 'var(--text-muted)', marginBottom: 32 }}>
-          Choose game mode:
-        </div>
-        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
-          <span>AI Difficulty:</span>
-          <select
-            value={selectedDifficulty}
-            onChange={(event) => setSelectedDifficulty(event.target.value as AIDifficulty)}
-            style={{
-              background: 'var(--surface-light)',
-              color: 'var(--text)',
-              border: '1px solid var(--border-light)',
-              borderRadius: 8,
-              padding: '6px 8px',
-            }}
-          >
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
-        </div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <LobbyButton onClick={() => { setMode('ai'); ws.createRoom('ai', selectedDifficulty); }}>
-            Human vs AI
-          </LobbyButton>
-          <LobbyButton onClick={() => { setMode('pvp'); ws.createRoom('pvp', selectedDifficulty); }}>
-            Human vs Human
-          </LobbyButton>
-        </div>
+        <div style={{ fontSize: 20, color: 'var(--text-muted)' }}>Creating room...</div>
+        {ws.error && (
+          <div style={{ fontSize: 14, color: '#ff9977', marginTop: 12 }}>{ws.error}</div>
+        )}
       </LobbyContainer>
     );
   }
 
-  // Step 2: show room code, wait for players
+  const modeLabel = roomMode === 'ai' ? 'Solo (vs AI)' : 'Multiplayer';
+  const joinUrl = `${window.location.origin}/#/play`;
+  const joinPrefix = roomMode === 'ai' ? 'Open ' : 'Both players: open ';
+  const joinSuffix = ' on your phone and enter this code';
+
   return (
     <LobbyContainer>
-      <div style={{ fontSize: 20, color: 'var(--text-muted)', marginBottom: 16 }}>
+      <div style={{ fontSize: 14, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
+        {modeLabel}
+      </div>
+      <div style={{ fontSize: 20, color: 'var(--text-muted)' }}>
         Room Code
       </div>
       <div style={{
@@ -86,14 +84,21 @@ function TVLobby({ ws, aiDifficulty }: { ws: WebSocketGameState; aiDifficulty: A
         fontWeight: 700,
         color: 'var(--gold)',
         letterSpacing: 12,
-        marginBottom: 32,
+        marginBottom: 16,
       }}>
         {ws.roomCode}
       </div>
       <div style={{ fontSize: 18, color: 'var(--text-muted)' }}>
-        {mode === 'ai'
-          ? 'Open /#/play on your phone and enter this code'
-          : 'Both players: open /#/play and enter this code'}
+        {joinPrefix}
+        <a
+          href={joinUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--gold)', textDecoration: 'underline' }}
+        >
+          {joinUrl.replace(window.location.origin, '')}
+        </a>
+        {joinSuffix}
       </div>
       {ws.playerJoined !== null && (
         <div style={{ fontSize: 16, color: 'var(--accent-green, #7c7)', marginTop: 16 }}>
@@ -198,6 +203,7 @@ function LobbyContainer({ children }: { children: React.ReactNode }) {
         className="etched-wood-border dialog-pop"
         style={{
           width: 'min(720px, 96vw)',
+          margin: '0 auto',
           borderRadius: 14,
           padding: 22,
           backgroundImage: [
