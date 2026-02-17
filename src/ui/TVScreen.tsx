@@ -24,6 +24,7 @@ const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
 const SHOW_LOG_STORAGE_KEY = 'jambo.showGameLog';
 const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
 const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
+const PLAYER_SECTION_EXTRA_HEIGHT_PX = 60;
 
 function getInitialAnimationSpeed(): AnimationSpeed {
   if (typeof window === 'undefined') return 'normal';
@@ -199,7 +200,7 @@ export function TVScreen({ ws }: TVScreenProps) {
           label="Player 2"
           isActive={pub.currentPlayer === 1}
           flipWoodBackground={true}
-          fixedHeight={playerSectionHeight}
+          fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
           goldDelta={visualFeedback.goldDeltas[1]}
           marketFlashSlots={visualFeedback.marketFlashSlots[1]}
           waitingMessage={waitingInfo.targetPlayer === 1 ? waitingInfo.message ?? undefined : undefined}
@@ -219,7 +220,7 @@ export function TVScreen({ ws }: TVScreenProps) {
           playerIndex={0}
           label="Player 1"
           isActive={pub.currentPlayer === 0}
-          fixedHeight={playerSectionHeight}
+          fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
           onMeasureHeight={setPlayerSectionHeight}
           goldDelta={visualFeedback.goldDeltas[0]}
           marketFlashSlots={visualFeedback.marketFlashSlots[0]}
@@ -349,7 +350,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
         background: 'rgba(20,10,5,0.34)',
         padding: '0 12px 0',
         height: fixedHeight ?? undefined,
-        minHeight: fixedHeight ?? undefined,
+        minHeight: fixedHeight ?? 180,
         maxHeight: fixedHeight ?? undefined,
         overflow: fixedHeight ? 'hidden' : undefined,
       }}
@@ -376,7 +377,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
       <div style={{
         position: 'relative',
         borderRadius: 10,
-        padding: 10,
+        padding: '10px 10px 4px',
         overflow: 'visible',
         background: 'rgba(20,10,5,0.24)',
       }}>
