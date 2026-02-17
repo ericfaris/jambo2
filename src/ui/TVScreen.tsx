@@ -403,18 +403,13 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           background: 'rgba(20,10,5,0.54)',
           pointerEvents: 'none',
         }} />
-        <div style={{ position: 'relative', display: 'flex', gap: 20, flexWrap: 'wrap', paddingBottom: 60 }}>
+        <div style={{ position: 'relative', display: 'flex', gap: 20, flexWrap: 'wrap', height: 175.48 }}>
           <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" />
-          <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" />
-        </div>
-        <div style={{
-          position: 'relative',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: 10,
-        }}>
+          <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="medium" />
           <span style={{
+            position: 'absolute',
+            left: 0,
+            bottom: 0,
             fontFamily: 'var(--font-heading)',
             fontWeight: 700,
             fontSize: 18,
@@ -422,7 +417,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           }}>
             {label} {isActive && '(Active)'}
           </span>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <div style={{ position: 'absolute', right: 0, bottom: 0, display: 'flex', gap: 16, alignItems: 'center' }}>
             <span key={`tv-gold-${label}-${goldDelta ?? 0}`} className={(goldDelta ?? 0) !== 0 ? 'gold-pop' : undefined} style={{ color: 'var(--gold)', fontWeight: 700, fontSize: 16, position: 'relative' }}>
               {player.gold}g
               {(goldDelta ?? 0) !== 0 && (

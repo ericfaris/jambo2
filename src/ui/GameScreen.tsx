@@ -643,7 +643,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+          <div style={{ position: 'relative', display: 'flex', gap: 20, alignItems: 'flex-start', paddingBottom: 36 }}>
             <MarketDisplay
               market={state.players[viewerPlayer].market}
               flashSlots={visualFeedback.marketFlashSlots[viewerPlayer]}
@@ -665,8 +665,40 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               disabled={playActionsDisabled}
               cardError={cardError}
               label={localMultiplayer ? `Player ${viewerPlayer + 1} Utilities` : 'Your Utilities'}
+              cardSize="medium"
               showHelperText={false}
             />
+            <span style={{
+              position: 'absolute',
+              left: 0,
+              bottom: 0,
+              fontFamily: 'var(--font-heading)',
+              fontWeight: 700,
+              fontSize: 18,
+              color: state.currentPlayer === viewerPlayer ? 'var(--gold)' : 'var(--text)',
+            }}>
+              {localMultiplayer ? `Player ${viewerPlayer + 1}` : 'You'} {state.currentPlayer === viewerPlayer && '(Active)'}
+            </span>
+            <div style={{ position: 'absolute', right: 0, bottom: 0, display: 'flex', gap: 16, alignItems: 'center' }}>
+              <span key={`my-gold-${visualFeedback.goldDeltas[viewerPlayer]}`} className={visualFeedback.goldDeltas[viewerPlayer] !== 0 ? 'gold-pop gold-pop-soft' : undefined} style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)', position: 'relative' }}>
+                {state.players[viewerPlayer].gold}g
+                {visualFeedback.goldDeltas[viewerPlayer] !== 0 && (
+                  <span className="gold-delta-text gold-delta-text-soft" style={{
+                    position: 'absolute',
+                    top: -18,
+                    right: -20,
+                    color: visualFeedback.goldDeltas[viewerPlayer] > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}>
+                    {visualFeedback.goldDeltas[viewerPlayer] > 0 ? `+${visualFeedback.goldDeltas[viewerPlayer]}g` : `${visualFeedback.goldDeltas[viewerPlayer]}g`}
+                  </span>
+                )}
+              </span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 15 }}>
+                {state.players[viewerPlayer].hand.length} cards
+              </span>
+            </div>
           </div>
         </div>
 
@@ -687,24 +719,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <div className="panel-section-title" style={{ fontSize: 15, marginBottom: 0 }}>
-              {localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'} ({state.players[viewerPlayer].hand.length} cards)
-            </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span key={`my-gold-${visualFeedback.goldDeltas[viewerPlayer]}`} className={visualFeedback.goldDeltas[viewerPlayer] !== 0 ? 'gold-pop gold-pop-soft' : undefined} style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontWeight: 700, fontSize: 20, textShadow: '0 0 8px rgba(212,168,80,0.4)', position: 'relative' }}>
-                {state.players[viewerPlayer].gold}g
-                {visualFeedback.goldDeltas[viewerPlayer] !== 0 && (
-                  <span className="gold-delta-text gold-delta-text-soft" style={{
-                    position: 'absolute',
-                    top: -18,
-                    right: -20,
-                    color: visualFeedback.goldDeltas[viewerPlayer] > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}>
-                    {visualFeedback.goldDeltas[viewerPlayer] > 0 ? `+${visualFeedback.goldDeltas[viewerPlayer]}g` : `${visualFeedback.goldDeltas[viewerPlayer]}g`}
-                  </span>
-                )}
-              </span>
+              {localMultiplayer ? `Player ${viewerPlayer + 1} Hand` : 'Your Hand'}
             </div>
           </div>
           <HandDisplay

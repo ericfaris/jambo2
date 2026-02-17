@@ -27,13 +27,28 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
         padding: 16,
       }}>
       <div style={{
+        position: 'relative',
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 10,
+        gap: 20,
+        flexWrap: 'wrap',
+        background: 'rgba(20,10,5,0.24)',
+        borderRadius: 10,
+        padding: '10px 10px 36px',
       }}>
-        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18 }}>{label}</span>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+        <MarketDisplay market={player.market} flashSlots={marketFlashSlots} flashVariant="strong" label="Market" />
+        <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="medium" />
+        <span style={{
+          position: 'absolute',
+          left: 10,
+          bottom: 8,
+          fontFamily: 'var(--font-heading)',
+          fontWeight: 700,
+          fontSize: 18,
+          color: 'var(--text)',
+        }}>
+          {label}
+        </span>
+        <div style={{ position: 'absolute', right: 10, bottom: 8, display: 'flex', gap: 16, alignItems: 'center' }}>
           <span key={`opp-gold-${goldDelta}`} className={goldDelta !== 0 ? 'gold-pop gold-pop-strong' : undefined} style={{ color: 'var(--gold)', fontWeight: 700, fontSize: 16, position: 'relative' }}>
             {player.gold}g
             {goldDelta !== 0 && (
@@ -53,17 +68,6 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
             {player.hand.length} cards
           </span>
         </div>
-      </div>
-      <div style={{
-        display: 'flex',
-        gap: 20,
-        flexWrap: 'wrap',
-        background: 'rgba(20,10,5,0.24)',
-        borderRadius: 10,
-        padding: 10,
-      }}>
-        <MarketDisplay market={player.market} flashSlots={marketFlashSlots} flashVariant="strong" label="Market" />
-        <UtilityArea utilities={player.utilities} disabled label="Utilities" />
       </div>
     </div>
     </div>
