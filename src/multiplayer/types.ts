@@ -26,7 +26,8 @@ export type PlayerSlot = 0 | 1;
 export type ClientMessage =
   | { type: 'CREATE_ROOM'; mode: RoomMode; aiDifficulty?: AIDifficulty }
   | { type: 'JOIN_ROOM'; code: string; role: ConnectionRole; reconnectToken?: string }
-  | { type: 'GAME_ACTION'; action: GameAction };
+  | { type: 'GAME_ACTION'; action: GameAction }
+  | { type: 'REQUEST_REMATCH' };
 
 // --- Server → Client Messages ---
 
@@ -36,6 +37,7 @@ export type ServerMessage =
   | { type: 'GAME_STATE'; public: PublicGameState; private: PrivateGameState | null; audioEvent: AudioEvent | null; aiMessage: string | null }
   | { type: 'PLAYER_JOINED'; playerSlot: PlayerSlot }
   | { type: 'PLAYER_DISCONNECTED'; playerSlot: PlayerSlot }
+  | { type: 'REMATCH_STATUS'; votes: PlayerSlot[]; required: PlayerSlot[] }
   | { type: 'ERROR'; message: string }
   | { type: 'GAME_OVER'; public: PublicGameState };
 

@@ -3,7 +3,7 @@
 // Full shared board view for TV/large display. No private info shown.
 // ============================================================================
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { PublicGameState, PublicPlayerState } from '../multiplayer/types.ts';
@@ -13,11 +13,11 @@ import { MarketDisplay } from './MarketDisplay.tsx';
 import { UtilityArea } from './UtilityArea.tsx';
 import { GameLog } from './GameLog.tsx';
 import { CardFace, WareToken } from './CardFace.tsx';
-import { SpeechBubble } from './SpeechBubble.tsx';
 import { useAudioEvents } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { FEEDBACK_TIMINGS } from './animationTimings.ts';
+import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -97,10 +97,6 @@ export function TVScreen({ ws }: TVScreenProps) {
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
 
-  const handleAiMessageHide = useCallback(() => {
-    // For TV screen, we don't need to clear the message as it's handled by the WebSocket state
-  }, []);
-
   if (!pub) return null;
   const waitingInfo = getWaitingInfo(pub);
 
@@ -171,6 +167,14 @@ export function TVScreen({ ws }: TVScreenProps) {
     setTelemetryEvents((previous) => [...newEvents, ...previous].slice(0, 8));
   }, [showDevTelemetry, visualFeedback.trail, visualFeedback.goldDeltas, visualFeedback.marketFlashSlots]);
 
+  const rematchStatusMessage = pub.phase === 'GAME_OVER' && ws.rematchRequired.length > 0
+    ? (() => {
+      const waiting = ws.rematchRequired.filter((slot) => !ws.rematchVotes.includes(slot));
+      if (waiting.length === 0) return 'Starting rematch...';
+      return `Waiting for ${waiting.map((slot) => `Player ${slot + 1}`).join(' & ')} to confirm rematch...`;
+    })()
+    : undefined;
+
   return (
     <div style={{
       display: 'flex',
@@ -194,8 +198,6 @@ export function TVScreen({ ws }: TVScreenProps) {
           label="Player 2"
           isActive={pub.currentPlayer === 1}
           flipWoodBackground={true}
-          aiMessage={ws.aiMessage || undefined}
-          onMessageHide={handleAiMessageHide}
           goldDelta={visualFeedback.goldDeltas[1]}
           marketFlashSlots={visualFeedback.marketFlashSlots[1]}
           waitingMessage={waitingInfo.targetPlayer === 1 ? waitingInfo.message ?? undefined : undefined}
@@ -258,7 +260,7 @@ export function TVScreen({ ws }: TVScreenProps) {
       )}
 
       {/* Endgame overlay */}
-      {pub.phase === 'GAME_OVER' && <TVEndgameOverlay pub={pub} />}
+      {pub.phase === 'GAME_OVER' && <CastEndgameOverlay pub={pub} rematchStatusMessage={rematchStatusMessage} />}
 
       {/* Connection indicator */}
       <div style={{
@@ -301,14 +303,12 @@ export function TVScreen({ ws }: TVScreenProps) {
 
 // --- Sub-components ---
 
-function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground, aiMessage, onMessageHide, goldDelta, marketFlashSlots, waitingMessage }: {
+function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground, goldDelta, marketFlashSlots, waitingMessage }: {
   player: PublicPlayerState;
   playerIndex: 0 | 1;
   label: string;
   isActive: boolean;
   flipWoodBackground?: boolean;
-  aiMessage?: string;
-  onMessageHide?: () => void;
   goldDelta?: number;
   marketFlashSlots?: number[];
   waitingMessage?: string;
@@ -334,13 +334,6 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           {waitingMessage.replace(`Player ${playerIndex + 1} `, '')}
         </div>
       )}
-      <div style={{ position: 'absolute', top: -30, right: 170, zIndex: 9999, pointerEvents: 'none' }}>
-        <SpeechBubble
-          message={aiMessage || ''}
-          visible={!!aiMessage}
-          onHide={onMessageHide || (() => {})}
-        />
-      </div>
       <div style={{
         position: 'relative',
         borderRadius: 10,
@@ -646,61 +639,3 @@ function TVWaitingIndicator({ message }: { message: string }) {
   );
 }
 
-function TVEndgameOverlay({ pub }: { pub: PublicGameState }) {
-  const p1Gold = pub.players[0].gold;
-  const p2Gold = pub.players[1].gold;
-  const winner = p1Gold > p2Gold ? 0
-    : p2Gold > p1Gold ? 1
-    : pub.endgame?.finalTurnPlayer ?? 1; // tie goes to final turn player
-
-  return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(20,10,5,0.88)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 200,
-    }}>
-      <div style={{
-        background: 'linear-gradient(135deg, #3d2a1a 0%, #2d1c12 100%)',
-        borderRadius: 16,
-        padding: 48,
-        border: '3px solid var(--gold)',
-        textAlign: 'center',
-        maxWidth: 500,
-      }}>
-        <div style={{
-          fontFamily: 'var(--font-heading)',
-          fontSize: 40,
-          fontWeight: 700,
-          color: 'var(--gold)',
-          marginBottom: 20,
-        }}>
-          Player {winner + 1} Wins!
-        </div>
-        <div style={{
-          fontSize: 22,
-          marginBottom: 24,
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 40,
-        }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-muted)', fontSize: 16 }}>Player 1</div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--gold)', fontSize: 36 }}>{p1Gold}g</div>
-          </div>
-          <div style={{ color: 'var(--border-light)', alignSelf: 'center', fontSize: 18 }}>vs</div>
-          <div>
-            <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-muted)', fontSize: 16 }}>Player 2</div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, color: '#D4A574', fontSize: 36 }}>{p2Gold}g</div>
-          </div>
-        </div>
-        <div style={{ fontSize: 15, color: 'var(--text-muted)' }}>
-          Turns played: {pub.turn}
-        </div>
-      </div>
-    </div>
-  );
-}

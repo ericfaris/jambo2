@@ -54,6 +54,7 @@ interface Room {
   state: GameState | null;
   connections: Connection[];
   reservedSlots: ReservedPlayerSlot[];
+  rematchVotes: Set<PlayerSlot>;
   lastActivity: number;
 }
 
@@ -141,6 +142,19 @@ function releaseReservedSlot(room: Room, slot: PlayerSlot): void {
 function getReservedSlots(room: Room): Set<PlayerSlot> {
   clearExpiredReservations(room);
   return new Set(room.reservedSlots.map((reservation) => reservation.slot));
+}
+
+function getRequiredRematchSlots(room: Room): PlayerSlot[] {
+  if (room.mode === 'ai') return [0];
+  return [0, 1];
+}
+
+function broadcastRematchStatus(room: Room): void {
+  const required = getRequiredRematchSlots(room);
+  const votes = required.filter((slot) => room.rematchVotes.has(slot));
+  for (const conn of room.connections) {
+    send(conn.ws, { type: 'REMATCH_STATUS', votes, required });
+  }
 }
 
 // --- Audio Event Detection ---
@@ -319,11 +333,13 @@ function tryStartGame(room: Room): void {
   const playerCount = getPlayerCount(room);
 
   if (room.mode === 'ai' && playerCount >= 1 && hasTv) {
+    room.rematchVotes.clear();
     room.state = createInitialState();
     broadcastState(room, null);
     // AI is player 1 — if it's their turn first, start AI loop
     scheduleAiTurn(room);
   } else if (room.mode === 'pvp' && playerCount >= 2 && hasTv) {
+    room.rematchVotes.clear();
     room.state = createInitialState();
     broadcastState(room, null);
   }
@@ -340,6 +356,7 @@ function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficu
     state: null,
     connections: [{ ws, role: 'tv', playerSlot: null }],
     reservedSlots: [],
+    rematchVotes: new Set<PlayerSlot>(),
     lastActivity: Date.now(),
   };
   rooms.set(code, room);
@@ -494,6 +511,47 @@ function handleGameAction(ws: WebSocket, action: GameAction): void {
   }
 }
 
+function handleRematchRequest(ws: WebSocket): void {
+  const room = findRoom(ws);
+  if (!room || !room.state) {
+    send(ws, { type: 'ERROR', message: 'Not in an active game' });
+    return;
+  }
+
+  if (room.state.phase !== 'GAME_OVER') {
+    send(ws, { type: 'ERROR', message: 'Rematch is only available after GAME_OVER' });
+    return;
+  }
+
+  const conn = findConnection(room, ws);
+  if (!conn || conn.playerSlot === null) {
+    send(ws, { type: 'ERROR', message: 'Only players can request a rematch' });
+    return;
+  }
+
+  const required = getRequiredRematchSlots(room);
+  if (!required.includes(conn.playerSlot)) {
+    send(ws, { type: 'ERROR', message: 'This player cannot request a rematch' });
+    return;
+  }
+
+  room.rematchVotes.add(conn.playerSlot);
+  room.lastActivity = Date.now();
+  broadcastRematchStatus(room);
+
+  const allReady = required.every((slot) => room.rematchVotes.has(slot));
+  if (!allReady) return;
+
+  room.state = createInitialState();
+  room.rematchVotes.clear();
+  broadcastState(room, null, null);
+  broadcastRematchStatus(room);
+
+  if (room.mode === 'ai') {
+    scheduleAiTurn(room);
+  }
+}
+
 // --- Connection Handling ---
 
 function handleDisconnect(ws: WebSocket): void {
@@ -506,6 +564,7 @@ function handleDisconnect(ws: WebSocket): void {
   room.connections = room.connections.filter(c => c.ws !== ws);
 
   if (conn.playerSlot !== null) {
+    room.rematchVotes.delete(conn.playerSlot);
     if (conn.reconnectToken) {
       reservePlayerSlot(room, conn.playerSlot, conn.reconnectToken);
     }
@@ -513,6 +572,7 @@ function handleDisconnect(ws: WebSocket): void {
     for (const other of room.connections) {
       send(other.ws, { type: 'PLAYER_DISCONNECTED', playerSlot: conn.playerSlot });
     }
+    broadcastRematchStatus(room);
   }
 
   // Clean up empty rooms
@@ -664,6 +724,9 @@ wss.on('connection', (ws: WebSocket) => {
           break;
         case 'GAME_ACTION':
           handleGameAction(ws, msg.action);
+          break;
+        case 'REQUEST_REMATCH':
+          handleRematchRequest(ws);
           break;
       }
     } catch (e) {

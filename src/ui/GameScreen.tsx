@@ -427,6 +427,12 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     return () => clearTimeout(timer);
   }, [cardError]);
 
+  useEffect(() => {
+    if (state.phase === 'GAME_OVER' && aiMessage) {
+      setAiMessage('');
+    }
+  }, [state.phase, aiMessage]);
+
   const handleAiMessageHide = useCallback(() => {
     setAiMessage('');
   }, []);
@@ -600,7 +606,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         }} data-center-target="top">
           <OpponentArea
             player={state.players[opponentPlayer]}
-            aiMessage={aiMessage}
+            aiMessage={state.phase === 'GAME_OVER' ? '' : aiMessage}
             onMessageHide={handleAiMessageHide}
             goldDelta={visualFeedback.goldDeltas[opponentPlayer]}
             marketFlashSlots={visualFeedback.marketFlashSlots[opponentPlayer]}

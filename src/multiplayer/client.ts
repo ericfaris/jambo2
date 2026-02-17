@@ -30,9 +30,12 @@ export interface WebSocketGameState {
   gameOver: boolean;
   playerJoined: PlayerSlot | null;
   playerDisconnected: PlayerSlot | null;
+  rematchVotes: PlayerSlot[];
+  rematchRequired: PlayerSlot[];
   createRoom: (mode: RoomMode, aiDifficulty?: AIDifficulty) => void;
   joinRoom: (code: string, role: ConnectionRole) => void;
   sendAction: (action: GameAction) => void;
+  requestRematch: () => void;
   clearError: () => void;
   clearAudioEvent: () => void;
 }
@@ -54,6 +57,8 @@ export function useWebSocketGame(): WebSocketGameState {
   const [gameOver, setGameOver] = useState(false);
   const [playerJoined, setPlayerJoined] = useState<PlayerSlot | null>(null);
   const [playerDisconnected, setPlayerDisconnected] = useState<PlayerSlot | null>(null);
+  const [rematchVotes, setRematchVotes] = useState<PlayerSlot[]>([]);
+  const [rematchRequired, setRematchRequired] = useState<PlayerSlot[]>([]);
 
   // Pending join info for reconnection
   const pendingJoin = useRef<{ code: string; role: ConnectionRole; reconnectToken?: string } | null>(null);
@@ -90,6 +95,11 @@ export function useWebSocketGame(): WebSocketGameState {
         setPrivateState(msg.private);
         setAudioEvent(msg.audioEvent);
         setAiMessage(msg.aiMessage);
+        if (msg.public.phase !== 'GAME_OVER') {
+          setGameOver(false);
+          setRematchVotes([]);
+          setRematchRequired([]);
+        }
         break;
       case 'PLAYER_JOINED':
         setPlayerJoined(msg.playerSlot);
@@ -99,6 +109,10 @@ export function useWebSocketGame(): WebSocketGameState {
         break;
       case 'ERROR':
         setError(msg.message);
+        break;
+      case 'REMATCH_STATUS':
+        setRematchVotes(msg.votes);
+        setRematchRequired(msg.required);
         break;
       case 'GAME_OVER':
         setPublicState(msg.public);
@@ -178,6 +192,10 @@ export function useWebSocketGame(): WebSocketGameState {
     sendRaw({ type: 'GAME_ACTION', action });
   }, [sendRaw]);
 
+  const requestRematch = useCallback(() => {
+    sendRaw({ type: 'REQUEST_REMATCH' });
+  }, [sendRaw]);
+
   const clearError = useCallback(() => setError(null), []);
   const clearAudioEvent = useCallback(() => setAudioEvent(null), []);
 
@@ -194,9 +212,12 @@ export function useWebSocketGame(): WebSocketGameState {
     gameOver,
     playerJoined,
     playerDisconnected,
+    rematchVotes,
+    rematchRequired,
     createRoom,
     joinRoom,
     sendAction,
+    requestRematch,
     clearError,
     clearAudioEvent,
   };

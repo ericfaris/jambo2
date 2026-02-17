@@ -19,6 +19,7 @@ import { CardPlayDialog, DrawModal as SharedDrawModal } from './ActionButtons.ts
 import { useAudioEvents } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getPlayDisabledReason, getDrawDisabledReason } from './uiHints.ts';
+import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -187,6 +188,17 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   if (!pub || !priv || slot === null) return null;
 
   const dispatch = (action: GameAction) => ws.sendAction(action);
+  const handleCastRematch = useCallback(() => {
+    ws.requestRematch();
+  }, [ws]);
+  const handleCastMainMenu = useCallback(() => {
+    window.location.href = `${window.location.origin}${window.location.pathname}`;
+  }, []);
+  const hasRequestedRematch = slot !== null && ws.rematchVotes.includes(slot);
+  const remainingRematchSlots = ws.rematchRequired.filter((requiredSlot) => !ws.rematchVotes.includes(requiredSlot));
+  const rematchStatusMessage = hasRequestedRematch && remainingRematchSlots.length > 0
+    ? `Waiting for ${remainingRematchSlots.map((requiredSlot) => `Player ${requiredSlot + 1}`).join(' & ')} to confirm rematch...`
+    : undefined;
   const isMyTurn = isWaitingForMe(pub, priv, slot);
   const myPublic = pub.players[slot];
   const lastLog = pub.log.length > 0 ? pub.log[pub.log.length - 1] : null;
@@ -800,6 +812,18 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
             </div>
           ))}
         </div>
+      )}
+
+      {pub.phase === 'GAME_OVER' && (
+        <CastEndgameOverlay
+          pub={pub}
+          viewerSlot={slot}
+          onRematch={handleCastRematch}
+          onMainMenu={handleCastMainMenu}
+          rematchDisabled={hasRequestedRematch}
+          rematchLabel={hasRequestedRematch ? 'Rematch Requested' : 'Rematch'}
+          rematchStatusMessage={rematchStatusMessage}
+        />
       )}
     </div>
   );
