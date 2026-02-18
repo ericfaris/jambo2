@@ -21,7 +21,6 @@ import type {
   ClientMessage,
   ServerMessage,
   RoomMode,
-  ConnectionRole,
   PlayerSlot,
   AudioEvent,
 } from './types.ts';
@@ -37,8 +36,7 @@ loadLocalEnv();
 
 interface Connection {
   ws: WebSocket;
-  role: ConnectionRole;
-  playerSlot: PlayerSlot | null;
+  playerSlot: PlayerSlot;
   reconnectToken?: string;
 }
 
@@ -103,14 +101,10 @@ function getPlayerConnections(room: Room, slot: PlayerSlot): Connection[] {
   return room.connections.filter(c => c.playerSlot === slot);
 }
 
-function getTvConnections(room: Room): Connection[] {
-  return room.connections.filter(c => c.role === 'tv');
-}
-
 function getPlayerCount(room: Room): number {
   const slots = new Set<PlayerSlot>();
   for (const c of room.connections) {
-    if (c.playerSlot !== null) slots.add(c.playerSlot);
+    slots.add(c.playerSlot);
   }
   return slots.size;
 }
@@ -118,7 +112,7 @@ function getPlayerCount(room: Room): number {
 function getActivePlayerSlots(room: Room): Set<PlayerSlot> {
   const slots = new Set<PlayerSlot>();
   for (const c of room.connections) {
-    if (c.playerSlot !== null) slots.add(c.playerSlot);
+    slots.add(c.playerSlot);
   }
   return slots;
 }
@@ -235,18 +229,6 @@ function broadcastState(room: Room, audioEvent: AudioEvent | null, aiMessage: st
   const publicState = extractPublicState(room.state);
   broadcastCastRoomSnapshot(room);
 
-  // Send to TV connections (public only)
-  for (const conn of getTvConnections(room)) {
-    const msg: ServerMessage = {
-      type: 'GAME_STATE',
-      public: publicState,
-      private: null,
-      audioEvent,
-      aiMessage,
-    };
-    send(conn.ws, msg);
-  }
-
   // Send to player connections (public + their private)
   for (const slot of [0, 1] as PlayerSlot[]) {
     const privateState = extractPrivateState(room.state, slot);
@@ -267,9 +249,7 @@ function sendStateToConnection(room: Room, conn: Connection, audioEvent: AudioEv
   if (!room.state) return;
 
   const publicState = extractPublicState(room.state);
-  const privateState = conn.playerSlot !== null
-    ? extractPrivateState(room.state, conn.playerSlot)
-    : null;
+  const privateState = extractPrivateState(room.state, conn.playerSlot);
 
   send(conn.ws, {
     type: 'GAME_STATE',
@@ -376,17 +356,15 @@ function broadcastGameOver(room: Room): void {
 
 function tryStartGame(room: Room): void {
   if (room.state) return; // already started
-
-  const hasTv = getTvConnections(room).length > 0;
   const playerCount = getPlayerCount(room);
 
-  if (room.mode === 'ai' && playerCount >= 1 && hasTv) {
+  if (room.mode === 'ai' && playerCount >= 1) {
     room.rematchVotes.clear();
     room.state = createInitialState();
     broadcastState(room, null);
     // AI is player 1 — if it's their turn first, start AI loop
     scheduleAiTurn(room);
-  } else if (room.mode === 'pvp' && playerCount >= 2 && hasTv) {
+  } else if (room.mode === 'pvp' && playerCount >= 2) {
     room.rematchVotes.clear();
     room.state = createInitialState();
     broadcastState(room, null);
@@ -403,19 +381,18 @@ function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficu
     mode,
     aiDifficulty,
     state: null,
-    connections: [{ ws, role: 'tv', playerSlot: null }],
+    connections: [],
     reservedSlots: [],
     rematchVotes: new Set<PlayerSlot>(),
     lastActivity: Date.now(),
   };
   rooms.set(code, room);
   send(ws, { type: 'ROOM_CREATED', code, castAccessToken: room.castAccessToken });
-  send(ws, { type: 'JOINED', playerSlot: null, mode, castAccessToken: room.castAccessToken });
   broadcastCastRoomSnapshot(room);
-  console.log(`[Room ${code}] Created (${mode} mode, ai=${aiDifficulty}), TV auto-joined`);
+  console.log(`[Room ${code}] Created (${mode} mode, ai=${aiDifficulty})`);
 }
 
-function handleJoinRoom(ws: WebSocket, code: string, role: ConnectionRole, reconnectToken?: string): void {
+function handleJoinRoom(ws: WebSocket, code: string, reconnectToken?: string): void {
   const room = rooms.get(code);
   if (!room) {
     send(ws, { type: 'ERROR', message: 'Room not found' });
@@ -429,7 +406,7 @@ function handleJoinRoom(ws: WebSocket, code: string, role: ConnectionRole, recon
     return;
   }
 
-  if (role === 'player' && reconnectToken) {
+  if (reconnectToken) {
     const duplicate = room.connections.find((connection) => connection.reconnectToken === reconnectToken && connection.ws !== ws);
     if (duplicate) {
       room.connections = room.connections.filter((connection) => connection !== duplicate);
@@ -444,49 +421,46 @@ function handleJoinRoom(ws: WebSocket, code: string, role: ConnectionRole, recon
   let playerSlot: PlayerSlot | null = null;
   let assignedReconnectToken = reconnectToken;
 
-  if (role === 'player') {
-    const activeSlots = getActivePlayerSlots(room);
-    const reservedSlots = getReservedSlots(room);
+  const activeSlots = getActivePlayerSlots(room);
+  const reservedSlots = getReservedSlots(room);
 
-    if (assignedReconnectToken) {
-      const reservation = findReservationByToken(room, assignedReconnectToken);
-      if (reservation && !activeSlots.has(reservation.slot)) {
-        playerSlot = reservation.slot;
-        releaseReservedSlot(room, reservation.slot);
-      }
+  if (assignedReconnectToken) {
+    const reservation = findReservationByToken(room, assignedReconnectToken);
+    if (reservation && !activeSlots.has(reservation.slot)) {
+      playerSlot = reservation.slot;
+      releaseReservedSlot(room, reservation.slot);
     }
+  }
 
-    if (!assignedReconnectToken) {
-      assignedReconnectToken = generateReconnectToken();
+  if (!assignedReconnectToken) {
+    assignedReconnectToken = generateReconnectToken();
+  }
+
+  if (playerSlot === null) {
+    if (room.mode === 'ai') {
+      // AI mode: only slot 0 available for human
+      if (!activeSlots.has(0) && !reservedSlots.has(0)) {
+        playerSlot = 0;
+      }
+    } else {
+      // PvP: assign first available unreserved slot
+      if (!activeSlots.has(0) && !reservedSlots.has(0)) {
+        playerSlot = 0;
+      } else if (!activeSlots.has(1) && !reservedSlots.has(1)) {
+        playerSlot = 1;
+      }
     }
 
     if (playerSlot === null) {
-      if (room.mode === 'ai') {
-        // AI mode: only slot 0 available for human
-        if (!activeSlots.has(0) && !reservedSlots.has(0)) {
-          playerSlot = 0;
-        }
-      } else {
-        // PvP: assign first available unreserved slot
-        if (!activeSlots.has(0) && !reservedSlots.has(0)) {
-          playerSlot = 0;
-        } else if (!activeSlots.has(1) && !reservedSlots.has(1)) {
-          playerSlot = 1;
-        }
-      }
-
-      if (playerSlot === null) {
-        send(ws, { type: 'ERROR', message: 'Room is full or reconnect slot is reserved' });
-        return;
-      }
+      send(ws, { type: 'ERROR', message: 'Room is full or reconnect slot is reserved' });
+      return;
     }
   }
 
   const conn: Connection = {
     ws,
-    role,
     playerSlot,
-    reconnectToken: role === 'player' ? assignedReconnectToken : undefined,
+    reconnectToken: assignedReconnectToken,
   };
   room.connections.push(conn);
   room.lastActivity = Date.now();
@@ -496,17 +470,15 @@ function handleJoinRoom(ws: WebSocket, code: string, role: ConnectionRole, recon
     type: 'JOINED',
     playerSlot,
     mode: room.mode,
-    reconnectToken: role === 'player' ? assignedReconnectToken : undefined,
+    reconnectToken: assignedReconnectToken,
     castAccessToken: room.castAccessToken,
   });
-  console.log(`[Room ${code}] ${role} joined${playerSlot !== null ? ` as player ${playerSlot}` : ''}`);
+  console.log(`[Room ${code}] player joined as slot ${playerSlot}`);
 
   // Notify others about new player
-  if (playerSlot !== null) {
-    for (const other of room.connections) {
-      if (other.ws !== ws) {
-        send(other.ws, { type: 'PLAYER_JOINED', playerSlot });
-      }
+  for (const other of room.connections) {
+    if (other.ws !== ws) {
+      send(other.ws, { type: 'PLAYER_JOINED', playerSlot });
     }
   }
 
@@ -516,12 +488,8 @@ function handleJoinRoom(ws: WebSocket, code: string, role: ConnectionRole, recon
   // If game already started (reconnection), send current state
   if (room.state) {
     const publicState = extractPublicState(room.state);
-    if (playerSlot !== null) {
-      const privateState = extractPrivateState(room.state, playerSlot);
-      send(ws, { type: 'GAME_STATE', public: publicState, private: privateState, audioEvent: null, aiMessage: null });
-    } else {
-      send(ws, { type: 'GAME_STATE', public: publicState, private: null, audioEvent: null, aiMessage: null });
-    }
+    const privateState = extractPrivateState(room.state, playerSlot);
+    send(ws, { type: 'GAME_STATE', public: publicState, private: privateState, audioEvent: null, aiMessage: null });
   }
 }
 
@@ -533,7 +501,7 @@ function handleGameAction(ws: WebSocket, action: GameAction): void {
   }
 
   const conn = findConnection(room, ws);
-  if (!conn || conn.playerSlot === null) {
+  if (!conn) {
     send(ws, { type: 'ERROR', message: 'Only players can send actions' });
     return;
   }
@@ -581,7 +549,7 @@ function handleRematchRequest(ws: WebSocket): void {
   }
 
   const conn = findConnection(room, ws);
-  if (!conn || conn.playerSlot === null) {
+  if (!conn) {
     send(ws, { type: 'ERROR', message: 'Only players can request a rematch' });
     return;
   }
@@ -620,18 +588,16 @@ function handleDisconnect(ws: WebSocket): void {
 
   room.connections = room.connections.filter(c => c.ws !== ws);
 
-  if (conn.playerSlot !== null) {
-    room.rematchVotes.delete(conn.playerSlot);
-    if (conn.reconnectToken) {
-      reservePlayerSlot(room, conn.playerSlot, conn.reconnectToken);
-    }
-    console.log(`[Room ${room.code}] Player ${conn.playerSlot} disconnected`);
-    for (const other of room.connections) {
-      send(other.ws, { type: 'PLAYER_DISCONNECTED', playerSlot: conn.playerSlot });
-    }
-    broadcastRematchStatus(room);
-    broadcastCastRoomSnapshot(room);
+  room.rematchVotes.delete(conn.playerSlot);
+  if (conn.reconnectToken) {
+    reservePlayerSlot(room, conn.playerSlot, conn.reconnectToken);
   }
+  console.log(`[Room ${room.code}] Player ${conn.playerSlot} disconnected`);
+  for (const other of room.connections) {
+    send(other.ws, { type: 'PLAYER_DISCONNECTED', playerSlot: conn.playerSlot });
+  }
+  broadcastRematchStatus(room);
+  broadcastCastRoomSnapshot(room);
 
   // Clean up empty rooms
   if (room.connections.length === 0) {
@@ -853,7 +819,7 @@ wss.on('connection', (ws: WebSocket) => {
           handleCreateRoom(ws, msg.mode, msg.aiDifficulty ?? 'medium');
           break;
         case 'JOIN_ROOM':
-          handleJoinRoom(ws, msg.code, msg.role, msg.reconnectToken);
+          handleJoinRoom(ws, msg.code, msg.reconnectToken);
           break;
         case 'GAME_ACTION':
           handleGameAction(ws, msg.action);
@@ -874,3 +840,4 @@ wss.on('connection', (ws: WebSocket) => {
 server.listen(PORT, () => {
   console.log(`Jambo Cast Server running on http://localhost:${PORT} (ws path: /ws)`);
 });
+

@@ -1,12 +1,11 @@
 // ============================================================================
-// Simple hash-based router for Cast Mode
-// No hash → normal local game | /#/tv → TV screen | /#/play → Player screen
+// Simple hash-based router
+// No hash -> normal app flow | /#/play -> join cast room as a player
 // ============================================================================
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { GameScreen } from './GameScreen.tsx';
 import { CastLobby } from './CastLobby.tsx';
-import { TVScreen } from './TVScreen.tsx';
 import { PlayerScreen } from './PlayerScreen.tsx';
 import { MainMenu } from './screens/MainMenu.tsx';
 import { LoginModal } from './screens/LoginModal.tsx';
@@ -15,23 +14,17 @@ import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { useWebSocketGame } from '../multiplayer/client.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
+import type { RoomMode } from '../multiplayer/types.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
+import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
 
-type Route = 'local' | 'tv' | 'play';
-type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings';
+type Route = 'local' | 'play';
+type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings' | 'castHost';
 
 function getRoute(): Route {
   const hash = window.location.hash;
-  if (hash.startsWith('#/tv')) return 'tv';
   if (hash === '#/play' || hash === '#/play/') return 'play';
   return 'local';
-}
-
-function getRoomModeFromHash(): import('../multiplayer/types.ts').RoomMode | null {
-  const hash = window.location.hash;
-  if (hash.startsWith('#/tv/ai')) return 'ai';
-  if (hash.startsWith('#/tv/pvp')) return 'pvp';
-  return null;
 }
 
 function getRandomFirstPlayer(): 0 | 1 {
@@ -39,6 +32,7 @@ function getRandomFirstPlayer(): 0 | 1 {
 }
 
 export function Router() {
+  const ws = useWebSocketGame();
   const [route, setRoute] = useState<Route>(getRoute);
   const [screen, setScreen] = useState<Screen>('menu');
   const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>('medium');
@@ -47,6 +41,8 @@ export function Router() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [revealFirstPlayer, setRevealFirstPlayer] = useState<0 | 1 | null>(null);
   const [pendingScreen, setPendingScreen] = useState<'solo' | 'multiplayer' | null>(null);
+  const [castRoomMode, setCastRoomMode] = useState<RoomMode | null>(null);
+  const [castStartError, setCastStartError] = useState<string | null>(null);
   const newGame = useGameStore((store) => store.newGame);
 
   useEffect(() => {
@@ -59,6 +55,7 @@ export function Router() {
     if (option === 'solo' || option === 'multiplayer') {
       setPendingMode(option);
       setShowPreGameSetup(true);
+      setCastStartError(null);
       return;
     }
     setScreen(option);
@@ -67,9 +64,10 @@ export function Router() {
   const handleClosePreGameSetup = () => {
     setShowPreGameSetup(false);
     setPendingMode(null);
+    setCastStartError(null);
   };
 
-  const handleStartFromPreGameSetup = ({
+  const handleStartFromPreGameSetup = async ({
     castMode,
     aiDifficulty: selectedDifficulty,
   }: {
@@ -82,11 +80,29 @@ export function Router() {
 
     setShowPreGameSetup(false);
     setAiDifficulty(selectedDifficulty);
+    setCastStartError(null);
 
     if (castMode) {
+      if (!isCastSdkEnabled()) {
+        setCastStartError('Chromecast is not enabled for this build.');
+        setShowPreGameSetup(true);
+        return;
+      }
+
+      try {
+        const controller = getCastSessionController();
+        if (!controller.getSession()) {
+          await controller.requestSession();
+        }
+      } catch (error) {
+        setCastStartError(error instanceof Error ? error.message : 'Failed to connect to Chromecast.');
+        setShowPreGameSetup(true);
+        return;
+      }
+
       const roomMode = pendingMode === 'solo' ? 'ai' : 'pvp';
-      window.location.hash = `#/tv/${roomMode}`;
-      setScreen('menu');
+      setCastRoomMode(roomMode);
+      setScreen('castHost');
       setPendingMode(null);
       return;
     }
@@ -106,7 +122,6 @@ export function Router() {
     setPendingScreen(null);
   }, [pendingScreen]);
 
-  // Show first-player reveal overlay on top of the menu
   if (revealFirstPlayer !== null) {
     return (
       <FirstPlayerReveal
@@ -116,97 +131,96 @@ export function Router() {
     );
   }
 
-  if (route === 'local') {
-    if (screen === 'menu') {
-      return (
-        <>
-          <MainMenu
-            onSelectOption={handleMenuSelect}
-            onTutorial={() => setShowTutorial(true)}
-          />
-          {showPreGameSetup && pendingMode && (
-            <PreGameSetupModal
-              mode={pendingMode}
-              aiDifficulty={aiDifficulty}
-              onCancel={handleClosePreGameSetup}
-              onStart={handleStartFromPreGameSetup}
-            />
-          )}
-          {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
-        </>
-      );
+  if (route === 'play') {
+    if (ws.playerSlot !== null && ws.publicState && ws.privateState) {
+      return <PlayerScreen ws={ws} />;
     }
-    if (screen === 'login') {
-      return (
-        <>
-          <MainMenu
-            onSelectOption={handleMenuSelect}
-            onTutorial={() => setShowTutorial(true)}
-          />
-          <LoginModal onClose={() => setScreen('menu')} />
-          {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
-        </>
-      );
-    }
-    if (screen === 'solo') {
-      return <GameScreen onBackToMenu={() => setScreen('menu')} aiDifficulty={aiDifficulty} />;
-    }
-    if (screen === 'multiplayer') {
-      return <GameScreen onBackToMenu={() => setScreen('menu')} aiDifficulty={aiDifficulty} localMultiplayer />;
-    }
+    return <CastLobby ws={ws} mode="join" aiDifficulty={aiDifficulty} roomMode={null} />;
+  }
 
-    if (screen === 'settings') {
-      return (
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div className="etched-wood-border dialog-pop" style={{
-            width: 'min(560px, 96vw)',
-            borderRadius: 12,
-            padding: 20,
-            background: 'var(--surface)',
-            color: 'var(--text)',
-            textAlign: 'center',
-          }}>
-            <h1 style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontSize: 28, margin: '0 0 10px 0' }}>
-              Settings
-            </h1>
-            <div style={{ color: 'var(--text-muted)', marginBottom: 16 }}>
-              Version {__APP_VERSION__}
-            </div>
-            <button
-              onClick={() => setScreen('menu')}
-              style={{
-                background: 'var(--surface-accent)',
-                border: '1px solid var(--border-light)',
-                color: 'var(--gold)',
-                borderRadius: 8,
-                padding: '10px 16px',
-                cursor: 'pointer',
-              }}
-            >
-              Back to Menu
-            </button>
+  if (screen === 'menu') {
+    return (
+      <>
+        <MainMenu
+          onSelectOption={handleMenuSelect}
+          onTutorial={() => setShowTutorial(true)}
+        />
+        {showPreGameSetup && pendingMode && (
+          <PreGameSetupModal
+            mode={pendingMode}
+            aiDifficulty={aiDifficulty}
+            onCancel={handleClosePreGameSetup}
+            onStart={(options) => { void handleStartFromPreGameSetup(options); }}
+            castStartError={castStartError}
+          />
+        )}
+        {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
+      </>
+    );
+  }
+
+  if (screen === 'login') {
+    return (
+      <>
+        <MainMenu
+          onSelectOption={handleMenuSelect}
+          onTutorial={() => setShowTutorial(true)}
+        />
+        <LoginModal onClose={() => setScreen('menu')} />
+        {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
+      </>
+    );
+  }
+
+  if (screen === 'solo') {
+    return <GameScreen onBackToMenu={() => setScreen('menu')} aiDifficulty={aiDifficulty} />;
+  }
+
+  if (screen === 'multiplayer') {
+    return <GameScreen onBackToMenu={() => setScreen('menu')} aiDifficulty={aiDifficulty} localMultiplayer />;
+  }
+
+  if (screen === 'castHost' && castRoomMode) {
+    if (ws.playerSlot !== null && ws.publicState && ws.privateState) {
+      return <PlayerScreen ws={ws} />;
+    }
+    return <CastLobby ws={ws} mode="host" aiDifficulty={aiDifficulty} roomMode={castRoomMode} />;
+  }
+
+  if (screen === 'settings') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div className="etched-wood-border dialog-pop" style={{
+          width: 'min(560px, 96vw)',
+          borderRadius: 12,
+          padding: 20,
+          background: 'var(--surface)',
+          color: 'var(--text)',
+          textAlign: 'center',
+        }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', color: 'var(--gold)', fontSize: 28, margin: '0 0 10px 0' }}>
+            Settings
+          </h1>
+          <div style={{ color: 'var(--text-muted)', marginBottom: 16 }}>
+            Version {__APP_VERSION__}
           </div>
+          <button
+            onClick={() => setScreen('menu')}
+            style={{
+              background: 'var(--surface-accent)',
+              border: '1px solid var(--border-light)',
+              color: 'var(--gold)',
+              borderRadius: 8,
+              padding: '10px 16px',
+              cursor: 'pointer',
+            }}
+          >
+            Back to Menu
+          </button>
         </div>
-      );
-    }
-
-    return null;
+      </div>
+    );
   }
 
-  return <CastRouter route={route} aiDifficulty={aiDifficulty} roomMode={getRoomModeFromHash()} />;
-}
-
-function CastRouter({ route, aiDifficulty, roomMode }: { route: 'tv' | 'play'; aiDifficulty: AIDifficulty; roomMode: import('../multiplayer/types.ts').RoomMode | null }) {
-  const ws = useWebSocketGame();
-
-  // Show lobby until game state arrives
-  if (!ws.publicState) {
-    return <CastLobby ws={ws} role={route === 'tv' ? 'tv' : 'player'} aiDifficulty={aiDifficulty} roomMode={roomMode} />;
-  }
-
-  if (route === 'tv') {
-    return <TVScreen ws={ws} />;
-  }
-
-  return <PlayerScreen ws={ws} />;
+  return null;
 }

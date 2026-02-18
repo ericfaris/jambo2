@@ -18,7 +18,7 @@ import type { AIDifficulty } from '../ai/difficulties/index.ts';
 // --- Room & Connection ---
 
 export type RoomMode = 'ai' | 'pvp';
-export type ConnectionRole = 'player' | 'tv';
+export type ConnectionRole = 'player';
 export type PlayerSlot = 0 | 1;
 
 // --- Client → Server Messages ---

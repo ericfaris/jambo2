@@ -20,7 +20,6 @@ import { useAudioEvents } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getPlayDisabledReason, getDrawDisabledReason } from './uiHints.ts';
 import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
-import { CastSessionControl } from './cast/CastSessionControl.tsx';
 import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
 import { isCastSdkEnabled } from '../cast/factory.ts';
 
@@ -847,38 +846,6 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
         />
       )}
 
-      <CastSessionControl
-        containerStyle={{
-          position: 'fixed',
-          top: 10,
-          right: 12,
-          zIndex: 1300,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          gap: 6,
-        }}
-        buttonStyle={{
-          background: 'var(--surface-light)',
-          border: '1px solid var(--border-light)',
-          color: 'var(--text)',
-          borderRadius: 8,
-          padding: '6px 10px',
-          fontSize: 12,
-          cursor: 'pointer',
-        }}
-        statusStyle={{
-          fontSize: 11,
-          color: 'var(--text-muted)',
-          textShadow: '0 1px 1px rgba(0,0,0,0.35)',
-        }}
-        errorStyle={{
-          fontSize: 11,
-          color: '#ff9977',
-          maxWidth: 260,
-          textAlign: 'right',
-        }}
-      />
     </div>
   );
 }

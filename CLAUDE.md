@@ -2,6 +2,10 @@
 
 Digital implementation of "Jambo" card game by Rudiger Dorn.
 
+## Deployment
+
+- Production URL: `http://jambo.up.railway.app`
+
 ## Commands
 
 ```bash

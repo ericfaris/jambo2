@@ -8,7 +8,7 @@ Replace the current web-only "cast mode" transport with a native Google Cast SDK
 
 ## Current Implementation (Baseline)
 
-- TV and player roles are hash routes (`/#/tv/*`, `/#/play`) in a web app.
+- Host starts cast from pre-game flow in-app; guest player joins via `/#/play`.
 - Pairing is room-code based via WebSocket lobby.
 - Server is authoritative and already splits game state:
   - Public state -> TV
@@ -126,7 +126,7 @@ Replace the current web-only "cast mode" transport with a native Google Cast SDK
 - `src/cast/contracts.ts` defines Cast session and message contracts.
 - `src/cast/webSender.ts` provides a web sender implementation of `CastSessionController`.
 - `src/cast/factory.ts` gates Cast usage behind env flags and falls back safely.
-- `src/ui/screens/MainMenu.tsx` includes a beta Cast connect/disconnect control when enabled.
+- Cast session initiation is driven from the pre-game setup flow (no separate global cast button).
 
 ### Required environment flags
 

@@ -9,6 +9,7 @@ interface PreGameSetupModalProps {
   aiDifficulty: AIDifficulty;
   onCancel: () => void;
   onStart: (options: { castMode: boolean; aiDifficulty: AIDifficulty }) => void;
+  castStartError?: string | null;
 }
 
 const sectionStyle = {
@@ -27,7 +28,7 @@ const sectionLabelStyle = {
   letterSpacing: 0.5,
 } as const;
 
-export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCancel, onStart }: PreGameSetupModalProps) {
+export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCancel, onStart, castStartError }: PreGameSetupModalProps) {
   const [castMode, setCastMode] = useState(false);
   const [difficulty, setDifficulty] = useState<AIDifficulty>(initialDifficulty);
 
@@ -62,21 +63,21 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
           {title}
         </div>
 
-        {/* Screen mode */}
+        {/* Display mode */}
         <div style={sectionStyle}>
-          <div style={sectionLabelStyle}>Screen Mode</div>
+          <div style={sectionLabelStyle}>Display</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <OptionButton
               selected={!castMode}
               onClick={() => setCastMode(false)}
-              label="Local"
-              description="Everything on one screen"
+              label="This Device"
+              description="Play without Chromecast"
             />
             <OptionButton
               selected={castMode}
               onClick={() => setCastMode(true)}
-              label="Cast"
-              description="Game view on TV, players on phone"
+              label="Chromecast TV"
+              description="Board on TV, players on phones"
             />
           </div>
         </div>
@@ -109,6 +110,11 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
         )}
 
         {/* Actions */}
+        {castStartError && (
+          <div style={{ color: '#ff9977', fontSize: 13, textAlign: 'right' }}>
+            {castStartError}
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button
             onClick={onCancel}

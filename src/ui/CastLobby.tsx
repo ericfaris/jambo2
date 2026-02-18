@@ -1,11 +1,11 @@
 // ============================================================================
-// Cast Mode — Lobby UI
-// TV: create room → show code. Player: enter code → join.
+// Cast Lobby UI
+// Host: create room + join as player. Join: enter code + join as player.
 // ============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
-import type { ConnectionRole, RoomMode } from '../multiplayer/types.ts';
+import type { RoomMode } from '../multiplayer/types.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
 import { isCastSdkEnabled } from '../cast/factory.ts';
@@ -13,25 +13,26 @@ import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
 
 interface CastLobbyProps {
   ws: WebSocketGameState;
-  role: ConnectionRole;
+  mode: 'host' | 'join';
   aiDifficulty: AIDifficulty;
   roomMode: RoomMode | null;
 }
 
-export function CastLobby({ ws, role, aiDifficulty, roomMode }: CastLobbyProps) {
-  if (role === 'tv') {
-    return <TVLobby ws={ws} aiDifficulty={aiDifficulty} roomMode={roomMode ?? 'ai'} />;
+export function CastLobby({ ws, mode, aiDifficulty, roomMode }: CastLobbyProps) {
+  if (mode === 'host') {
+    return <HostLobby ws={ws} aiDifficulty={aiDifficulty} roomMode={roomMode ?? 'ai'} />;
   }
-  return <PlayerLobby ws={ws} />;
+  return <JoinLobby ws={ws} />;
 }
 
-function TVLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiDifficulty: AIDifficulty; roomMode: RoomMode }) {
+function HostLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiDifficulty: AIDifficulty; roomMode: RoomMode }) {
   const lastCreateAttemptAt = useRef(0);
+  const hasRequestedJoin = useRef(false);
   const castEnabled = isCastSdkEnabled();
   const castSync = useCastRoomSync({
     roomCode: ws.roomCode,
     roomMode,
-    senderPlayerSlot: null,
+    senderPlayerSlot: ws.playerSlot,
     castAccessToken: ws.castAccessToken,
   });
 
@@ -49,11 +50,18 @@ function TVLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiDif
       return;
     }
 
-    // Immediate attempt, then retry until ROOM_CREATED arrives.
     requestCreateRoom();
     const timer = window.setInterval(() => requestCreateRoom(), 2000);
     return () => window.clearInterval(timer);
   }, [ws.connected, ws.roomCode, requestCreateRoom]);
+
+  useEffect(() => {
+    if (!ws.connected || !ws.roomCode || ws.playerSlot !== null || hasRequestedJoin.current) {
+      return;
+    }
+    hasRequestedJoin.current = true;
+    ws.joinRoom(ws.roomCode, 'player');
+  }, [ws.connected, ws.roomCode, ws.playerSlot, ws.joinRoom]);
 
   if (!ws.connected) {
     return (
@@ -76,8 +84,8 @@ function TVLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiDif
 
   const modeLabel = roomMode === 'ai' ? 'Solo (vs AI)' : 'Multiplayer';
   const joinUrl = `${window.location.origin}/#/play`;
-  const joinPrefix = roomMode === 'ai' ? 'Open ' : 'Both players: open ';
-  const joinSuffix = ' on your phone and enter this code';
+  const joinPrefix = roomMode === 'ai' ? 'Optional second device: open ' : 'Second player: open ';
+  const joinSuffix = ' and enter this code';
 
   return (
     <LobbyContainer>
@@ -109,8 +117,13 @@ function TVLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiDif
         </a>
         {joinSuffix}
       </div>
-      {ws.playerJoined !== null && (
+      {ws.playerSlot !== null && (
         <div style={{ fontSize: 16, color: 'var(--accent-green, #7c7)', marginTop: 16 }}>
+          You are Player {ws.playerSlot + 1}. Waiting for game start...
+        </div>
+      )}
+      {ws.playerJoined !== null && (
+        <div style={{ fontSize: 16, color: 'var(--accent-green, #7c7)', marginTop: 8 }}>
           Player {ws.playerJoined + 1} joined!
         </div>
       )}
@@ -127,7 +140,7 @@ function TVLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiDif
   );
 }
 
-function PlayerLobby({ ws }: { ws: WebSocketGameState }) {
+function JoinLobby({ ws }: { ws: WebSocketGameState }) {
   const [code, setCode] = useState('');
   const [joined, setJoined] = useState(false);
 
@@ -139,7 +152,6 @@ function PlayerLobby({ ws }: { ws: WebSocketGameState }) {
     );
   }
 
-  // Already joined, waiting for game
   if (joined || ws.playerSlot !== null) {
     return (
       <LobbyContainer>
@@ -161,10 +173,10 @@ function PlayerLobby({ ws }: { ws: WebSocketGameState }) {
   return (
     <LobbyContainer>
       <div style={{ fontSize: 28, fontFamily: 'var(--font-heading)', color: 'var(--gold)', marginBottom: 24 }}>
-        Join Game
+        Join Cast Game
       </div>
       <div style={{ fontSize: 16, color: 'var(--text-muted)', marginBottom: 16 }}>
-        Enter the room code shown on the TV:
+        Enter the room code from the host:
       </div>
       <input
         type="text"
@@ -208,8 +220,6 @@ function PlayerLobby({ ws }: { ws: WebSocketGameState }) {
     </LobbyContainer>
   );
 }
-
-// --- Shared UI ---
 
 function LobbyContainer({ children }: { children: React.ReactNode }) {
   return (

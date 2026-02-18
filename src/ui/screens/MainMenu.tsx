@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import './MainMenu.css';
 import { fetchUserStatsSummary } from '../../persistence/userStatsApi.ts';
 import type { UserStatsSummary } from '../../persistence/userStatsApi.ts';
-import { CastSessionControl } from '../cast/CastSessionControl.tsx';
 
 interface MainMenuProps {
   onSelectOption: (option: 'login' | 'solo' | 'multiplayer' | 'settings') => void;
@@ -118,11 +117,6 @@ export function MainMenu({ onSelectOption, onTutorial }: MainMenuProps) {
           {onTutorial && (
             <button className="menu-action" onClick={onTutorial}>How to Play</button>
           )}
-          <CastSessionControl
-            buttonClassName="menu-action"
-            statusClassName="menu-subtitle"
-            errorClassName="menu-error"
-          />
           <button className="menu-action" onClick={() => void handleAuthAction()} disabled={isAuthLoading}>
             {isAuthLoading ? 'Checking Profile...' : session?.authenticated ? 'Logout' : 'Login'}
           </button>
