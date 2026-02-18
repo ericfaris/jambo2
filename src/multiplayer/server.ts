@@ -747,10 +747,35 @@ function handleCastApi(req: import('node:http').IncomingMessage, res: import('no
   return true;
 }
 
+function handleConfigApi(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): boolean {
+  const requestUrl = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+  if (requestUrl.pathname !== '/api/config') {
+    return false;
+  }
+
+  if (req.method !== 'GET') {
+    res.statusCode = 405;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ error: 'Method not allowed' }));
+    return true;
+  }
+
+  res.statusCode = 200;
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify({
+    castAppId: (process.env['VITE_CAST_APP_ID'] ?? '').trim() || null,
+  }));
+  return true;
+}
+
 const server = createServer((req, res) => {
   // API routes
   if ((req.url ?? '').startsWith('/api/')) {
     if (handleCastApi(req, res)) {
+      return;
+    }
+    if (handleConfigApi(req, res)) {
       return;
     }
     void handleStatsApi(req, res).then((handledStats) => {

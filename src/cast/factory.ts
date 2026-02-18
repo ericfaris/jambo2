@@ -1,5 +1,6 @@
 import { NoopCastSessionController, type CastSessionController } from './contracts.ts';
 import { WebCastSessionController } from './webSender.ts';
+import { getRuntimeCastAppId } from '../config/runtimeConfig.ts';
 
 let singleton: CastSessionController | null = null;
 
@@ -10,9 +11,9 @@ export function isCastSdkEnabled(): boolean {
 export function getCastSessionController(): CastSessionController {
   if (singleton) return singleton;
 
-  const appId = import.meta.env.VITE_CAST_APP_ID?.trim();
+  const appId = getRuntimeCastAppId() ?? import.meta.env.VITE_CAST_APP_ID?.trim();
   if (!appId) {
-    console.warn('[Cast] VITE_CAST_APP_ID is missing. Falling back to no-op.');
+    console.warn('[Cast] Cast app id is missing. Set VITE_CAST_APP_ID in runtime env or build env.');
     singleton = new NoopCastSessionController();
     return singleton;
   }
