@@ -16,7 +16,7 @@ import { useWebSocketGame } from '../multiplayer/client.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import type { RoomMode } from '../multiplayer/types.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
-import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
+import { getCastSessionController } from '../cast/factory.ts';
 
 type Route = 'local' | 'play';
 type Screen = 'menu' | 'solo' | 'multiplayer' | 'login' | 'settings' | 'castHost';
@@ -83,12 +83,6 @@ export function Router() {
     setCastStartError(null);
 
     if (castMode) {
-      if (!isCastSdkEnabled()) {
-        setCastStartError('Chromecast is not enabled for this build.');
-        setShowPreGameSetup(true);
-        return;
-      }
-
       try {
         const controller = getCastSessionController();
         if (!controller.getSession()) {

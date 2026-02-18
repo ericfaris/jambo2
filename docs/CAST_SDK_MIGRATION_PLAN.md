@@ -130,10 +130,9 @@ Replace the current web-only "cast mode" transport with a native Google Cast SDK
 
 ### Required environment flags
 
-- `VITE_CAST_SDK_ENABLED=true`
 - `VITE_CAST_APP_ID=<your registered Cast app id>`
 
-If either is missing/disabled, the app uses a no-op Cast controller and normal gameplay remains unchanged.
+If this is missing, the app uses a no-op Cast controller and cast session requests will fail gracefully.
 
 ## Phase 3 Scaffold Status
 
