@@ -53,6 +53,14 @@ export default [
     },
   },
   {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
     files: ['receiver/caf/**/*.js'],
     languageOptions: {
       globals: {
