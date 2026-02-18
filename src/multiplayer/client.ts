@@ -20,6 +20,7 @@ import type { AIDifficulty } from '../ai/difficulties/index.ts';
 export interface WebSocketGameState {
   connected: boolean;
   roomCode: string | null;
+  castAccessToken: string | null;
   playerSlot: PlayerSlot | null;
   roomMode: RoomMode | null;
   publicState: PublicGameState | null;
@@ -47,6 +48,7 @@ export function useWebSocketGame(): WebSocketGameState {
 
   const [connected, setConnected] = useState(false);
   const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [castAccessToken, setCastAccessToken] = useState<string | null>(null);
   const [playerSlot, setPlayerSlot] = useState<PlayerSlot | null>(null);
   const [roomMode, setRoomMode] = useState<RoomMode | null>(null);
   const [publicState, setPublicState] = useState<PublicGameState | null>(null);
@@ -77,10 +79,16 @@ export function useWebSocketGame(): WebSocketGameState {
     switch (msg.type) {
       case 'ROOM_CREATED':
         setRoomCode(msg.code);
+        if (msg.castAccessToken) {
+          setCastAccessToken(msg.castAccessToken);
+        }
         break;
       case 'JOINED':
         setPlayerSlot(msg.playerSlot);
         setRoomMode(msg.mode);
+        if (msg.castAccessToken) {
+          setCastAccessToken(msg.castAccessToken);
+        }
         if (pendingJoin.current && msg.reconnectToken) {
           const key = getReconnectStorageKey(pendingJoin.current.code, pendingJoin.current.role);
           window.sessionStorage.setItem(key, msg.reconnectToken);
@@ -202,6 +210,7 @@ export function useWebSocketGame(): WebSocketGameState {
   return {
     connected,
     roomCode,
+    castAccessToken,
     playerSlot,
     roomMode,
     publicState,

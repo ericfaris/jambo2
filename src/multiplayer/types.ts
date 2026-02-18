@@ -32,8 +32,8 @@ export type ClientMessage =
 // --- Server → Client Messages ---
 
 export type ServerMessage =
-  | { type: 'ROOM_CREATED'; code: string }
-  | { type: 'JOINED'; playerSlot: PlayerSlot | null; mode: RoomMode; reconnectToken?: string }
+  | { type: 'ROOM_CREATED'; code: string; castAccessToken?: string }
+  | { type: 'JOINED'; playerSlot: PlayerSlot | null; mode: RoomMode; reconnectToken?: string; castAccessToken?: string }
   | { type: 'GAME_STATE'; public: PublicGameState; private: PrivateGameState | null; audioEvent: AudioEvent | null; aiMessage: string | null }
   | { type: 'PLAYER_JOINED'; playerSlot: PlayerSlot }
   | { type: 'PLAYER_DISCONNECTED'; playerSlot: PlayerSlot }

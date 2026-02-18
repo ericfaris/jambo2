@@ -8,6 +8,8 @@ import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { ConnectionRole, RoomMode } from '../multiplayer/types.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
+import { isCastSdkEnabled } from '../cast/factory.ts';
+import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
 
 interface CastLobbyProps {
   ws: WebSocketGameState;
@@ -25,6 +27,13 @@ export function CastLobby({ ws, role, aiDifficulty, roomMode }: CastLobbyProps) 
 
 function TVLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiDifficulty: AIDifficulty; roomMode: RoomMode }) {
   const lastCreateAttemptAt = useRef(0);
+  const castEnabled = isCastSdkEnabled();
+  const castSync = useCastRoomSync({
+    roomCode: ws.roomCode,
+    roomMode,
+    senderPlayerSlot: null,
+    castAccessToken: ws.castAccessToken,
+  });
 
   const requestCreateRoom = useCallback(() => {
     const now = Date.now();
@@ -107,6 +116,12 @@ function TVLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiDif
       )}
       {ws.error && (
         <div style={{ fontSize: 14, color: '#ff9977', marginTop: 12 }}>{ws.error}</div>
+      )}
+      {castEnabled && (
+        <div style={{ fontSize: 14, color: castSync.status === 'error' ? '#ff9977' : 'var(--text-muted)', marginTop: 6 }}>
+          Cast receiver sync: {castSync.status}
+          {castSync.error ? ` (${castSync.error})` : ''}
+        </div>
       )}
     </LobbyContainer>
   );

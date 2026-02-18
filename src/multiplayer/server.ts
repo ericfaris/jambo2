@@ -29,6 +29,7 @@ import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import { loadLocalEnv } from './loadEnv.ts';
 import { handleAuthApi } from './auth.ts';
 import { handleStatsApi } from './statsApi.ts';
+import { resolveCastPublicRoom, toCastPublicRoomPayload, validateCastRoomAccess } from './castApi.ts';
 
 loadLocalEnv();
 
@@ -49,6 +50,7 @@ interface ReservedPlayerSlot {
 
 interface Room {
   code: string;
+  castAccessToken: string;
   mode: RoomMode;
   aiDifficulty: AIDifficulty;
   state: GameState | null;
@@ -60,6 +62,7 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 const PLAYER_RECONNECT_GRACE_MS = 90_000;
+const castRoomStreams = new Map<string, Set<import('node:http').ServerResponse>>();
 
 // --- Helpers ---
 
@@ -73,6 +76,10 @@ function generateRoomCode(): string {
 
 function generateReconnectToken(): string {
   return randomBytes(16).toString('hex');
+}
+
+function generateCastAccessToken(): string {
+  return randomBytes(24).toString('base64url');
 }
 
 function send(ws: WebSocket, msg: ServerMessage): void {
@@ -144,6 +151,46 @@ function getReservedSlots(room: Room): Set<PlayerSlot> {
   return new Set(room.reservedSlots.map((reservation) => reservation.slot));
 }
 
+function writeSseEvent(res: import('node:http').ServerResponse, eventName: string, payload: unknown): void {
+  if (res.writableEnded) return;
+  res.write(`event: ${eventName}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function addCastRoomStream(roomCode: string, res: import('node:http').ServerResponse): void {
+  const listeners = castRoomStreams.get(roomCode) ?? new Set<import('node:http').ServerResponse>();
+  listeners.add(res);
+  castRoomStreams.set(roomCode, listeners);
+}
+
+function removeCastRoomStream(roomCode: string, res: import('node:http').ServerResponse): void {
+  const listeners = castRoomStreams.get(roomCode);
+  if (!listeners) return;
+  listeners.delete(res);
+  if (listeners.size === 0) {
+    castRoomStreams.delete(roomCode);
+  }
+}
+
+function broadcastCastRoomSnapshot(room: Room): void {
+  const listeners = castRoomStreams.get(room.code);
+  if (!listeners || listeners.size === 0) return;
+  const payload = toCastPublicRoomPayload(room);
+  for (const res of listeners) {
+    writeSseEvent(res, 'room', payload);
+  }
+}
+
+function closeCastRoomStreams(roomCode: string): void {
+  const listeners = castRoomStreams.get(roomCode);
+  if (!listeners) return;
+  for (const res of listeners) {
+    writeSseEvent(res, 'room_deleted', { roomCode });
+    res.end();
+  }
+  castRoomStreams.delete(roomCode);
+}
+
 function getRequiredRematchSlots(room: Room): PlayerSlot[] {
   if (room.mode === 'ai') return [0];
   return [0, 1];
@@ -186,6 +233,7 @@ function broadcastState(room: Room, audioEvent: AudioEvent | null, aiMessage: st
   if (!room.state) return;
 
   const publicState = extractPublicState(room.state);
+  broadcastCastRoomSnapshot(room);
 
   // Send to TV connections (public only)
   for (const conn of getTvConnections(room)) {
@@ -351,6 +399,7 @@ function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficu
   const code = generateRoomCode();
   const room: Room = {
     code,
+    castAccessToken: generateCastAccessToken(),
     mode,
     aiDifficulty,
     state: null,
@@ -360,8 +409,9 @@ function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficu
     lastActivity: Date.now(),
   };
   rooms.set(code, room);
-  send(ws, { type: 'ROOM_CREATED', code });
-  send(ws, { type: 'JOINED', playerSlot: null, mode });
+  send(ws, { type: 'ROOM_CREATED', code, castAccessToken: room.castAccessToken });
+  send(ws, { type: 'JOINED', playerSlot: null, mode, castAccessToken: room.castAccessToken });
+  broadcastCastRoomSnapshot(room);
   console.log(`[Room ${code}] Created (${mode} mode, ai=${aiDifficulty}), TV auto-joined`);
 }
 
@@ -440,8 +490,15 @@ function handleJoinRoom(ws: WebSocket, code: string, role: ConnectionRole, recon
   };
   room.connections.push(conn);
   room.lastActivity = Date.now();
+  broadcastCastRoomSnapshot(room);
 
-  send(ws, { type: 'JOINED', playerSlot, mode: room.mode, reconnectToken: role === 'player' ? assignedReconnectToken : undefined });
+  send(ws, {
+    type: 'JOINED',
+    playerSlot,
+    mode: room.mode,
+    reconnectToken: role === 'player' ? assignedReconnectToken : undefined,
+    castAccessToken: room.castAccessToken,
+  });
   console.log(`[Room ${code}] ${role} joined${playerSlot !== null ? ` as player ${playerSlot}` : ''}`);
 
   // Notify others about new player
@@ -573,10 +630,12 @@ function handleDisconnect(ws: WebSocket): void {
       send(other.ws, { type: 'PLAYER_DISCONNECTED', playerSlot: conn.playerSlot });
     }
     broadcastRematchStatus(room);
+    broadcastCastRoomSnapshot(room);
   }
 
   // Clean up empty rooms
   if (room.connections.length === 0) {
+    closeCastRoomStreams(room.code);
     rooms.delete(room.code);
     console.log(`[Room ${room.code}] Deleted (empty)`);
   }
@@ -593,6 +652,7 @@ setInterval(() => {
         send(conn.ws, { type: 'ERROR', message: 'Room expired due to inactivity' });
         conn.ws.close();
       }
+      closeCastRoomStreams(code);
       rooms.delete(code);
       console.log(`[Room ${code}] Expired (1h inactivity)`);
     }
@@ -651,9 +711,82 @@ function serveStaticFile(res: import('node:http').ServerResponse, filePath: stri
   }
 }
 
+function handleCastApi(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): boolean {
+  const requestUrl = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+  if (!requestUrl.pathname.startsWith('/api/cast/')) {
+    return false;
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.end();
+    return true;
+  }
+
+  if (req.method === 'GET' && requestUrl.pathname === '/api/cast/public-room') {
+    const codeRaw = requestUrl.searchParams.get('code') ?? '';
+    const code = codeRaw.trim();
+    const tokenRaw = requestUrl.searchParams.get('token') ?? '';
+    const token = tokenRaw.trim();
+    const result = resolveCastPublicRoom(rooms, code, token);
+    res.statusCode = result.status;
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify(result.body));
+    return true;
+  }
+
+  if (req.method === 'GET' && requestUrl.pathname === '/api/cast/stream-room') {
+    const codeRaw = requestUrl.searchParams.get('code') ?? '';
+    const tokenRaw = requestUrl.searchParams.get('token') ?? '';
+    const access = validateCastRoomAccess(rooms, codeRaw, tokenRaw);
+    if (!access.ok) {
+      res.statusCode = access.status;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(access.body));
+      return true;
+    }
+
+    const room = access.room;
+    res.statusCode = 200;
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.write(': connected\n\n');
+    addCastRoomStream(room.code, res);
+    writeSseEvent(res, 'room', toCastPublicRoomPayload(room));
+
+    const heartbeat = setInterval(() => {
+      if (res.writableEnded) return;
+      res.write(': keepalive\n\n');
+    }, 20_000);
+
+    const cleanup = () => {
+      clearInterval(heartbeat);
+      removeCastRoomStream(room.code, res);
+    };
+    req.on('close', cleanup);
+    req.on('aborted', cleanup);
+    return true;
+  }
+
+  res.statusCode = 404;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify({ error: 'Not found' }));
+  return true;
+}
+
 const server = createServer((req, res) => {
   // API routes
   if ((req.url ?? '').startsWith('/api/')) {
+    if (handleCastApi(req, res)) {
+      return;
+    }
     void handleStatsApi(req, res).then((handledStats) => {
       if (handledStats) {
         return true;

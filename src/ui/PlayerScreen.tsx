@@ -20,6 +20,9 @@ import { useAudioEvents } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getPlayDisabledReason, getDrawDisabledReason } from './uiHints.ts';
 import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
+import { CastSessionControl } from './cast/CastSessionControl.tsx';
+import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
+import { isCastSdkEnabled } from '../cast/factory.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -70,6 +73,13 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const pub = ws.publicState;
   const priv = ws.privateState;
   const slot = ws.playerSlot;
+  const castEnabled = isCastSdkEnabled();
+  const castSync = useCastRoomSync({
+    roomCode: ws.roomCode,
+    roomMode: ws.roomMode,
+    senderPlayerSlot: slot,
+    castAccessToken: ws.castAccessToken,
+  });
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
   const [drawModalOpen, setDrawModalOpen] = useState(false);
   const [cardError, setCardError] = useState<{cardId: DeckCardId, message: string} | null>(null);
@@ -414,6 +424,17 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
           onClick={ws.clearError}
         >
           {ws.error}
+        </div>
+      )}
+      {castEnabled && castSync.status !== 'disabled' && (
+        <div style={{
+          fontSize: 12,
+          color: castSync.status === 'error' ? '#ff9977' : 'var(--text-muted)',
+          textAlign: 'right',
+          padding: '0 4px',
+        }}>
+          Cast receiver sync: {castSync.status}
+          {castSync.error ? ` (${castSync.error})` : ''}
         </div>
       )}
 
@@ -825,6 +846,39 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
           rematchStatusMessage={rematchStatusMessage}
         />
       )}
+
+      <CastSessionControl
+        containerStyle={{
+          position: 'fixed',
+          top: 10,
+          right: 12,
+          zIndex: 1300,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: 6,
+        }}
+        buttonStyle={{
+          background: 'var(--surface-light)',
+          border: '1px solid var(--border-light)',
+          color: 'var(--text)',
+          borderRadius: 8,
+          padding: '6px 10px',
+          fontSize: 12,
+          cursor: 'pointer',
+        }}
+        statusStyle={{
+          fontSize: 11,
+          color: 'var(--text-muted)',
+          textShadow: '0 1px 1px rgba(0,0,0,0.35)',
+        }}
+        errorStyle={{
+          fontSize: 11,
+          color: '#ff9977',
+          maxWidth: 260,
+          textAlign: 'right',
+        }}
+      />
     </div>
   );
 }
