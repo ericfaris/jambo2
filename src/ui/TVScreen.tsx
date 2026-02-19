@@ -11,7 +11,6 @@ import type { WareType } from '../engine/types.ts';
 import { WARE_TYPES } from '../engine/types.ts';
 import { MarketDisplay } from './MarketDisplay.tsx';
 import { UtilityArea } from './UtilityArea.tsx';
-import { GameLog } from './GameLog.tsx';
 import { CardFace, WareToken } from './CardFace.tsx';
 import { useAudioEvents } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
@@ -23,7 +22,6 @@ import { isCastSdkEnabled } from '../cast/factory.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
-const SHOW_LOG_STORAGE_KEY = 'jambo.showGameLog';
 const DEV_TELEMETRY_STORAGE_KEY = 'jambo.devTelemetry';
 const HIGH_CONTRAST_STORAGE_KEY = 'jambo.highContrast';
 const PLAYER_SECTION_EXTRA_HEIGHT_PX = 0;
@@ -32,12 +30,6 @@ function getInitialAnimationSpeed(): AnimationSpeed {
   if (typeof window === 'undefined') return 'normal';
   const saved = window.localStorage.getItem(ANIMATION_SPEED_STORAGE_KEY);
   return saved === 'fast' ? 'fast' : 'normal';
-}
-
-function getInitialShowLog(): boolean {
-  if (typeof window === 'undefined') return true;
-  const saved = window.localStorage.getItem(SHOW_LOG_STORAGE_KEY);
-  return saved === null ? true : saved === 'true';
 }
 
 function getInitialDevTelemetry(): boolean {
@@ -100,13 +92,37 @@ export function TVScreen({ ws }: TVScreenProps) {
     senderPlayerSlot: null,
     castAccessToken: ws.castAccessToken,
   });
-  const [showLog, setShowLog] = useState(() => getInitialShowLog());
   const [animationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
   const [showDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast] = useState(() => getInitialHighContrast());
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const [playerSectionHeight, setPlayerSectionHeight] = useState<number | null>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
+
+  // Make #root full-viewport for TV layout
+  useEffect(() => {
+    const root = document.getElementById('root');
+    const html = document.documentElement;
+    const body = document.body;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    body.style.display = 'block';
+    if (root) {
+      root.style.maxWidth = 'none';
+      root.style.width = '100%';
+      root.style.margin = '0';
+    }
+    return () => {
+      html.style.overflow = '';
+      body.style.overflow = '';
+      body.style.display = '';
+      if (root) {
+        root.style.maxWidth = '';
+        root.style.width = '';
+        root.style.margin = '';
+      }
+    };
+  }, []);
 
   if (!pub) return null;
   const waitingInfo = getWaitingInfo(pub);
@@ -138,11 +154,6 @@ export function TVScreen({ ws }: TVScreenProps) {
     document.documentElement.setAttribute('data-anim-speed', animationSpeed);
     window.localStorage.setItem(ANIMATION_SPEED_STORAGE_KEY, animationSpeed);
   }, [animationSpeed]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(SHOW_LOG_STORAGE_KEY, String(showLog));
-  }, [showLog]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -189,89 +200,46 @@ export function TVScreen({ ws }: TVScreenProps) {
   return (
     <div style={{
       display: 'flex',
-      gap: 16,
-      padding: '16px 20px',
-      minHeight: '100vh',
-      position: 'relative',
+      flexDirection: 'column',
+      gap: 10,
+      padding: 64,
+      height: '100vh',
+      boxSizing: 'border-box',
+      overflow: 'hidden',
     }}>
-      {/* Main board */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        minWidth: 0,
-      }}>
-        {/* Player 2 area (top) */}
-        <TVPlayerArea
-          player={pub.players[1]}
-          playerIndex={1}
-          label="Player 2"
-          isActive={pub.currentPlayer === 1}
-          flipWoodBackground={true}
-          fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
-          goldDelta={visualFeedback.goldDeltas[1]}
-          marketFlashSlots={visualFeedback.marketFlashSlots[1]}
-          waitingMessage={waitingInfo.targetPlayer === 1 ? waitingInfo.message ?? undefined : undefined}
-        />
+      {/* Player 2 area (top) */}
+      <TVPlayerArea
+        player={pub.players[1]}
+        playerIndex={1}
+        label="Player 2"
+        isActive={pub.currentPlayer === 1}
+        flipWoodBackground={true}
+        fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
+        goldDelta={visualFeedback.goldDeltas[1]}
+        marketFlashSlots={visualFeedback.marketFlashSlots[1]}
+        waitingMessage={waitingInfo.targetPlayer === 1 ? waitingInfo.message ?? undefined : undefined}
+      />
 
-        {/* Center row */}
-        <TVCenterRow pub={pub} visualFeedback={visualFeedback} supply={pub.wareSupply} />
+      {/* Center row */}
+      <TVCenterRow pub={pub} visualFeedback={visualFeedback} supply={pub.wareSupply} />
 
-        {/* Waiting indicator fallback (only when not tied to one player panel) */}
-        {waitingInfo.message && waitingInfo.targetPlayer === null && (
-          <TVWaitingIndicator message={waitingInfo.message} />
-        )}
-
-        {/* Player 1 area (bottom) */}
-        <TVPlayerArea
-          player={pub.players[0]}
-          playerIndex={0}
-          label="Player 1"
-          isActive={pub.currentPlayer === 0}
-          fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
-          onMeasureHeight={setPlayerSectionHeight}
-          goldDelta={visualFeedback.goldDeltas[0]}
-          marketFlashSlots={visualFeedback.marketFlashSlots[0]}
-          waitingMessage={waitingInfo.targetPlayer === 0 ? waitingInfo.message ?? undefined : undefined}
-        />
-      </div>
-
-      {/* Right sidebar — Game log */}
-      {showLog && (
-        <div style={{
-          width: 280,
-          flexShrink: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
-            <span style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', fontWeight: 600 }}>
-              Game Log
-            </span>
-            <button
-              onClick={() => setShowLog(false)}
-              style={{
-                background: 'var(--surface-light)',
-                border: '1px solid var(--border-light)',
-                color: 'var(--text)',
-                cursor: 'pointer',
-                fontSize: 13,
-                borderRadius: 6,
-                padding: '4px 8px',
-              }}
-            >
-              Hide
-            </button>
-          </div>
-          <GameLog log={pub.log} />
-        </div>
+      {/* Waiting indicator fallback (only when not tied to one player panel) */}
+      {waitingInfo.message && waitingInfo.targetPlayer === null && (
+        <TVWaitingIndicator message={waitingInfo.message} />
       )}
+
+      {/* Player 1 area (bottom) */}
+      <TVPlayerArea
+        player={pub.players[0]}
+        playerIndex={0}
+        label="Player 1"
+        isActive={pub.currentPlayer === 0}
+        fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
+        onMeasureHeight={setPlayerSectionHeight}
+        goldDelta={visualFeedback.goldDeltas[0]}
+        marketFlashSlots={visualFeedback.marketFlashSlots[0]}
+        waitingMessage={waitingInfo.targetPlayer === 0 ? waitingInfo.message ?? undefined : undefined}
+      />
 
       {/* Endgame overlay */}
       {pub.phase === 'GAME_OVER' && <CastEndgameOverlay pub={pub} rematchStatusMessage={rematchStatusMessage} />}
@@ -359,10 +327,9 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
         borderRadius: 12,
         background: 'rgba(20,10,5,0.34)',
         padding: '0 12px 0',
-        height: fixedHeight ?? undefined,
-        minHeight: fixedHeight ?? 180,
-        maxHeight: fixedHeight ?? undefined,
-        overflow: fixedHeight ? 'hidden' : undefined,
+        flex: '0.3 1 auto',
+        minHeight: 0,
+        overflow: 'hidden',
       }}
     >
       {waitingMessage && (
@@ -413,7 +380,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           background: 'rgba(20,10,5,0.54)',
           pointerEvents: 'none',
         }} />
-        <div style={{ position: 'relative', display: 'flex', gap: 20, flexWrap: 'wrap', height: 175.48 }}>
+        <div style={{ position: 'relative', display: 'flex', gap: 20, flexWrap: 'wrap', height: '100%' }}>
           <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" />
           <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="medium" />
           <span style={{
@@ -561,7 +528,9 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
       padding: '0 12px 0',
       borderRadius: 10,
       background: 'rgba(20,10,5,0.24)',
-      width: '100%'
+      width: '100%',
+      flex: 1,
+      minHeight: 0,
     }}>
       {visualFeedback.trail && (
         <div
@@ -597,17 +566,17 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
         </div>
       )}
 
-      <div style={{ display: 'flex', width: '100%', justifyContent: 'flex-start', alignItems: 'center', gap: 24, marginTop: 0 }}>
+      <div style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', gap: 48, marginTop: 0 }}>
         {/* Left: Ware supply */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignSelf: 'flex-end', marginBottom: 26 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignSelf: 'flex-end', marginBottom: 26 }}>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 16,
-            padding: '16px 18px',
+            gap: 20,
+            padding: '18px 20px',
             borderRadius: 10,
             background: 'rgba(20,10,5,0.24)',
-            minWidth: 420,
+            minWidth: 500,
           }}>
             {WARE_TYPES.map((wareType) => (
               <div key={wareType} style={{
@@ -617,26 +586,26 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
                 gap: 10,
                 background: 'var(--surface)',
                 borderRadius: 8,
-                padding: '12px 14px',
+                padding: '14px 16px',
                 border: '1px solid var(--border)',
-                minHeight: 72,
+                minHeight: 80,
               }}>
-                <WareToken type={wareType} size={50} />
-                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 24, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
+                <WareToken type={wareType} size={58} />
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 28, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Right: Deck / Phase / Discard */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 24, flexShrink: 0 }}>
-          <div ref={deckPileRef} key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <div ref={deckPileRef} key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 210 }}>
             {pub.deckCount > 0 ? (
               <CardFace cardId="guard_1" faceDown large />
             ) : (
               <div style={{ width: 180, height: 240, borderRadius: 10, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Empty</div>
             )}
-            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 16 }}>Deck ({pub.deckCount})</div>
+            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 18 }}>Deck ({pub.deckCount})</div>
           </div>
 
           <div style={{ position: 'relative' }}>
@@ -648,23 +617,23 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
                 {actionTag}
               </div>
             )}
-            <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{ background: phaseColor + '20', borderRadius: 12, padding: '20px 34px', border: `1px solid ${phaseColor}`, textAlign: 'center', minWidth: 320 }}>
-              <div style={{ fontSize: 15, color: 'var(--text-muted)' }}>Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}</div>
-              <div style={{ fontWeight: 700, fontSize: 24, color: phaseColor }}>{phaseLabel}</div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 12 }}>
+            <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{ background: phaseColor + '20', borderRadius: 12, padding: '24px 40px', border: `1px solid ${phaseColor}`, textAlign: 'center', minWidth: 360 }}>
+              <div style={{ fontSize: 17, color: 'var(--text-muted)' }}>Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}</div>
+              <div style={{ fontWeight: 700, fontSize: 28, color: phaseColor }}>{phaseLabel}</div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 14 }}>
                 {Array.from({ length: 5 }, (_, i) => (
-                  <div key={i} style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '2px solid var(--gold)' }} />
+                  <div key={i} style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '2px solid var(--gold)' }} />
                 ))}
               </div>
               {pub.endgame && (<div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>{pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}</div>)}
             </div>
           </div>
 
-          <div ref={discardPileRef} key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}>
+          <div ref={discardPileRef} key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 210 }}>
             <div key={`tv-discard-card-${displayDiscardCard ?? 'empty'}-${pub.discardPile.length}`} className="discard-soft-fade">
               {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large /> : <div style={{ width: 180, height: 240, borderRadius: 10, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Empty</div>}
             </div>
-            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 16 }}>Discard ({pub.discardPile.length})</div>
+            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 18 }}>Discard ({pub.discardPile.length})</div>
           </div>
         </div>
       </div>

@@ -3,19 +3,22 @@
 // No hash -> normal app flow | /#/play -> join cast room as a player
 // ============================================================================
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GameScreen } from './GameScreen.tsx';
 import { CastLobby } from './CastLobby.tsx';
 import { PlayerScreen } from './PlayerScreen.tsx';
+import { TVScreen } from './TVScreen.tsx';
 import { MainMenu } from './screens/MainMenu.tsx';
 import { LoginModal } from './screens/LoginModal.tsx';
 import { PreGameSetupModal } from './screens/PreGameSetupModal.tsx';
 import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { useWebSocketGame } from '../multiplayer/client.ts';
+import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
 import type { RoomMode } from '../multiplayer/types.ts';
 import { useGameStore } from '../hooks/useGameStore.ts';
+import { extractPublicState } from '../multiplayer/stateSplitter.ts';
 import { getCastSessionController } from '../cast/factory.ts';
 
 type Route = 'local' | 'play';
@@ -31,7 +34,54 @@ function getRandomFirstPlayer(): 0 | 1 {
   return Math.random() < 0.5 ? 0 : 1;
 }
 
+function isDevTVMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('tv') === '1';
+}
+
+/** Dev-only: renders TVScreen using local game store state (no server needed). */
+function DevTVPreview() {
+  const gameState = useGameStore((store) => store.state);
+  const publicState = useMemo(() => extractPublicState(gameState), [gameState]);
+
+  const mockWs: WebSocketGameState = useMemo(() => ({
+    connected: true,
+    roomCode: 'DEV',
+    castAccessToken: null,
+    playerSlot: null,
+    roomMode: 'ai',
+    publicState,
+    privateState: null,
+    audioEvent: null,
+    aiMessage: null,
+    error: null,
+    gameOver: gameState.phase === 'GAME_OVER',
+    playerJoined: null,
+    playerDisconnected: null,
+    rematchVotes: [],
+    rematchRequired: [],
+    createRoom: () => {},
+    joinRoom: () => {},
+    resetRoomState: () => {},
+    sendAction: () => {},
+    requestRematch: () => {},
+    clearError: () => {},
+    clearAudioEvent: () => {},
+  }), [publicState, gameState.phase]);
+
+  return <TVScreen ws={mockWs} />;
+}
+
 export function Router() {
+  // Dev mode: ?tv=1 renders the TV view with local game state (no server needed)
+  if (isDevTVMode()) {
+    return <DevTVPreview />;
+  }
+
+  return <RouterInner />;
+}
+
+function RouterInner() {
   const ws = useWebSocketGame();
   const [route, setRoute] = useState<Route>(getRoute);
   const [screen, setScreen] = useState<Screen>('menu');
