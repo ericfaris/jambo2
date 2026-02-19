@@ -164,6 +164,7 @@ export function useCastRoomSync({
         activeSessionIdRef.current = nextSessionId;
         lastRequestedKeyRef.current = null;
         confirmedSyncKeyRef.current = null;
+        syncInFlightRef.current = false;
       }
       if (!session) {
         stopRetryLoop();

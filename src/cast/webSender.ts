@@ -196,6 +196,11 @@ export class WebCastSessionController implements CastSessionController {
     const sessionStateEventType = framework?.CastContextEventType?.SESSION_STATE_CHANGED;
     if (!castContext || !sessionStateEventType) return;
 
+    // Remove any previously registered listener (e.g. from dev HMR re-init).
+    if (this.sessionEventListener) {
+      castContext.removeEventListener(sessionStateEventType, this.sessionEventListener);
+    }
+
     this.sessionEventListener = (event: unknown) => {
       const sessionState = (event as { sessionState?: string } | null)?.sessionState ?? '';
       if (sessionState === 'SESSION_STARTING') {
@@ -239,7 +244,10 @@ export class WebCastSessionController implements CastSessionController {
 
     this.currentSessionMessageListener = (_namespace: string, payload: string) => {
       try {
-        const parsed = JSON.parse(payload) as unknown;
+        // CAF SDK may auto-parse JSON, so payload could be an object or a string.
+        const parsed = (typeof payload === 'object' && payload !== null)
+          ? payload as unknown
+          : JSON.parse(payload) as unknown;
         if (isReceiverMessage(parsed)) {
           this.emitReceiverMessage(parsed);
         }

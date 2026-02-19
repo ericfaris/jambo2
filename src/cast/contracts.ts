@@ -22,27 +22,17 @@ export interface CastSessionSummary {
 }
 
 // Sender -> Receiver control messages.
-export type SenderToReceiverMessage =
-  | {
-      type: 'SYNC_ROOM';
-      roomCode: string;
-      roomMode: RoomMode;
-      senderPlayerSlot: PlayerSlot | null;
-      apiBaseUrl?: string;
-      castAccessToken?: string;
-    }
-  | {
-      type: 'SESSION_PING';
-      timestampMs: number;
-    };
+export type SenderToReceiverMessage = {
+  type: 'SYNC_ROOM';
+  roomCode: string;
+  roomMode: RoomMode;
+  senderPlayerSlot: PlayerSlot | null;
+  apiBaseUrl?: string;
+  castAccessToken?: string;
+};
 
 // Receiver -> Sender status messages.
 export type ReceiverToSenderMessage =
-  | {
-      type: 'RECEIVER_READY';
-      receiverVersion: string;
-      timestampMs: number;
-    }
   | {
       type: 'RECEIVER_ROOM_SYNCED';
       roomCode: string;

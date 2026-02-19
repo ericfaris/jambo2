@@ -70,6 +70,10 @@ export function useWebSocketGame(): WebSocketGameState {
     return `jambo:reconnect:${code}:${role}`;
   }, []);
 
+  const getCastTokenStorageKey = useCallback((code: string) => {
+    return `jambo:castToken:${code}`;
+  }, []);
+
   const sendRaw = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(msg));
@@ -101,6 +105,7 @@ export function useWebSocketGame(): WebSocketGameState {
         if (msg.castAccessToken) {
           const token = msg.castAccessToken;
           setCastAccessToken((current) => current ?? token);
+          window.sessionStorage.setItem(getCastTokenStorageKey(msg.code), token);
         }
         break;
       case 'JOINED':
@@ -212,10 +217,16 @@ export function useWebSocketGame(): WebSocketGameState {
   const joinRoom = useCallback((code: string, role: ConnectionRole) => {
     const key = getReconnectStorageKey(code, role);
     const reconnectToken = window.sessionStorage.getItem(key) ?? undefined;
+    // Restore castAccessToken from sessionStorage so cast sync isn't interrupted
+    // during the brief window before the server sends the JOINED response.
+    const cachedCastToken = window.sessionStorage.getItem(getCastTokenStorageKey(code));
+    if (cachedCastToken) {
+      setCastAccessToken((current) => current ?? cachedCastToken);
+    }
     pendingJoin.current = { code, role, reconnectToken };
     setRoomCode(code);
     sendRaw({ type: 'JOIN_ROOM', code, role, reconnectToken });
-  }, [getReconnectStorageKey, sendRaw]);
+  }, [getReconnectStorageKey, getCastTokenStorageKey, sendRaw]);
 
   const sendAction = useCallback((action: GameAction) => {
     sendRaw({ type: 'GAME_ACTION', action });

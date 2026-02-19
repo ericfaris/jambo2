@@ -5,7 +5,8 @@ import { getRuntimeCastAppId } from '../config/runtimeConfig.ts';
 let singleton: CastSessionController | null = null;
 
 export function isCastSdkEnabled(): boolean {
-  return true;
+  const appId = getRuntimeCastAppId() ?? import.meta.env.VITE_CAST_APP_ID?.trim();
+  return !!appId;
 }
 
 export function getCastSessionController(): CastSessionController {

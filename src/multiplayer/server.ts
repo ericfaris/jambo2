@@ -783,7 +783,6 @@ function handleCastApi(req: import('node:http').IncomingMessage, res: import('no
       removeCastRoomStream(room.code, res);
     };
     req.on('close', cleanup);
-    req.on('aborted', cleanup);
     return true;
   }
 

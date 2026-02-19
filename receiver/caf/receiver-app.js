@@ -1,6 +1,6 @@
 (function () {
+  // NOTE: This namespace must match JAMBO_CAST_NAMESPACE in src/cast/contracts.ts
   var NAMESPACE = 'urn:x-cast:com.jambo.game.v1';
-  var RECEIVER_VERSION = '0.2.0-tv-layout';
   var TV_MUSIC_PLAYLIST = [
     '/audio/African Village Afternoon Soundscape.mp3',
     '/audio/Market Morning Mosaic.mp3',
@@ -449,7 +449,12 @@
         setConnection('Receiver state: polling failed (' + String(response.status) + ')', true);
         return;
       }
-      publicRoomSnapshot = await response.json();
+      try {
+        publicRoomSnapshot = await response.json();
+      } catch (_parseErr) {
+        setConnection('Receiver state: polling response parse error', true);
+        return;
+      }
       setConnection('Receiver state: ready', false);
       renderRoom();
     } catch (_err) {
@@ -548,15 +553,9 @@
 
   function sendToSender(senderId, payload) {
     var context = cast.framework.CastReceiverContext.getInstance();
-    context.sendCustomMessage(NAMESPACE, senderId, JSON.stringify(payload));
-  }
-
-  function sendReady(senderId) {
-    sendToSender(senderId, {
-      type: 'RECEIVER_READY',
-      receiverVersion: RECEIVER_VERSION,
-      timestampMs: Date.now(),
-    });
+    // Pass the object directly — the CAF SDK handles JSON serialization.
+    // Wrapping in JSON.stringify would cause double-serialization on the sender side.
+    context.sendCustomMessage(NAMESPACE, senderId, payload);
   }
 
   function sendSynced(senderId, roomCode) {
@@ -577,23 +576,24 @@
 
   function handleCustomMessage(event) {
     var senderId = event.senderId;
-    var payloadText = event.data;
+    var rawData = event.data;
     var payload;
 
-    try {
-      payload = JSON.parse(payloadText);
-    } catch (_err) {
-      sendError(senderId, 'INVALID_PAYLOAD', 'Payload is not valid JSON.');
-      return;
+    // CAF receiver SDK auto-parses JSON strings, so event.data may already be
+    // an object. Handle both cases defensively.
+    if (typeof rawData === 'object' && rawData !== null) {
+      payload = rawData;
+    } else {
+      try {
+        payload = JSON.parse(rawData);
+      } catch (_err) {
+        sendError(senderId, 'INVALID_PAYLOAD', 'Payload is not valid JSON.');
+        return;
+      }
     }
 
     if (!payload || typeof payload !== 'object' || typeof payload.type !== 'string') {
       sendError(senderId, 'INVALID_PAYLOAD', 'Payload shape is invalid.');
-      return;
-    }
-
-    if (payload.type === 'SESSION_PING') {
-      sendReady(senderId);
       return;
     }
 
