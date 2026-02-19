@@ -18,13 +18,24 @@ interface CastRoomSyncOptions {
   castAccessToken: string | null;
 }
 
+// Detect if we're running inside a CAF receiver (Chromecast).
+// The receiver should never try to sync room to itself.
+function isCastReceiverContext(): boolean {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return !!(window as any).cast?.framework?.CastReceiverContext;
+  } catch {
+    return false;
+  }
+}
+
 export function useCastRoomSync({
   roomCode,
   roomMode,
   senderPlayerSlot,
   castAccessToken,
 }: CastRoomSyncOptions): CastRoomSyncState {
-  const enabled = isCastSdkEnabled();
+  const enabled = isCastSdkEnabled() && !isCastReceiverContext();
   const [state, setState] = useState<CastRoomSyncState>({
     status: enabled ? 'idle' : 'disabled',
     error: null,
