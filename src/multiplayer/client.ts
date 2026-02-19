@@ -99,7 +99,8 @@ export function useWebSocketGame(): WebSocketGameState {
       case 'ROOM_CREATED':
         setRoomCode((current) => current ?? msg.code);
         if (msg.castAccessToken) {
-          setCastAccessToken((current) => current ?? msg.castAccessToken);
+          const token = msg.castAccessToken;
+          setCastAccessToken((current) => current ?? token);
         }
         break;
       case 'JOINED':
