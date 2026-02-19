@@ -98,6 +98,8 @@ Replace the current web-only "cast mode" transport with a native Google Cast SDK
   - dual-sender pvp join/resume
 - Regression guard:
   - explicit test asserting receiver cannot access `PrivateGameState` fields
+- TODO:
+  - add automated coverage for sender/receiver session churn paths (`SESSION_STARTED`, `SESSION_RESUMED`, `SESSION_ENDED`, room switch) beyond manual verification.
 
 ## Observability
 

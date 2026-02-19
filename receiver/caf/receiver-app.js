@@ -1,6 +1,13 @@
 (function () {
   var NAMESPACE = 'urn:x-cast:com.jambo.game.v1';
   var RECEIVER_VERSION = '0.2.0-tv-layout';
+  var TV_MUSIC_PLAYLIST = [
+    '/audio/African Village Afternoon Soundscape.mp3',
+    '/audio/Market Morning Mosaic.mp3',
+    '/audio/River Paths, Village Hearts Voice.mp3',
+    '/audio/Sun In Our Hands.mp3',
+    '/audio/Sun on the Courtyard.mp3',
+  ];
 
   var roomState = {
     roomCode: null,
@@ -14,6 +21,12 @@
   var streamSource = null;
   var streamRetryTimer = null;
   var publicRoomSnapshot = null;
+  var tvMusic = {
+    audio: null,
+    playlist: [],
+    index: 0,
+    enabled: false,
+  };
 
   var placeholderEl = document.getElementById('placeholder');
   var screenEl = document.getElementById('screen');
@@ -43,6 +56,79 @@
   var deckDiscardEl = document.getElementById('deckDiscard');
   var endgameEl = document.getElementById('endgame');
   var gameLogEl = document.getElementById('gameLog');
+
+  function shufflePlaylist(source) {
+    var shuffled = source.slice();
+    for (var i = shuffled.length - 1; i > 0; i -= 1) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = temp;
+    }
+    return shuffled;
+  }
+
+  function stopTvMusic() {
+    tvMusic.enabled = false;
+    if (tvMusic.audio) {
+      tvMusic.audio.pause();
+      tvMusic.audio.src = '';
+    }
+  }
+
+  function tryPlayAudio(audio) {
+    if (!audio || typeof audio.play !== 'function') {
+      return;
+    }
+    try {
+      var result = audio.play();
+      if (result && typeof result.catch === 'function') {
+        result.catch(function () {
+          // Ignore autoplay and transient device playback errors.
+        });
+      }
+    } catch (_err) {
+      // Ignore synchronous playback errors.
+    }
+  }
+
+  function playNextTvTrack() {
+    if (!tvMusic.enabled || !tvMusic.audio || tvMusic.playlist.length === 0) {
+      return;
+    }
+    if (tvMusic.index >= tvMusic.playlist.length) {
+      tvMusic.playlist = shufflePlaylist(TV_MUSIC_PLAYLIST);
+      tvMusic.index = 0;
+    }
+    tvMusic.audio.src = tvMusic.playlist[tvMusic.index];
+    tvMusic.index += 1;
+    tryPlayAudio(tvMusic.audio);
+  }
+
+  function ensureTvMusicPlaying() {
+    if (!tvMusic.audio) {
+      try {
+        var audio = new Audio();
+        audio.loop = false;
+        audio.volume = 0.15;
+        audio.addEventListener('ended', playNextTvTrack);
+        tvMusic.audio = audio;
+      } catch (_err) {
+        tvMusic.enabled = false;
+        return;
+      }
+    }
+    if (!tvMusic.enabled) {
+      tvMusic.enabled = true;
+      tvMusic.playlist = shufflePlaylist(TV_MUSIC_PLAYLIST);
+      tvMusic.index = 0;
+      playNextTvTrack();
+      return;
+    }
+    if (tvMusic.audio.paused) {
+      tryPlayAudio(tvMusic.audio);
+    }
+  }
 
   function setConnection(text, isWarning) {
     connectionEl.textContent = text;
@@ -421,6 +507,7 @@
         }
       });
       streamSource.addEventListener('room_deleted', function () {
+        stopTvMusic();
         publicRoomSnapshot = null;
         renderRoom();
         setConnection('Receiver state: room deleted', true);
@@ -447,9 +534,11 @@
     clearStreamRetryTimer();
     publicRoomSnapshot = null;
     if (!roomState.roomCode || !roomState.apiBaseUrl || !roomState.castAccessToken) {
+      stopTvMusic();
       renderRoom();
       return;
     }
+    ensureTvMusicPlaying();
     if (typeof EventSource === 'function') {
       restartStream();
       return;

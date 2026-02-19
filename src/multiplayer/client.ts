@@ -35,6 +35,7 @@ export interface WebSocketGameState {
   rematchRequired: PlayerSlot[];
   createRoom: (mode: RoomMode, aiDifficulty?: AIDifficulty) => void;
   joinRoom: (code: string, role: ConnectionRole) => void;
+  resetRoomState: () => void;
   sendAction: (action: GameAction) => void;
   requestRematch: () => void;
   clearError: () => void;
@@ -75,12 +76,30 @@ export function useWebSocketGame(): WebSocketGameState {
     }
   }, []);
 
+  const resetRoomState = useCallback(() => {
+    pendingJoin.current = null;
+    setRoomCode(null);
+    setCastAccessToken(null);
+    setPlayerSlot(null);
+    setRoomMode(null);
+    setPublicState(null);
+    setPrivateState(null);
+    setAudioEvent(null);
+    setAiMessage(null);
+    setError(null);
+    setGameOver(false);
+    setPlayerJoined(null);
+    setPlayerDisconnected(null);
+    setRematchVotes([]);
+    setRematchRequired([]);
+  }, []);
+
   const handleMessage = useCallback((msg: ServerMessage) => {
     switch (msg.type) {
       case 'ROOM_CREATED':
-        setRoomCode(msg.code);
+        setRoomCode((current) => current ?? msg.code);
         if (msg.castAccessToken) {
-          setCastAccessToken(msg.castAccessToken);
+          setCastAccessToken((current) => current ?? msg.castAccessToken);
         }
         break;
       case 'JOINED':
@@ -185,16 +204,18 @@ export function useWebSocketGame(): WebSocketGameState {
   }, [connect]);
 
   const createRoom = useCallback((mode: RoomMode, aiDifficulty?: AIDifficulty) => {
+    resetRoomState();
     sendRaw({ type: 'CREATE_ROOM', mode, aiDifficulty });
-  }, [sendRaw]);
+  }, [resetRoomState, sendRaw]);
 
   const joinRoom = useCallback((code: string, role: ConnectionRole) => {
+    resetRoomState();
     const key = getReconnectStorageKey(code, role);
     const reconnectToken = window.sessionStorage.getItem(key) ?? undefined;
     pendingJoin.current = { code, role, reconnectToken };
     setRoomCode(code);
     sendRaw({ type: 'JOIN_ROOM', code, role, reconnectToken });
-  }, [getReconnectStorageKey, sendRaw]);
+  }, [getReconnectStorageKey, resetRoomState, sendRaw]);
 
   const sendAction = useCallback((action: GameAction) => {
     sendRaw({ type: 'GAME_ACTION', action });
@@ -225,6 +246,7 @@ export function useWebSocketGame(): WebSocketGameState {
     rematchRequired,
     createRoom,
     joinRoom,
+    resetRoomState,
     sendAction,
     requestRematch,
     clearError,

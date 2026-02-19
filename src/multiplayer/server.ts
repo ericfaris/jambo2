@@ -97,6 +97,16 @@ function findRoom(ws: WebSocket): Room | undefined {
   return undefined;
 }
 
+function findRooms(ws: WebSocket): Room[] {
+  const matches: Room[] = [];
+  for (const room of rooms.values()) {
+    if (room.connections.some((connection) => connection.ws === ws)) {
+      matches.push(room);
+    }
+  }
+  return matches;
+}
+
 function getPlayerConnections(room: Room, slot: PlayerSlot): Connection[] {
   return room.connections.filter(c => c.playerSlot === slot);
 }
@@ -195,6 +205,36 @@ function broadcastRematchStatus(room: Room): void {
   const votes = required.filter((slot) => room.rematchVotes.has(slot));
   for (const conn of room.connections) {
     send(conn.ws, { type: 'REMATCH_STATUS', votes, required });
+  }
+}
+
+function removeConnectionFromRoom(
+  room: Room,
+  conn: Connection,
+  options: { reserveSlot: boolean; reason: 'disconnect' | 'switch' },
+): void {
+  room.connections = room.connections.filter((connection) => connection.ws !== conn.ws);
+  room.rematchVotes.delete(conn.playerSlot);
+  if (options.reserveSlot && conn.reconnectToken) {
+    reservePlayerSlot(room, conn.playerSlot, conn.reconnectToken);
+  } else {
+    releaseReservedSlot(room, conn.playerSlot);
+  }
+  room.lastActivity = Date.now();
+
+  const disconnectReason = options.reason === 'disconnect' ? 'disconnected' : 'left (joined another room)';
+  console.log(`[Room ${room.code}] Player ${conn.playerSlot} ${disconnectReason}`);
+
+  for (const other of room.connections) {
+    send(other.ws, { type: 'PLAYER_DISCONNECTED', playerSlot: conn.playerSlot });
+  }
+  broadcastRematchStatus(room);
+  broadcastCastRoomSnapshot(room);
+
+  if (room.connections.length === 0) {
+    closeCastRoomStreams(room.code);
+    rooms.delete(room.code);
+    console.log(`[Room ${room.code}] Deleted (empty)`);
   }
 }
 
@@ -403,6 +443,16 @@ function handleJoinRoom(ws: WebSocket, code: string, reconnectToken?: string): v
 
   // Skip if this connection is already in the room
   if (room.connections.some(c => c.ws === ws)) {
+    for (const joinedRoom of findRooms(ws)) {
+      if (joinedRoom.code === code) {
+        continue;
+      }
+      const joinedConnection = findConnection(joinedRoom, ws);
+      if (!joinedConnection) {
+        continue;
+      }
+      removeConnectionFromRoom(joinedRoom, joinedConnection, { reserveSlot: false, reason: 'switch' });
+    }
     return;
   }
 
@@ -455,6 +505,17 @@ function handleJoinRoom(ws: WebSocket, code: string, reconnectToken?: string): v
       send(ws, { type: 'ERROR', message: 'Room is full or reconnect slot is reserved' });
       return;
     }
+  }
+
+  for (const joinedRoom of findRooms(ws)) {
+    if (joinedRoom.code === code) {
+      continue;
+    }
+    const joinedConnection = findConnection(joinedRoom, ws);
+    if (!joinedConnection) {
+      continue;
+    }
+    removeConnectionFromRoom(joinedRoom, joinedConnection, { reserveSlot: false, reason: 'switch' });
   }
 
   const conn: Connection = {
@@ -580,30 +641,15 @@ function handleRematchRequest(ws: WebSocket): void {
 // --- Connection Handling ---
 
 function handleDisconnect(ws: WebSocket): void {
-  const room = findRoom(ws);
-  if (!room) return;
+  const joinedRooms = findRooms(ws);
+  if (joinedRooms.length === 0) return;
 
-  const conn = findConnection(room, ws);
-  if (!conn) return;
-
-  room.connections = room.connections.filter(c => c.ws !== ws);
-
-  room.rematchVotes.delete(conn.playerSlot);
-  if (conn.reconnectToken) {
-    reservePlayerSlot(room, conn.playerSlot, conn.reconnectToken);
-  }
-  console.log(`[Room ${room.code}] Player ${conn.playerSlot} disconnected`);
-  for (const other of room.connections) {
-    send(other.ws, { type: 'PLAYER_DISCONNECTED', playerSlot: conn.playerSlot });
-  }
-  broadcastRematchStatus(room);
-  broadcastCastRoomSnapshot(room);
-
-  // Clean up empty rooms
-  if (room.connections.length === 0) {
-    closeCastRoomStreams(room.code);
-    rooms.delete(room.code);
-    console.log(`[Room ${room.code}] Deleted (empty)`);
+  for (const room of joinedRooms) {
+    const conn = findConnection(room, ws);
+    if (!conn) {
+      continue;
+    }
+    removeConnectionFromRoom(room, conn, { reserveSlot: true, reason: 'disconnect' });
   }
 }
 

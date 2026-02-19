@@ -34,6 +34,7 @@ export function useCastRoomSync({
   const lastRequestedKeyRef = useRef<string | null>(null);
   const confirmedSyncKeyRef = useRef<string | null>(null);
   const syncInFlightRef = useRef(false);
+  const activeSessionIdRef = useRef<string | null>(null);
 
   const syncKey = useMemo(() => {
     if (!roomCode || !roomMode) return null;
@@ -112,6 +113,7 @@ export function useCastRoomSync({
       }
 
       if (!controller.getSession()) {
+        stopRetryLoop();
         setState((previous) => ({
           ...previous,
           status: 'idle',
@@ -157,8 +159,14 @@ export function useCastRoomSync({
     };
 
     const unsubscribeSession = controller.onSessionChanged((session) => {
-      lastRequestedKeyRef.current = null;
+      const nextSessionId = session?.sessionId ?? null;
+      if (activeSessionIdRef.current !== nextSessionId) {
+        activeSessionIdRef.current = nextSessionId;
+        lastRequestedKeyRef.current = null;
+        confirmedSyncKeyRef.current = null;
+      }
       if (!session) {
+        stopRetryLoop();
         setState((previous) => ({
           ...previous,
           status: 'idle',
@@ -171,6 +179,13 @@ export function useCastRoomSync({
       }
       void trySync(true);
     });
+
+    const initialSessionId = controller.getSession()?.sessionId ?? null;
+    if (activeSessionIdRef.current !== initialSessionId) {
+      activeSessionIdRef.current = initialSessionId;
+      lastRequestedKeyRef.current = null;
+      confirmedSyncKeyRef.current = null;
+    }
 
     if (!syncKey) {
       setState((previous) => ({

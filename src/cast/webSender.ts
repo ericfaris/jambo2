@@ -22,6 +22,14 @@ export class WebCastSessionController implements CastSessionController {
   private sdkInitialized = false;
   private sessionEventListener: ((event: unknown) => void) | null = null;
   private currentSessionMessageListener: ((namespace: string, message: string) => void) | null = null;
+  private messageListenerSession:
+    | {
+        removeMessageListener: (
+          namespace: string,
+          listener: (namespace: string, message: string) => void
+        ) => void;
+      }
+    | null = null;
 
   constructor(appId: string) {
     this.appId = appId;
@@ -219,7 +227,15 @@ export class WebCastSessionController implements CastSessionController {
 
   private attachSessionMessageListener(): void {
     const session = this.getCastContext()?.getCurrentSession();
-    if (!session || this.currentSessionMessageListener) return;
+    if (!session) return;
+
+    if (this.currentSessionMessageListener && this.messageListenerSession === session) {
+      return;
+    }
+
+    if (this.currentSessionMessageListener && this.messageListenerSession) {
+      this.messageListenerSession.removeMessageListener(JAMBO_CAST_NAMESPACE, this.currentSessionMessageListener);
+    }
 
     this.currentSessionMessageListener = (_namespace: string, payload: string) => {
       try {
@@ -232,12 +248,14 @@ export class WebCastSessionController implements CastSessionController {
       }
     };
     session.addMessageListener(JAMBO_CAST_NAMESPACE, this.currentSessionMessageListener);
+    this.messageListenerSession = session;
   }
 
   private detachSessionMessageListener(): void {
-    const session = this.getCastContext()?.getCurrentSession();
-    if (!session || !this.currentSessionMessageListener) return;
-    session.removeMessageListener(JAMBO_CAST_NAMESPACE, this.currentSessionMessageListener);
+    if (this.messageListenerSession && this.currentSessionMessageListener) {
+      this.messageListenerSession.removeMessageListener(JAMBO_CAST_NAMESPACE, this.currentSessionMessageListener);
+    }
+    this.messageListenerSession = null;
     this.currentSessionMessageListener = null;
   }
 

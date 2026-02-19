@@ -27,6 +27,7 @@ export function CastLobby({ ws, mode, aiDifficulty, roomMode }: CastLobbyProps) 
 
 function HostLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiDifficulty: AIDifficulty; roomMode: RoomMode }) {
   const lastCreateAttemptAt = useRef(0);
+  const hasRequestedCreate = useRef(false);
   const hasRequestedJoin = useRef(false);
   const castEnabled = isCastSdkEnabled();
   const castSync = useCastRoomSync({
@@ -46,14 +47,24 @@ function HostLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiD
   }, [ws.createRoom, roomMode, aiDifficulty]);
 
   useEffect(() => {
-    if (!ws.connected || ws.roomCode) {
+    if (!ws.connected) {
+      hasRequestedCreate.current = false;
       return;
     }
-
+    if (ws.roomCode) {
+      hasRequestedCreate.current = false;
+      return;
+    }
+    if (hasRequestedCreate.current) {
+      return;
+    }
+    hasRequestedCreate.current = true;
     requestCreateRoom();
-    const timer = window.setInterval(() => requestCreateRoom(), 2000);
-    return () => window.clearInterval(timer);
   }, [ws.connected, ws.roomCode, requestCreateRoom]);
+
+  useEffect(() => {
+    hasRequestedJoin.current = false;
+  }, [ws.roomCode]);
 
   useEffect(() => {
     if (!ws.connected || !ws.roomCode || ws.playerSlot !== null || hasRequestedJoin.current) {

@@ -83,6 +83,7 @@ export function Router() {
     setCastStartError(null);
 
     if (castMode) {
+      ws.resetRoomState();
       try {
         const controller = getCastSessionController();
         if (!controller.getSession()) {
