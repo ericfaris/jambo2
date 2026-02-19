@@ -100,6 +100,7 @@ Replace the current web-only "cast mode" transport with a native Google Cast SDK
   - explicit test asserting receiver cannot access `PrivateGameState` fields
 - TODO:
   - add automated coverage for sender/receiver session churn paths (`SESSION_STARTED`, `SESSION_RESUMED`, `SESSION_ENDED`, room switch) beyond manual verification.
+  - add product/engineering support for starting in local solo play and attaching Chromecast mid-game (without requiring cast mode at game start).
 
 ## Observability
 
