@@ -222,13 +222,14 @@ function JoinLobby({ ws }: { ws: WebSocketGameState }) {
         autoFocus
         onKeyDown={(e) => {
           if (e.key === 'Enter' && code.length === 4) {
+            ws.resetRoomState();
             ws.joinRoom(code, 'player');
             setJoined(true);
           }
         }}
       />
       <LobbyButton
-        onClick={() => { ws.joinRoom(code, 'player'); setJoined(true); }}
+        onClick={() => { ws.resetRoomState(); ws.joinRoom(code, 'player'); setJoined(true); }}
         disabled={code.length !== 4}
       >
         Join

@@ -210,13 +210,12 @@ export function useWebSocketGame(): WebSocketGameState {
   }, [resetRoomState, sendRaw]);
 
   const joinRoom = useCallback((code: string, role: ConnectionRole) => {
-    resetRoomState();
     const key = getReconnectStorageKey(code, role);
     const reconnectToken = window.sessionStorage.getItem(key) ?? undefined;
     pendingJoin.current = { code, role, reconnectToken };
     setRoomCode(code);
     sendRaw({ type: 'JOIN_ROOM', code, role, reconnectToken });
-  }, [getReconnectStorageKey, resetRoomState, sendRaw]);
+  }, [getReconnectStorageKey, sendRaw]);
 
   const sendAction = useCallback((action: GameAction) => {
     sendRaw({ type: 'GAME_ACTION', action });
