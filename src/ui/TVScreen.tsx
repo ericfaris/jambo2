@@ -568,44 +568,44 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
 
       <div style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', gap: 48, marginTop: 0 }}>
         {/* Left: Ware supply */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignSelf: 'flex-end', marginBottom: 26 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignSelf: 'flex-end', marginBottom: 38 }}>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 20,
-            padding: '18px 20px',
-            borderRadius: 10,
+            gap: 28,
+            padding: '26px 28px',
+            borderRadius: 14,
             background: 'rgba(20,10,5,0.24)',
-            minWidth: 500,
+            minWidth: 660,
           }}>
             {WARE_TYPES.map((wareType) => (
               <div key={wareType} style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 10,
+                gap: 14,
                 background: 'var(--surface)',
-                borderRadius: 8,
-                padding: '14px 16px',
+                borderRadius: 10,
+                padding: '18px 20px',
                 border: '1px solid var(--border)',
-                minHeight: 80,
+                minHeight: 100,
               }}>
-                <WareToken type={wareType} size={58} />
-                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 28, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
+                <WareToken type={wareType} size={78} />
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 36, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Right: Deck / Phase / Discard */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <div ref={deckPileRef} key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 210 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+          <div ref={deckPileRef} key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 270 }}>
             {pub.deckCount > 0 ? (
-              <CardFace cardId="guard_1" faceDown large />
+              <CardFace cardId="guard_1" faceDown large scale={1.5} />
             ) : (
-              <div style={{ width: 180, height: 240, borderRadius: 10, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Empty</div>
+              <div style={{ width: 270, height: 360, borderRadius: 14, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 18 }}>Empty</div>
             )}
-            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 18 }}>Deck ({pub.deckCount})</div>
+            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 22 }}>Deck ({pub.deckCount})</div>
           </div>
 
           <div style={{ position: 'relative' }}>
@@ -617,23 +617,23 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
                 {actionTag}
               </div>
             )}
-            <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{ background: phaseColor + '20', borderRadius: 12, padding: '24px 40px', border: `1px solid ${phaseColor}`, textAlign: 'center', minWidth: 360 }}>
-              <div style={{ fontSize: 17, color: 'var(--text-muted)' }}>Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}</div>
-              <div style={{ fontWeight: 700, fontSize: 28, color: phaseColor }}>{phaseLabel}</div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 14 }}>
+            <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{ background: phaseColor + '20', borderRadius: 16, padding: '32px 56px', border: `1px solid ${phaseColor}`, textAlign: 'center', minWidth: 440 }}>
+              <div style={{ fontSize: 22, color: 'var(--text-muted)' }}>Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}</div>
+              <div style={{ fontWeight: 700, fontSize: 40, color: phaseColor }}>{phaseLabel}</div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 18 }}>
                 {Array.from({ length: 5 }, (_, i) => (
-                  <div key={i} style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '2px solid var(--gold)' }} />
+                  <div key={i} style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '3px solid var(--gold)' }} />
                 ))}
               </div>
-              {pub.endgame && (<div style={{ fontSize: 12, color: '#c04030', fontWeight: 700, marginTop: 2 }}>{pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}</div>)}
+              {pub.endgame && (<div style={{ fontSize: 16, color: '#c04030', fontWeight: 700, marginTop: 6 }}>{pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}</div>)}
             </div>
           </div>
 
-          <div ref={discardPileRef} key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 210 }}>
+          <div ref={discardPileRef} key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 270 }}>
             <div key={`tv-discard-card-${displayDiscardCard ?? 'empty'}-${pub.discardPile.length}`} className="discard-soft-fade">
-              {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large /> : <div style={{ width: 180, height: 240, borderRadius: 10, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Empty</div>}
+              {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large scale={1.5} /> : <div style={{ width: 270, height: 360, borderRadius: 14, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 18 }}>Empty</div>}
             </div>
-            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 18 }}>Discard ({pub.discardPile.length})</div>
+            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 22 }}>Discard ({pub.discardPile.length})</div>
           </div>
         </div>
       </div>
