@@ -88,55 +88,63 @@ function HostLobby({ ws, aiDifficulty, roomMode }: { ws: WebSocketGameState; aiD
   const joinSuffix = ' and enter this code';
 
   return (
-    <LobbyContainer>
-      <div style={{ fontSize: 14, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
-        {modeLabel}
-      </div>
-      <div style={{ fontSize: 20, color: 'var(--text-muted)' }}>
-        Room Code
-      </div>
-      <div style={{
-        fontSize: 72,
-        fontFamily: 'var(--font-heading)',
-        fontWeight: 700,
-        color: 'var(--gold)',
-        letterSpacing: 12,
-        marginBottom: 16,
-      }}>
-        {ws.roomCode}
-      </div>
-      <div style={{ fontSize: 18, color: 'var(--text-muted)' }}>
-        {joinPrefix}
-        <a
-          href={joinUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: 'var(--gold)', textDecoration: 'underline' }}
-        >
-          {joinUrl.replace(window.location.origin, '')}
-        </a>
-        {joinSuffix}
-      </div>
-      {ws.playerSlot !== null && (
-        <div style={{ fontSize: 16, color: 'var(--accent-green, #7c7)', marginTop: 16 }}>
-          You are Player {ws.playerSlot + 1}. Waiting for game start...
+    <>
+      <LobbyContainer>
+        <div style={{ fontSize: 14, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
+          {modeLabel}
         </div>
-      )}
-      {ws.playerJoined !== null && (
-        <div style={{ fontSize: 16, color: 'var(--accent-green, #7c7)', marginTop: 8 }}>
-          Player {ws.playerJoined + 1} joined!
+        <div style={{ fontSize: 20, color: 'var(--text-muted)' }}>
+          Room Code
         </div>
-      )}
-      {ws.error && (
-        <div style={{ fontSize: 14, color: '#ff9977', marginTop: 12 }}>{ws.error}</div>
-      )}
+        <div style={{
+          fontSize: 72,
+          fontFamily: 'var(--font-heading)',
+          fontWeight: 700,
+          color: 'var(--gold)',
+          letterSpacing: 12,
+          marginBottom: 16,
+        }}>
+          {ws.roomCode}
+        </div>
+        <div style={{ fontSize: 18, color: 'var(--text-muted)' }}>
+          {joinPrefix}
+          <a
+            href={joinUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--gold)', textDecoration: 'underline' }}
+          >
+            {joinUrl.replace(window.location.origin, '')}
+          </a>
+          {joinSuffix}
+        </div>
+        {ws.playerSlot !== null && (
+          <div style={{ fontSize: 16, color: 'var(--accent-green, #7c7)', marginTop: 16 }}>
+            You are Player {ws.playerSlot + 1}. Waiting for game start...
+          </div>
+        )}
+        {ws.playerJoined !== null && (
+          <div style={{ fontSize: 16, color: 'var(--accent-green, #7c7)', marginTop: 8 }}>
+            Player {ws.playerJoined + 1} joined!
+          </div>
+        )}
+        {ws.error && (
+          <div style={{ fontSize: 14, color: '#ff9977', marginTop: 12 }}>{ws.error}</div>
+        )}
+      </LobbyContainer>
       {castEnabled && (
-        <div style={{ fontSize: 14, color: castSync.status === 'error' ? '#ff9977' : 'var(--text-muted)', marginTop: 6 }}>
+        <div style={{
+          position: 'fixed',
+          bottom: 8,
+          left: 12,
+          fontSize: 11,
+          color: castSync.status === 'error' ? '#ff9977' : 'var(--text-muted)',
+        }}>
           Cast receiver sync: {castSync.status}
           {castSync.error ? ` (${castSync.error})` : ''}
         </div>
       )}
-    </LobbyContainer>
+    </>
   );
 }
 

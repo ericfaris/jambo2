@@ -3,6 +3,8 @@ import type { PlayerSlot, RoomMode } from '../multiplayer/types.ts';
 import { getCastSessionController, isCastSdkEnabled } from './factory.ts';
 import type { ReceiverToSenderMessage } from './contracts.ts';
 
+const CAST_SYNC_RETRY_MS = 3000;
+
 export interface CastRoomSyncState {
   status: 'disabled' | 'idle' | 'syncing' | 'synced' | 'error';
   error: string | null;
@@ -30,6 +32,8 @@ export function useCastRoomSync({
   });
   const syncAttemptRef = useRef(0);
   const lastRequestedKeyRef = useRef<string | null>(null);
+  const confirmedSyncKeyRef = useRef<string | null>(null);
+  const syncInFlightRef = useRef(false);
 
   const syncKey = useMemo(() => {
     if (!roomCode || !roomMode) return null;
@@ -43,9 +47,30 @@ export function useCastRoomSync({
     }
 
     const controller = getCastSessionController();
+    let retryTimer: number | null = null;
+
+    const stopRetryLoop = () => {
+      if (retryTimer !== null) {
+        window.clearInterval(retryTimer);
+        retryTimer = null;
+      }
+    };
+
+    const startRetryLoop = () => {
+      if (retryTimer !== null) return;
+      retryTimer = window.setInterval(() => {
+        void trySync(true);
+      }, CAST_SYNC_RETRY_MS);
+    };
 
     const onReceiverMessage = (message: ReceiverToSenderMessage) => {
       if (message.type === 'RECEIVER_ROOM_SYNCED') {
+        if (!roomCode || message.roomCode !== roomCode) {
+          return;
+        }
+        confirmedSyncKeyRef.current = syncKey;
+        lastRequestedKeyRef.current = syncKey;
+        stopRetryLoop();
         setState({
           status: 'synced',
           error: null,
@@ -64,12 +89,24 @@ export function useCastRoomSync({
 
     const unsubscribeMessages = controller.onMessage(onReceiverMessage);
 
-    const trySync = async (): Promise<void> => {
+    const trySync = async (force = false): Promise<void> => {
       if (!syncKey || !roomCode || !roomMode) {
+        stopRetryLoop();
         setState((previous) => ({
           ...previous,
           status: 'idle',
           error: null,
+        }));
+        return;
+      }
+
+      if (confirmedSyncKeyRef.current === syncKey) {
+        stopRetryLoop();
+        setState((previous) => ({
+          ...previous,
+          status: 'synced',
+          error: null,
+          syncedRoomCode: roomCode,
         }));
         return;
       }
@@ -83,7 +120,11 @@ export function useCastRoomSync({
         return;
       }
 
-      if (lastRequestedKeyRef.current === syncKey) {
+      if (syncInFlightRef.current) {
+        return;
+      }
+
+      if (!force && lastRequestedKeyRef.current === syncKey) {
         return;
       }
 
@@ -91,6 +132,7 @@ export function useCastRoomSync({
       syncAttemptRef.current = attempt;
       lastRequestedKeyRef.current = syncKey;
       setState((previous) => ({ ...previous, status: 'syncing', error: null }));
+      syncInFlightRef.current = true;
 
       try {
         await controller.sendMessage({
@@ -109,16 +151,41 @@ export function useCastRoomSync({
           error: error instanceof Error ? error.message : 'Failed to sync room to receiver.',
           syncedRoomCode: null,
         });
+      } finally {
+        syncInFlightRef.current = false;
       }
     };
 
-    const unsubscribeSession = controller.onSessionChanged(() => {
+    const unsubscribeSession = controller.onSessionChanged((session) => {
       lastRequestedKeyRef.current = null;
-      void trySync();
+      if (!session) {
+        setState((previous) => ({
+          ...previous,
+          status: 'idle',
+          error: null,
+        }));
+        return;
+      }
+      if (syncKey && confirmedSyncKeyRef.current !== syncKey) {
+        startRetryLoop();
+      }
+      void trySync(true);
     });
 
-    void trySync();
+    if (!syncKey) {
+      setState((previous) => ({
+        ...previous,
+        status: 'idle',
+        error: null,
+      }));
+      stopRetryLoop();
+    } else if (confirmedSyncKeyRef.current !== syncKey) {
+      startRetryLoop();
+    }
+
+    void trySync(true);
     return () => {
+      stopRetryLoop();
       unsubscribeMessages();
       unsubscribeSession();
     };

@@ -425,18 +425,6 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
           {ws.error}
         </div>
       )}
-      {castEnabled && castSync.status !== 'disabled' && (
-        <div style={{
-          fontSize: 12,
-          color: castSync.status === 'error' ? '#ff9977' : 'var(--text-muted)',
-          textAlign: 'right',
-          padding: '0 4px',
-        }}>
-          Cast receiver sync: {castSync.status}
-          {castSync.error ? ` (${castSync.error})` : ''}
-        </div>
-      )}
-
       {/* Interaction panel */}
       {hasPendingInteraction && (
         <ResolveMegaView verticalAlign="center">
@@ -617,6 +605,18 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
       }}>
         {ws.connected ? 'Connected' : 'Reconnecting...'}
       </div>
+      {castEnabled && castSync.status !== 'disabled' && (
+        <div style={{
+          position: 'fixed',
+          bottom: 8,
+          left: 12,
+          fontSize: 11,
+          color: castSync.status === 'error' ? '#ff9977' : 'var(--text-muted)',
+        }}>
+          Cast receiver sync: {castSync.status}
+          {castSync.error ? ` (${castSync.error})` : ''}
+        </div>
+      )}
 
       {/* Settings */}
       <div ref={menuRef} style={{ position: 'fixed', top: 12, right: 16, zIndex: 50 }}>
