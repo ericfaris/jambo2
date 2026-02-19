@@ -3,60 +3,299 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jambo Receiver (CAF Scaffold)</title>
+  <title>Jambo Receiver TV</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #101316;
-      --panel: #1b2128;
-      --text: #ebf1f6;
-      --muted: #aab4bf;
-      --ok: #79c37a;
-      --warn: #ff9c76;
+      --bg: #120f0b;
+      --bg-2: #20160f;
+      --panel: #2f2016;
+      --panel-2: #3b291b;
+      --line: #6f5237;
+      --text: #f4eee4;
+      --muted: #d0bfaa;
+      --gold: #f5ca6c;
+      --ok: #80c980;
+      --warn: #ff9f7a;
+      --active: #58a7ff;
+      --chip: #4a3321;
     }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      min-height: 100vh;
-      background: radial-gradient(circle at 10% 10%, #1f2832 0%, var(--bg) 48%);
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(120vw 90vh at 15% 10%, #3e2b1d 0%, transparent 52%),
+        radial-gradient(80vw 80vh at 88% 85%, #281c13 0%, transparent 56%),
+        linear-gradient(160deg, var(--bg-2), var(--bg));
       color: var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+    }
+
+    .screen {
+      display: none;
+      width: 100%;
+      height: 100%;
+      padding: 14px 16px;
+      gap: 12px;
+    }
+
+    .screen.visible {
+      display: flex;
+      flex-direction: row;
+    }
+
+    .board {
+      flex: 1;
+      display: grid;
+      grid-template-rows: minmax(150px, 1fr) minmax(180px, auto) minmax(150px, 1fr);
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .player-panel {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background:
+        linear-gradient(0deg, rgba(245, 202, 108, 0.06), transparent 60%),
+        linear-gradient(145deg, var(--panel), #26190f);
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 14px;
+      min-height: 0;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    .player-panel.active {
+      border-color: var(--active);
+      box-shadow: 0 0 0 1px rgba(88, 167, 255, 0.35), 0 8px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    .player-title {
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .stats,
+    .chips,
+    .market,
+    .utilities {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.16);
+      padding: 8px;
+      min-height: 0;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      align-content: start;
+    }
+
+    .stat-item {
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 6px;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .market-row,
+    .utility-row,
+    .supply-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .slot {
+      min-width: 58px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 7px;
+      background: rgba(0, 0, 0, 0.22);
+      font-size: 12px;
+      padding: 5px 6px;
+      text-align: center;
+      color: var(--text);
+    }
+
+    .slot.empty {
+      color: #9a8f82;
+    }
+
+    .center {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.18)),
+        linear-gradient(145deg, var(--panel-2), #2a1e15);
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .center-left,
+    .center-right {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 8px;
+      min-height: 0;
+    }
+
+    .center-top {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .chip {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      background: var(--chip);
+      color: var(--text);
+      font-size: 12px;
+      padding: 5px 10px;
+    }
+
+    .chip.active {
+      border-color: rgba(88, 167, 255, 0.6);
+      color: #d9ecff;
+    }
+
+    .section-title {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 6px;
+    }
+
+    .sidebar {
+      width: 300px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sidebar-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(145deg, #352416, #23180f);
+      padding: 10px;
+      min-height: 0;
+    }
+
+    .status-text {
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .ok {
+      color: var(--ok);
+    }
+
+    .warn {
+      color: var(--warn);
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 12px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .log {
+      display: grid;
+      gap: 6px;
+      max-height: 100%;
+      overflow: auto;
+    }
+
+    .log-item {
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 6px 8px;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .placeholder {
+      position: fixed;
+      inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
     }
+
+    .placeholder.hidden {
+      display: none;
+    }
+
     .panel {
-      width: min(780px, 96vw);
+      width: min(820px, 94vw);
       border-radius: 14px;
-      background: var(--panel);
-      border: 1px solid #2f3a46;
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, #2d1f14, #1d130c);
       padding: 22px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
     }
-    h1 {
+
+    .panel h1 {
       margin: 0 0 8px 0;
-      font-size: 28px;
-      font-weight: 700;
+      font-size: 32px;
+      color: var(--gold);
     }
-    .muted {
+
+    .panel .muted {
       color: var(--muted);
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
-    .status {
-      display: grid;
-      gap: 8px;
-      font-size: 17px;
+
+    .empty {
+      color: var(--muted);
+      font-size: 13px;
     }
-    .ok {
-      color: var(--ok);
-    }
-    .warn {
-      color: var(--warn);
-    }
-    code {
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
-      padding: 1px 6px;
+
+    .waiting {
+      margin-top: 6px;
+      color: #ffd39b;
+      font-size: 13px;
     }
   </style>
   <script
@@ -65,15 +304,82 @@
   </script>
 </head>
 <body>
-  <div class="panel">
-    <h1>Jambo Receiver (CAF Scaffold)</h1>
-    <div class="muted">Phase 3 contract validation target</div>
-    <div class="status">
-      <div id="connection">Receiver state: starting...</div>
-      <div id="room">No room synced yet.</div>
-      <div id="detail"></div>
+  <div id="placeholder" class="placeholder">
+    <div class="panel">
+      <h1>Jambo TV</h1>
+      <div class="muted">Waiting for cast room sync</div>
+      <div class="status-text" id="connection">Receiver state: starting...</div>
+      <div class="meta">
+        <div id="room">No room synced yet.</div>
+        <div id="detail"></div>
+      </div>
     </div>
   </div>
+
+  <div id="screen" class="screen">
+    <div class="board">
+      <section id="player2Panel" class="player-panel">
+        <div class="player-title">
+          <span>Player 2</span>
+          <span id="player2ActiveTag" class="chip">Waiting</span>
+        </div>
+        <div class="stats" id="player2Stats"></div>
+        <div class="chips">
+          <div class="section-title">Market</div>
+          <div id="player2Market" class="market-row"></div>
+        </div>
+        <div class="utilities">
+          <div class="section-title">Utilities</div>
+          <div id="player2Utilities" class="utility-row"></div>
+          <div id="player2Waiting" class="waiting"></div>
+        </div>
+      </section>
+
+      <section class="center">
+        <div class="center-left">
+          <div class="center-top" id="centerChips"></div>
+          <div class="section-title">Ware Supply</div>
+          <div id="supply" class="supply-row"></div>
+        </div>
+        <div class="center-right">
+          <div class="section-title">Deck + Discard</div>
+          <div id="deckDiscard" class="meta"></div>
+          <div class="section-title" style="margin-top:8px;">Endgame</div>
+          <div id="endgame" class="meta"></div>
+        </div>
+      </section>
+
+      <section id="player1Panel" class="player-panel">
+        <div class="player-title">
+          <span>Player 1</span>
+          <span id="player1ActiveTag" class="chip">Waiting</span>
+        </div>
+        <div class="stats" id="player1Stats"></div>
+        <div class="chips">
+          <div class="section-title">Market</div>
+          <div id="player1Market" class="market-row"></div>
+        </div>
+        <div class="utilities">
+          <div class="section-title">Utilities</div>
+          <div id="player1Utilities" class="utility-row"></div>
+          <div id="player1Waiting" class="waiting"></div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="sidebar">
+      <div class="sidebar-card">
+        <div class="section-title">Cast Status</div>
+        <div id="connectionBoard" class="status-text ok">Receiver state: ready</div>
+        <div id="roomBoard" class="meta"></div>
+      </div>
+      <div class="sidebar-card" style="flex:1;">
+        <div class="section-title">Game Log</div>
+        <div id="gameLog" class="log"></div>
+      </div>
+    </aside>
+  </div>
+
   <script src="./receiver-app.js"></script>
 </body>
 </html>

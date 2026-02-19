@@ -1,6 +1,6 @@
 (function () {
   var NAMESPACE = 'urn:x-cast:com.jambo.game.v1';
-  var RECEIVER_VERSION = '0.1.0-scaffold';
+  var RECEIVER_VERSION = '0.2.0-tv-layout';
 
   var roomState = {
     roomCode: null,
@@ -15,43 +15,328 @@
   var streamRetryTimer = null;
   var publicRoomSnapshot = null;
 
+  var placeholderEl = document.getElementById('placeholder');
+  var screenEl = document.getElementById('screen');
+
   var connectionEl = document.getElementById('connection');
+  var connectionBoardEl = document.getElementById('connectionBoard');
   var roomEl = document.getElementById('room');
   var detailEl = document.getElementById('detail');
+  var roomBoardEl = document.getElementById('roomBoard');
+
+  var player1PanelEl = document.getElementById('player1Panel');
+  var player2PanelEl = document.getElementById('player2Panel');
+  var player1ActiveTagEl = document.getElementById('player1ActiveTag');
+  var player2ActiveTagEl = document.getElementById('player2ActiveTag');
+
+  var player1StatsEl = document.getElementById('player1Stats');
+  var player2StatsEl = document.getElementById('player2Stats');
+  var player1MarketEl = document.getElementById('player1Market');
+  var player2MarketEl = document.getElementById('player2Market');
+  var player1UtilitiesEl = document.getElementById('player1Utilities');
+  var player2UtilitiesEl = document.getElementById('player2Utilities');
+  var player1WaitingEl = document.getElementById('player1Waiting');
+  var player2WaitingEl = document.getElementById('player2Waiting');
+
+  var centerChipsEl = document.getElementById('centerChips');
+  var supplyEl = document.getElementById('supply');
+  var deckDiscardEl = document.getElementById('deckDiscard');
+  var endgameEl = document.getElementById('endgame');
+  var gameLogEl = document.getElementById('gameLog');
 
   function setConnection(text, isWarning) {
     connectionEl.textContent = text;
-    connectionEl.className = isWarning ? 'warn' : 'ok';
+    connectionEl.className = 'status-text ' + (isWarning ? 'warn' : 'ok');
+
+    if (connectionBoardEl) {
+      connectionBoardEl.textContent = text;
+      connectionBoardEl.className = 'status-text ' + (isWarning ? 'warn' : 'ok');
+    }
+  }
+
+  function toTitleCase(text) {
+    return String(text)
+      .split('_')
+      .map(function (part) {
+        if (!part) return '';
+        return part[0].toUpperCase() + part.slice(1);
+      })
+      .join(' ');
+  }
+
+  function formatWareName(ware) {
+    return toTitleCase(ware);
+  }
+
+  function formatCardName(cardId) {
+    if (!cardId) return '-';
+    var base = String(cardId).replace(/_\d+$/, '');
+    return toTitleCase(base);
+  }
+
+  function clearNode(node) {
+    while (node.firstChild) {
+      node.removeChild(node.firstChild);
+    }
+  }
+
+  function appendMetaRow(target, text) {
+    var row = document.createElement('div');
+    row.textContent = text;
+    target.appendChild(row);
+  }
+
+  function appendSlot(target, text, isEmpty) {
+    var chip = document.createElement('div');
+    chip.className = 'slot' + (isEmpty ? ' empty' : '');
+    chip.textContent = text;
+    target.appendChild(chip);
+  }
+
+  function appendStat(target, label, value) {
+    var item = document.createElement('div');
+    item.className = 'stat-item';
+
+    var labelEl = document.createElement('div');
+    labelEl.className = 'stat-label';
+    labelEl.textContent = label;
+
+    var valueEl = document.createElement('div');
+    valueEl.className = 'stat-value';
+    valueEl.textContent = String(value);
+
+    item.appendChild(labelEl);
+    item.appendChild(valueEl);
+    target.appendChild(item);
+  }
+
+  function renderPlayerStats(target, player) {
+    clearNode(target);
+    appendStat(target, 'Gold', player.gold);
+    appendStat(target, 'Hand', player.handCount);
+    appendStat(target, 'Stands', player.smallMarketStands);
+  }
+
+  function renderMarket(target, market) {
+    clearNode(target);
+    if (!Array.isArray(market) || market.length === 0) {
+      appendSlot(target, 'No wares', true);
+      return;
+    }
+
+    for (var i = 0; i < market.length; i += 1) {
+      var ware = market[i];
+      if (ware === null) {
+        appendSlot(target, 'Empty', true);
+      } else {
+        appendSlot(target, formatWareName(ware), false);
+      }
+    }
+  }
+
+  function renderUtilities(target, utilities) {
+    clearNode(target);
+    if (!Array.isArray(utilities) || utilities.length === 0) {
+      appendSlot(target, 'None', true);
+      return;
+    }
+
+    for (var i = 0; i < utilities.length; i += 1) {
+      var utility = utilities[i];
+      var text = utility && utility.designId ? toTitleCase(utility.designId) : 'Unknown';
+      if (utility && utility.usedThisTurn) {
+        text += ' (used)';
+      }
+      appendSlot(target, text, false);
+    }
+  }
+
+  function renderSupply(target, supply) {
+    clearNode(target);
+    var order = ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt'];
+    for (var i = 0; i < order.length; i += 1) {
+      var ware = order[i];
+      appendSlot(target, toTitleCase(ware) + ': ' + String(supply && supply[ware] !== undefined ? supply[ware] : '?'), false);
+    }
+  }
+
+  function renderCenterChips(target, state) {
+    clearNode(target);
+
+    var chips = [
+      'Phase: ' + state.phase,
+      'Turn: ' + state.turn,
+      'Current: P' + String(state.currentPlayer + 1),
+      'Actions: ' + state.actionsLeft,
+    ];
+
+    if (state.pendingResolutionType) {
+      chips.push('Resolving: ' + state.pendingResolutionType);
+    }
+
+    for (var i = 0; i < chips.length; i += 1) {
+      var chip = document.createElement('div');
+      chip.className = 'chip' + (chips[i].indexOf('Current:') === 0 ? ' active' : '');
+      chip.textContent = chips[i];
+      target.appendChild(chip);
+    }
+  }
+
+  function getWaitingInfo(state) {
+    if (state.phase === 'GAME_OVER') {
+      return { targetPlayer: null, message: '' };
+    }
+
+    if (state.pendingGuardReaction) {
+      return {
+        targetPlayer: state.pendingGuardReaction.targetPlayer,
+        message: 'Player ' + String(state.pendingGuardReaction.targetPlayer + 1) + ' may react with Guard.',
+      };
+    }
+
+    if (state.pendingWareCardReaction) {
+      return {
+        targetPlayer: state.pendingWareCardReaction.targetPlayer,
+        message: 'Player ' + String(state.pendingWareCardReaction.targetPlayer + 1) + ' may react with Rain Maker.',
+      };
+    }
+
+    if (state.pendingResolutionType && (state.waitingOnPlayer === 0 || state.waitingOnPlayer === 1)) {
+      return {
+        targetPlayer: state.waitingOnPlayer,
+        message: 'Player ' + String(state.waitingOnPlayer + 1) + ' is choosing (' + state.pendingResolutionType + ').',
+      };
+    }
+
+    return { targetPlayer: null, message: '' };
+  }
+
+  function setActivePlayer(currentPlayer) {
+    var p1Active = currentPlayer === 0;
+    var p2Active = currentPlayer === 1;
+
+    player1PanelEl.className = 'player-panel' + (p1Active ? ' active' : '');
+    player2PanelEl.className = 'player-panel' + (p2Active ? ' active' : '');
+
+    player1ActiveTagEl.textContent = p1Active ? 'Active Turn' : 'Waiting';
+    player2ActiveTagEl.textContent = p2Active ? 'Active Turn' : 'Waiting';
+
+    player1ActiveTagEl.className = 'chip' + (p1Active ? ' active' : '');
+    player2ActiveTagEl.className = 'chip' + (p2Active ? ' active' : '');
+  }
+
+  function renderDeckDiscard(state) {
+    clearNode(deckDiscardEl);
+    appendMetaRow(deckDiscardEl, 'Deck: ' + String(state.deckCount));
+    appendMetaRow(deckDiscardEl, 'Discard Count: ' + String(Array.isArray(state.discardPile) ? state.discardPile.length : 0));
+    var topDiscard = Array.isArray(state.discardPile) && state.discardPile.length > 0 ? state.discardPile[0] : null;
+    appendMetaRow(deckDiscardEl, 'Top Discard: ' + (topDiscard ? formatCardName(topDiscard) : 'None'));
+  }
+
+  function renderEndgame(state) {
+    clearNode(endgameEl);
+    var p1Gold = state.players && state.players[0] ? state.players[0].gold : 0;
+    var p2Gold = state.players && state.players[1] ? state.players[1].gold : 0;
+
+    if (state.phase !== 'GAME_OVER') {
+      appendMetaRow(endgameEl, 'Not in endgame.');
+      appendMetaRow(endgameEl, 'P1/P2 Gold: ' + String(p1Gold) + '/' + String(p2Gold));
+      return;
+    }
+
+    var result = 'Tie';
+    if (p1Gold > p2Gold) result = 'Player 1 wins';
+    if (p2Gold > p1Gold) result = 'Player 2 wins';
+
+    appendMetaRow(endgameEl, result);
+    appendMetaRow(endgameEl, 'Final Gold P1/P2: ' + String(p1Gold) + '/' + String(p2Gold));
+  }
+
+  function renderGameLog(state) {
+    clearNode(gameLogEl);
+
+    var log = Array.isArray(state.log) ? state.log : [];
+    if (log.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'No actions yet.';
+      gameLogEl.appendChild(empty);
+      return;
+    }
+
+    var startIndex = Math.max(0, log.length - 14);
+    for (var i = log.length - 1; i >= startIndex; i -= 1) {
+      var entry = log[i];
+      var item = document.createElement('div');
+      item.className = 'log-item';
+
+      var details = entry.details ? ' - ' + entry.details : '';
+      item.textContent =
+        'T' + String(entry.turn) + ' P' + String(entry.player + 1) + ': ' + String(entry.action) + details;
+      gameLogEl.appendChild(item);
+    }
+  }
+
+  function renderRoomMeta(state) {
+    var senderRole = roomState.senderPlayerSlot === null
+      ? 'TV'
+      : 'Player ' + String(roomState.senderPlayerSlot + 1);
+
+    roomEl.textContent = 'Room ' + roomState.roomCode + ' (' + roomState.roomMode + ')';
+    detailEl.textContent = 'Sender role: ' + senderRole + ' | Last sync: ' + new Date(roomState.updatedAtMs).toLocaleTimeString();
+
+    clearNode(roomBoardEl);
+    appendMetaRow(roomBoardEl, 'Room: ' + roomState.roomCode + ' (' + roomState.roomMode + ')');
+    appendMetaRow(roomBoardEl, 'Sender Role: ' + senderRole);
+    appendMetaRow(roomBoardEl, 'Updated: ' + new Date(roomState.updatedAtMs).toLocaleTimeString());
+    appendMetaRow(roomBoardEl, 'Mode: ' + (state.roomMode === 'ai' ? 'Solo vs AI' : 'PvP'));
+  }
+
+  function renderGameState(state) {
+    var publicState = state.publicState;
+
+    setActivePlayer(publicState.currentPlayer);
+    renderPlayerStats(player1StatsEl, publicState.players[0]);
+    renderPlayerStats(player2StatsEl, publicState.players[1]);
+    renderMarket(player1MarketEl, publicState.players[0].market);
+    renderMarket(player2MarketEl, publicState.players[1].market);
+    renderUtilities(player1UtilitiesEl, publicState.players[0].utilities);
+    renderUtilities(player2UtilitiesEl, publicState.players[1].utilities);
+
+    var waitingInfo = getWaitingInfo(publicState);
+    player1WaitingEl.textContent = waitingInfo.targetPlayer === 0 ? waitingInfo.message : '';
+    player2WaitingEl.textContent = waitingInfo.targetPlayer === 1 ? waitingInfo.message : '';
+
+    renderCenterChips(centerChipsEl, publicState);
+    renderSupply(supplyEl, publicState.wareSupply);
+    renderDeckDiscard(publicState);
+    renderEndgame(publicState);
+    renderGameLog(publicState);
   }
 
   function renderRoom() {
     if (!roomState.roomCode) {
+      placeholderEl.className = 'placeholder';
+      screenEl.className = 'screen';
       roomEl.textContent = 'No room synced yet.';
       detailEl.textContent = '';
+      if (roomBoardEl) clearNode(roomBoardEl);
       return;
     }
 
-    roomEl.textContent = 'Room ' + roomState.roomCode + ' (' + roomState.roomMode + ')';
-    var senderRole = roomState.senderPlayerSlot === null
-      ? 'tv'
-      : 'player-' + String(roomState.senderPlayerSlot + 1);
     if (!publicRoomSnapshot || !publicRoomSnapshot.publicState) {
-      detailEl.textContent = 'Last sender role: ' + senderRole + ' at ' + new Date(roomState.updatedAtMs).toLocaleTimeString() + ' | waiting for room state...';
+      placeholderEl.className = 'placeholder';
+      screenEl.className = 'screen';
+      renderRoomMeta({ roomMode: roomState.roomMode });
+      detailEl.textContent = 'Waiting for room state...';
       return;
     }
 
-    var state = publicRoomSnapshot.publicState;
-    var p1Gold = state.players && state.players[0] ? state.players[0].gold : '?';
-    var p2Gold = state.players && state.players[1] ? state.players[1].gold : '?';
-    detailEl.textContent =
-      'Last sender role: ' + senderRole +
-      ' | phase ' + state.phase +
-      ' | turn ' + state.turn +
-      ' | current P' + String(state.currentPlayer + 1) +
-      ' | actions ' + state.actionsLeft +
-      ' | deck ' + state.deckCount +
-      ' | discard ' + (state.discardPile ? state.discardPile.length : 0) +
-      ' | gold P1/P2 ' + p1Gold + '/' + p2Gold;
+    placeholderEl.className = 'placeholder hidden';
+    screenEl.className = 'screen visible';
+
+    renderRoomMeta(publicRoomSnapshot);
+    renderGameState(publicRoomSnapshot);
   }
 
   function clearPollTimer() {
@@ -88,7 +373,6 @@
 
   function restartPolling() {
     clearPollTimer();
-    publicRoomSnapshot = null;
     if (!roomState.roomCode || !roomState.apiBaseUrl || !roomState.castAccessToken) {
       renderRoom();
       return;

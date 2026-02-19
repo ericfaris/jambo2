@@ -1,16 +1,16 @@
-# Jambo CAF Receiver Scaffold
+# Jambo CAF Receiver TV UI
 
-This folder contains a minimal Google Cast CAF receiver scaffold for Phase 3 testing.
+This folder contains the Google Cast CAF receiver implementation used for the TV board view.
 
 ## Purpose
 
-- Validate sender/receiver namespace contracts before full receiver UI integration.
-- Acknowledge `SYNC_ROOM` messages from sender and expose room state in receiver UI.
+- Render a TV-style board layout from cast public room state.
+- Acknowledge `SYNC_ROOM` messages from sender and keep receiver state in sync.
 
 ## Files
 
 - `index.html`: receiver entrypoint.
-- `receiver-app.js`: namespace handlers and simple room status rendering.
+- `receiver-app.js`: namespace handlers and TV board rendering from public room state.
 
 ## Namespace
 
@@ -39,4 +39,4 @@ This folder contains a minimal Google Cast CAF receiver scaffold for Phase 3 tes
 1. Host this folder on HTTPS.
 2. Register the receiver URL under your Cast App ID in Google Cast Console.
 3. Set `VITE_CAST_SDK_ENABLED=true` and `VITE_CAST_APP_ID=<app-id>` in sender app.
-4. Start cast session from sender and create a room; receiver should transition from "No room synced" to room details.
+4. Start cast session from sender and create a room; receiver should transition from the waiting view to the live TV board layout.
