@@ -9,9 +9,11 @@ interface MarketDisplayProps {
   flashSlots?: number[];
   flashVariant?: 'soft' | 'normal' | 'strong';
   label?: string;
+  /** Max slots per row — wraps to additional rows. Defaults to unlimited. */
+  columns?: number;
 }
 
-function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label }: MarketDisplayProps) {
+function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns }: MarketDisplayProps) {
   const isInteractive = !!onSlotClick;
 
   return (
@@ -27,9 +29,10 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
         </div>
       )}
       <div style={{
-        display: 'flex',
+        display: columns ? 'grid' : 'flex',
+        gridTemplateColumns: columns ? `repeat(${columns}, auto)` : undefined,
         gap: 6,
-        flexWrap: 'wrap',
+        flexWrap: columns ? undefined : 'wrap',
         background: 'transparent',
         borderRadius: 10,
         padding: 10,

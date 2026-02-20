@@ -42,7 +42,24 @@ function isDevTVMode(): boolean {
 /** Dev-only: renders TVScreen using local game store state (no server needed). */
 function DevTVPreview() {
   const gameState = useGameStore((store) => store.state);
-  const publicState = useMemo(() => extractPublicState(gameState), [gameState]);
+  const publicState = useMemo(() => {
+    const pub = extractPublicState(gameState);
+    // Inject dummy data so we can preview all element sizes
+    pub.players[0].market = ['trinkets', 'hides', 'tea', null, 'silk', null, 'fruit', 'salt', null];
+    pub.players[0].utilities = [
+      { cardId: 'well_1', designId: 'well', usedThisTurn: false },
+      { cardId: 'drums_1', designId: 'drums', usedThisTurn: false },
+      { cardId: 'throne_1', designId: 'throne', usedThisTurn: true },
+    ];
+    pub.players[0].gold = 35;
+    pub.players[1].market = ['fruit', null, 'salt', 'trinkets', null, null];
+    pub.players[1].utilities = [
+      { cardId: 'boat_1', designId: 'boat', usedThisTurn: false },
+      { cardId: 'scale_1', designId: 'scale', usedThisTurn: false },
+    ];
+    pub.players[1].gold = 28;
+    return pub;
+  }, [gameState]);
 
   const mockWs: WebSocketGameState = useMemo(() => ({
     connected: true,

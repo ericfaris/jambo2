@@ -202,7 +202,7 @@ export function TVScreen({ ws }: TVScreenProps) {
       display: 'flex',
       flexDirection: 'column',
       gap: 10,
-      padding: 64,
+      padding: '32px 64px',
       height: '100vh',
       boxSizing: 'border-box',
       overflow: 'hidden',
@@ -381,13 +381,14 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           pointerEvents: 'none',
         }} />
         <div style={{ position: 'relative', display: 'flex', gap: 28, flexWrap: 'wrap', height: '100%', transform: 'scale(1.7)', transformOrigin: 'top left' }}>
-          <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" />
-          <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="medium" />
+          <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" columns={6} />
+          <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" cardScale={1.0} />
         </div>
         <span style={{
           position: 'absolute',
           left: 14,
           bottom: 8,
+          paddingTop: 24,
           fontFamily: 'var(--font-heading)',
           fontWeight: 700,
           fontSize: 28,
