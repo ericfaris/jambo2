@@ -644,7 +644,7 @@
       }
     );
     context.addCustomMessageListener(NAMESPACE, handleCustomMessage);
-    context.start();
+    context.start({ disableIdleTimeout: true });
     setConnection('Receiver state: ready', false);
     renderRoom();
   }

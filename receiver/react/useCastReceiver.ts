@@ -258,7 +258,7 @@ export function useCastReceiver(): WebSocketGameState {
     };
 
     context.addCustomMessageListener(NAMESPACE, handleCustomMessage);
-    context.start();
+    context.start({ disableIdleTimeout: true });
 
     return () => {
       clearPollTimer();
