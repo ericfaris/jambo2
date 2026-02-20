@@ -382,7 +382,70 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
         }} />
         <div style={{ position: 'relative', display: 'flex', gap: 28, flexWrap: 'wrap', height: '100%', transform: 'scale(1.7)', transformOrigin: 'top left' }}>
           <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" columns={6} />
-          <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" cardScale={1.0} />
+          {/* Coins + Cards icons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 12px', alignSelf: 'center', marginTop: -110, marginLeft: -35 }}>
+            <div style={{ position: 'relative', width: 170, height: 114 }}>
+              <img src="/assets/coins/coins.png" alt="gold" draggable={false} style={{ width: 170, height: 114, objectFit: 'contain' }} />
+              <span key={`tv-gold-${label}-${goldDelta ?? 0}`} className={(goldDelta ?? 0) !== 0 ? 'gold-pop' : undefined} style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                background: '#f5e6c8',
+                border: '2px solid #d4a850',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#1a1008',
+                fontWeight: 700,
+                fontSize: 30,
+                fontFamily: 'var(--font-heading)',
+              }}>
+                {player.gold}
+                {(goldDelta ?? 0) !== 0 && (
+                  <span className="gold-delta-text" style={{
+                    position: 'absolute',
+                    top: -14,
+                    right: -18,
+                    color: (goldDelta ?? 0) > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}>
+                    {(goldDelta ?? 0) > 0 ? `+${goldDelta}g` : `${goldDelta}g`}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div style={{ position: 'relative', width: 166, height: 114 }}>
+              <img src="/assets/cards/cards_fanned_out.png" alt="hand" draggable={false} style={{ width: 166, height: 114, objectFit: 'contain' }} />
+              <span style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                background: '#f5e6c8',
+                border: '2px solid #d4a850',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#1a1008',
+                fontWeight: 700,
+                fontSize: 30,
+                fontFamily: 'var(--font-heading)',
+              }}>
+                {player.handCount}
+              </span>
+            </div>
+          </div>
+          <div style={{ marginLeft: -20 }}>
+            <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" cardScale={1.0} />
+          </div>
         </div>
         <span style={{
           position: 'absolute',
@@ -396,26 +459,6 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
         }}>
           {label} {isActive && '(Active)'}
         </span>
-        <div style={{ position: 'absolute', right: 14, bottom: 8, display: 'flex', gap: 20, alignItems: 'center' }}>
-          <span key={`tv-gold-${label}-${goldDelta ?? 0}`} className={(goldDelta ?? 0) !== 0 ? 'gold-pop' : undefined} style={{ color: 'var(--gold)', fontWeight: 700, fontSize: 26, position: 'relative' }}>
-            {player.gold}g
-            {(goldDelta ?? 0) !== 0 && (
-              <span className="gold-delta-text" style={{
-                position: 'absolute',
-                top: -26,
-                right: -28,
-                color: (goldDelta ?? 0) > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                fontSize: 18,
-                fontWeight: 700,
-              }}>
-                {(goldDelta ?? 0) > 0 ? `+${goldDelta}g` : `${goldDelta}g`}
-              </span>
-            )}
-          </span>
-          <span style={{ color: 'var(--text-muted)', fontSize: 24 }}>
-            {player.handCount} cards
-          </span>
-        </div>
       </div>
     </div>
   );
@@ -623,7 +666,7 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
               <div style={{ fontWeight: 700, fontSize: 40, color: phaseColor }}>{phaseLabel}</div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 18 }}>
                 {Array.from({ length: 5 }, (_, i) => (
-                  <div key={i} style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '3px solid var(--gold)' }} />
+                  <div key={i} style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '3px solid var(--gold)' }} />
                 ))}
               </div>
               {pub.endgame && (<div style={{ fontSize: 16, color: '#c04030', fontWeight: 700, marginTop: 6 }}>{pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}</div>)}
