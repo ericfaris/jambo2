@@ -205,9 +205,12 @@ export function TVScreen({ ws }: TVScreenProps) {
       flexDirection: 'column',
       gap: 10,
       padding: '32px 64px',
-      height: '100vh',
       boxSizing: 'border-box',
       overflow: 'hidden',
+      transform: 'scale(0.6)',
+      transformOrigin: 'top left',
+      width: '166.67%',
+      height: '166.67vh',
     }}>
       {/* Player 2 area (top) */}
       <TVPlayerArea
@@ -383,18 +386,21 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           pointerEvents: 'none',
         }} />
         <div style={{ position: 'relative', display: 'flex', gap: 28, flexWrap: 'wrap', height: '100%', transform: 'scale(1.7)', transformOrigin: 'top left' }}>
-          <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" columns={6} />
+          <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" columns={6} slotSize={32} tokenSize={26} />
+          <div style={{ marginLeft: 10 }}>
+            <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" cardScale={0.9} maxSlots={3} />
+          </div>
           {/* Coins + Cards icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 12px', alignSelf: 'center', marginTop: -110, marginLeft: 30 }}>
-            <div style={{ position: 'relative', width: 230, height: 154 }}>
-              <img src="/assets/coins/coins.png" alt="gold" draggable={false} style={{ width: 230, height: 154, objectFit: 'contain' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 12px', alignSelf: 'center', marginTop: -110, marginLeft: -30 }}>
+            <div style={{ position: 'relative', width: 130, height: 88 }}>
+              <img src="/assets/coins/coins.png" alt="gold" draggable={false} style={{ width: 130, height: 88, objectFit: 'contain' }} />
               <span key={`tv-gold-${label}-${goldDelta ?? 0}`} className={(goldDelta ?? 0) !== 0 ? 'gold-pop' : undefined} style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: 56,
-                height: 56,
+                width: 28,
+                height: 28,
                 borderRadius: '50%',
                 background: '#f5e6c8',
                 border: '2px solid #d4a850',
@@ -403,17 +409,17 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
                 justifyContent: 'center',
                 color: '#1a1008',
                 fontWeight: 700,
-                fontSize: 30,
+                fontSize: 14,
                 fontFamily: 'var(--font-heading)',
               }}>
                 {player.gold}
                 {(goldDelta ?? 0) !== 0 && (
                   <span className="gold-delta-text" style={{
                     position: 'absolute',
-                    top: -14,
-                    right: -18,
+                    top: -8,
+                    right: -10,
                     color: (goldDelta ?? 0) > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                    fontSize: 11,
+                    fontSize: 7,
                     fontWeight: 700,
                   }}>
                     {(goldDelta ?? 0) > 0 ? `+${goldDelta}g` : `${goldDelta}g`}
@@ -421,15 +427,15 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
                 )}
               </span>
             </div>
-            <div style={{ position: 'relative', width: 226, height: 154 }}>
-              <img src="/assets/cards/cards_fanned_out.png" alt="hand" draggable={false} style={{ width: 226, height: 154, objectFit: 'contain' }} />
+            <div style={{ position: 'relative', width: 128, height: 88 }}>
+              <img src="/assets/cards/cards_fanned_out.png" alt="hand" draggable={false} style={{ width: 128, height: 88, objectFit: 'contain' }} />
               <span style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: 56,
-                height: 56,
+                width: 28,
+                height: 28,
                 borderRadius: '50%',
                 background: '#f5e6c8',
                 border: '2px solid #d4a850',
@@ -438,15 +444,12 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
                 justifyContent: 'center',
                 color: '#1a1008',
                 fontWeight: 700,
-                fontSize: 30,
+                fontSize: 14,
                 fontFamily: 'var(--font-heading)',
               }}>
                 {player.handCount}
               </span>
             </div>
-          </div>
-          <div style={{ marginLeft: 40 }}>
-            <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" cardScale={1.0} />
           </div>
         </div>
         <span style={{
@@ -577,6 +580,8 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
       width: '100%',
       flex: 1,
       minHeight: 0,
+      transform: 'scale(0.7)',
+      transformOrigin: 'center center',
     }}>
       {visualFeedback.trail && (
         <div
@@ -644,7 +649,7 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
         </div>
 
         {/* Right: Deck / Phase / Discard */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 40, transform: 'scale(0.92)', transformOrigin: 'center center', marginLeft: 80 }}>
           <div ref={deckPileRef} key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 270 }}>
             {pub.deckCount > 0 ? (
               <CardFace cardId="guard_1" faceDown large scale={1.8} />
@@ -677,9 +682,9 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
 
           <div ref={discardPileRef} key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 270 }}>
             <div key={`tv-discard-card-${displayDiscardCard ?? 'empty'}-${pub.discardPile.length}`} className="discard-soft-fade">
-              {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large scale={1.8} /> : <div style={{ width: 270, height: 360, borderRadius: 14, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 18 }}>Empty</div>}
+              {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large scale={1.8} /> : <div style={{ width: 324, height: 432, borderRadius: 14, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 18 }}>Empty</div>}
             </div>
-            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 22 }}>Discard ({pub.discardPile.length})</div>
+            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 26 }}>Discard ({pub.discardPile.length})</div>
           </div>
         </div>
       </div>

@@ -15,6 +15,8 @@ interface UtilityAreaProps {
   overlapOnDesktop?: boolean;
   singleRow?: boolean;
   hideScrollbar?: boolean;
+  /** Show empty placeholder slots up to this count. */
+  maxSlots?: number;
 }
 
 function UtilityAreaComponent({
@@ -30,6 +32,7 @@ function UtilityAreaComponent({
   overlapOnDesktop = false,
   singleRow = false,
   hideScrollbar = false,
+  maxSlots,
 }: UtilityAreaProps) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -68,7 +71,7 @@ function UtilityAreaComponent({
         scrollbarWidth: hideScrollbar ? 'none' : 'auto',
         msOverflowStyle: hideScrollbar ? 'none' : 'auto',
       }}>
-        {utilities.length === 0 && (
+        {!maxSlots && utilities.length === 0 && (
           <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 14, padding: 6 }}>
             No utilities
           </div>
@@ -132,6 +135,24 @@ function UtilityAreaComponent({
             )}
           </div>
         ))}
+        {maxSlots && utilities.length < maxSlots && Array.from({ length: maxSlots - utilities.length }, (_, i) => {
+          const w = Math.round((cardSize === 'small' ? 96 : cardSize === 'medium' ? 120 : cardSize === 'large' ? 180 : 140) * cardScale);
+          const h = Math.round((cardSize === 'small' ? 128 : cardSize === 'medium' ? 160 : cardSize === 'large' ? 240 : 187) * cardScale);
+          return (
+            <div key={`empty-${i}`} style={{
+              width: w,
+              height: h,
+              borderRadius: 8,
+              border: '2px dashed var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-muted)',
+              fontSize: 14,
+              flexShrink: 0,
+            }} />
+          );
+        })}
       </div>
     </div>
   );

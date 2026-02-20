@@ -11,9 +11,13 @@ interface MarketDisplayProps {
   label?: string;
   /** Max slots per row — wraps to additional rows. Defaults to unlimited. */
   columns?: number;
+  /** Slot size in px. Defaults to 48. */
+  slotSize?: number;
+  /** Ware token size in px. Defaults to 42. */
+  tokenSize?: number;
 }
 
-function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns }: MarketDisplayProps) {
+function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize }: MarketDisplayProps) {
   const isInteractive = !!onSlotClick;
 
   return (
@@ -40,8 +44,8 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
       }}>
         {market.map((ware, i) => (
           <div key={i} className={flashSlots?.includes(i) ? `market-slot-flash market-slot-flash-${flashVariant}` : undefined} style={{
-            width: 48,
-            height: 48,
+            width: slotSize,
+            height: slotSize,
             borderRadius: 8,
             border: `2px solid ${selectedSlots?.includes(i) ? 'var(--gold)' : 'var(--border)'}`,
             background: selectedSlots?.includes(i) ? 'rgba(212,168,80,0.15)' : 'var(--surface)',
@@ -53,7 +57,7 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
           onClick={onSlotClick && ware ? () => onSlotClick(i) : undefined}
           >
             {ware ? (
-              <WareToken type={ware} />
+              <WareToken type={ware} size={tokenSize} />
             ) : (
               <span style={{ color: 'var(--border)', fontSize: 20 }}>-</span>
             )}
