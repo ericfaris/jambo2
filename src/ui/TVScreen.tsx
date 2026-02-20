@@ -618,11 +618,11 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 28,
-            padding: '26px 28px',
+            gap: 32,
+            padding: '30px 32px',
             borderRadius: 14,
             background: 'rgba(20,10,5,0.24)',
-            minWidth: 660,
+            minWidth: 740,
           }}>
             {WARE_TYPES.map((wareType) => (
               <div key={wareType} style={{
@@ -632,12 +632,12 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
                 gap: 14,
                 background: 'var(--surface)',
                 borderRadius: 10,
-                padding: '18px 20px',
+                padding: '20px 24px',
                 border: '1px solid var(--border)',
-                minHeight: 100,
+                minHeight: 110,
               }}>
-                <WareToken type={wareType} size={78} />
-                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 36, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
+                <WareToken type={wareType} size={90} />
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 42, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
               </div>
             ))}
           </div>
@@ -647,11 +647,11 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
         <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
           <div ref={deckPileRef} key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 270 }}>
             {pub.deckCount > 0 ? (
-              <CardFace cardId="guard_1" faceDown large scale={1.5} />
+              <CardFace cardId="guard_1" faceDown large scale={1.8} />
             ) : (
               <div style={{ width: 270, height: 360, borderRadius: 14, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 18 }}>Empty</div>
             )}
-            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 22 }}>Deck ({pub.deckCount})</div>
+            <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 26 }}>Deck ({pub.deckCount})</div>
           </div>
 
           <div style={{ position: 'relative' }}>
@@ -663,21 +663,21 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
                 {actionTag}
               </div>
             )}
-            <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{ background: phaseColor + '20', borderRadius: 16, padding: '32px 56px', border: `1px solid ${phaseColor}`, textAlign: 'center', minWidth: 440 }}>
-              <div style={{ fontSize: 22, color: 'var(--text-muted)' }}>Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}</div>
-              <div style={{ fontWeight: 700, fontSize: 40, color: phaseColor }}>{phaseLabel}</div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 18 }}>
+            <div key={`tv-phase-${visualFeedback.phasePulse}-${visualFeedback.actionsPulse}`} className={(visualFeedback.phasePulse || visualFeedback.actionsPulse) ? 'phase-pulse' : undefined} style={{ background: phaseColor + '20', borderRadius: 16, padding: '36px 64px', border: `1px solid ${phaseColor}`, textAlign: 'center', minWidth: 500 }}>
+              <div style={{ fontSize: 26, color: 'var(--text-muted)' }}>Turn {pub.turn} &middot; Player {pub.currentPlayer + 1}</div>
+              <div style={{ fontWeight: 700, fontSize: 48, color: phaseColor }}>{phaseLabel}</div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 20 }}>
                 {Array.from({ length: 5 }, (_, i) => (
-                  <div key={i} style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '3px solid var(--gold)' }} />
+                  <div key={i} style={{ width: 46, height: 46, borderRadius: '50%', backgroundColor: i < pub.actionsLeft ? 'var(--gold)' : 'rgba(90,64,48,0.5)', border: '3px solid var(--gold)' }} />
                 ))}
               </div>
-              {pub.endgame && (<div style={{ fontSize: 16, color: '#c04030', fontWeight: 700, marginTop: 6 }}>{pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}</div>)}
+              {pub.endgame && (<div style={{ fontSize: 20, color: '#c04030', fontWeight: 700, marginTop: 8 }}>{pub.endgame.isFinalTurn ? 'FINAL TURN!' : 'Endgame triggered!'}</div>)}
             </div>
           </div>
 
           <div ref={discardPileRef} key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 270 }}>
             <div key={`tv-discard-card-${displayDiscardCard ?? 'empty'}-${pub.discardPile.length}`} className="discard-soft-fade">
-              {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large scale={1.5} /> : <div style={{ width: 270, height: 360, borderRadius: 14, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 18 }}>Empty</div>}
+              {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large scale={1.8} /> : <div style={{ width: 270, height: 360, borderRadius: 14, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 18 }}>Empty</div>}
             </div>
             <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 22 }}>Discard ({pub.discardPile.length})</div>
           </div>
