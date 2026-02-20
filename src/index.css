@@ -524,6 +524,17 @@ button.danger:hover:not(:disabled) {
   color: var(--gold);
 }
 
+@keyframes tvActionTagFade {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.tv-action-tag-fade {
+  animation: tvActionTagFade 2.5s ease-in-out forwards;
+}
+
 .center-row-recap {
   position: absolute;
   top: 146px;

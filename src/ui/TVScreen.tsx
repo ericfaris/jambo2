@@ -228,7 +228,6 @@ export function TVScreen({ ws }: TVScreenProps) {
       {/* Center row */}
       <TVCenterRow pub={pub} visualFeedback={visualFeedback} supply={pub.wareSupply} />
 
-      {/* Waiting indicator fallback (only when not tied to one player panel) */}
       {waitingInfo.message && waitingInfo.targetPlayer === null && (
         <TVWaitingIndicator message={waitingInfo.message} />
       )}
@@ -386,21 +385,21 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           pointerEvents: 'none',
         }} />
         <div style={{ position: 'relative', display: 'flex', gap: 28, flexWrap: 'wrap', height: '100%', transform: 'scale(1.7)', transformOrigin: 'top left' }}>
-          <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" columns={6} slotSize={32} tokenSize={26} />
-          <div style={{ marginLeft: 10 }}>
-            <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" cardScale={0.9} maxSlots={3} />
+          <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" columns={6} slotSize={36} tokenSize={29} dashedBorder />
+          <div style={{ marginLeft: -15, marginRight: 20 }}>
+            <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" cardScale={0.855} maxSlots={3} />
           </div>
           {/* Coins + Cards icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 12px', alignSelf: 'center', marginTop: -110, marginLeft: -30 }}>
-            <div style={{ position: 'relative', width: 130, height: 88 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 12px', alignSelf: 'center', marginTop: -110, marginLeft: -35 }}>
+            <div style={{ position: 'relative', width: 130, height: 88, marginTop: 30 }}>
               <img src="/assets/coins/coins.png" alt="gold" draggable={false} style={{ width: 130, height: 88, objectFit: 'contain' }} />
               <span key={`tv-gold-${label}-${goldDelta ?? 0}`} className={(goldDelta ?? 0) !== 0 ? 'gold-pop' : undefined} style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: 28,
-                height: 28,
+                width: 40,
+                height: 40,
                 borderRadius: '50%',
                 background: '#f5e6c8',
                 border: '2px solid #d4a850',
@@ -409,33 +408,34 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
                 justifyContent: 'center',
                 color: '#1a1008',
                 fontWeight: 700,
-                fontSize: 14,
+                fontSize: 20,
                 fontFamily: 'var(--font-heading)',
               }}>
                 {player.gold}
-                {(goldDelta ?? 0) !== 0 && (
-                  <span className="gold-delta-text" style={{
-                    position: 'absolute',
-                    top: -8,
-                    right: -10,
-                    color: (goldDelta ?? 0) > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                    fontSize: 7,
-                    fontWeight: 700,
-                  }}>
-                    {(goldDelta ?? 0) > 0 ? `+${goldDelta}g` : `${goldDelta}g`}
-                  </span>
-                )}
+                {/* DEBUG: Force-show #9 Gold Delta */}
+                <span className="gold-delta-text" style={{
+                  position: 'absolute',
+                  top: -8,
+                  right: -10,
+                  color: 'var(--accent-green)',
+                  fontSize: 7,
+                  fontWeight: 700,
+                  border: '1px solid #f0c040',
+                }}>
+                  <span style={{ color: '#f0c040', fontSize: 5 }}>[#9] </span>
+                  {(goldDelta ?? 0) !== 0 ? ((goldDelta ?? 0) > 0 ? `+${goldDelta}g` : `${goldDelta}g`) : '+3g'}
+                </span>
               </span>
             </div>
-            <div style={{ position: 'relative', width: 128, height: 88 }}>
+            <div style={{ position: 'relative', width: 128, height: 88, marginTop: 30 }}>
               <img src="/assets/cards/cards_fanned_out.png" alt="hand" draggable={false} style={{ width: 128, height: 88, objectFit: 'contain' }} />
               <span style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: 28,
-                height: 28,
+                width: 40,
+                height: 40,
                 borderRadius: '50%',
                 background: '#f5e6c8',
                 border: '2px solid #d4a850',
@@ -444,7 +444,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
                 justifyContent: 'center',
                 color: '#1a1008',
                 fontWeight: 700,
-                fontSize: 14,
+                fontSize: 20,
                 fontFamily: 'var(--font-heading)',
               }}>
                 {player.handCount}
@@ -459,7 +459,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           paddingTop: 24,
           fontFamily: 'var(--font-heading)',
           fontWeight: 700,
-          fontSize: 28,
+          fontSize: 20,
           color: isActive ? 'var(--gold)' : 'var(--text)',
         }}>
           {label} {isActive && '(Active)'}
@@ -619,37 +619,37 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
 
       <div style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', gap: 48, marginTop: 0 }}>
         {/* Left: Ware supply */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignSelf: 'flex-end', marginBottom: 38 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignSelf: 'flex-end', marginBottom: 38, marginLeft: 45 }}>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 32,
-            padding: '30px 32px',
+            gap: 16,
+            padding: '10px 12px',
             borderRadius: 14,
             background: 'rgba(20,10,5,0.24)',
-            minWidth: 740,
+            minWidth: 620,
           }}>
             {WARE_TYPES.map((wareType) => (
               <div key={wareType} style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 14,
-                background: 'var(--surface)',
+                gap: 8,
+                background: 'transparent',
                 borderRadius: 10,
-                padding: '20px 24px',
-                border: '1px solid var(--border)',
-                minHeight: 110,
+                padding: '6px 8px',
+                border: 'none',
+                minHeight: 0,
               }}>
-                <WareToken type={wareType} size={90} />
-                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 42, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
+                <WareToken type={wareType} size={120} />
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 48, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Right: Deck / Phase / Discard */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 40, transform: 'scale(0.92)', transformOrigin: 'center center', marginLeft: 80 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 40, transform: 'scale(0.92)', transformOrigin: 'center center', marginLeft: 40 }}>
           <div ref={deckPileRef} key={`tv-deck-${visualFeedback.deckPulse}`} className={visualFeedback.deckPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 270 }}>
             {pub.deckCount > 0 ? (
               <CardFace cardId="guard_1" faceDown large scale={1.8} />
@@ -659,11 +659,12 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
             <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 26 }}>Deck ({pub.deckCount})</div>
           </div>
 
-          <div style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             {actionTag && (
               <div
-                className={`center-row-action-tag${visualFeedback?.trail?.actor === 1 ? ' center-row-action-tag-opponent' : ''}`}
-                style={{ top: -18, left: '50%', transform: 'translateX(-50%)' }}
+                key={actionTag}
+                className="tv-action-tag-fade"
+                style={{ transform: 'scale(2.5)', marginBottom: 60, background: 'rgba(30,18,8,0.9)', border: '1px solid var(--border-light)', borderRadius: 999, padding: '6px 14px', fontSize: 16, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}
               >
                 {actionTag}
               </div>
@@ -682,7 +683,7 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
 
           <div ref={discardPileRef} key={`tv-discard-${visualFeedback.discardPulse}`} className={visualFeedback.discardPulse ? 'pile-pulse' : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 270 }}>
             <div key={`tv-discard-card-${displayDiscardCard ?? 'empty'}-${pub.discardPile.length}`} className="discard-soft-fade">
-              {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large scale={1.8} /> : <div style={{ width: 324, height: 432, borderRadius: 14, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 18 }}>Empty</div>}
+              {displayDiscardCard ? <CardFace cardId={displayDiscardCard} large scale={1.8} /> : <div style={{ width: 324, height: 432, borderRadius: 8, border: '5px dashed var(--border)', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />}
             </div>
             <div className="panel-section-title" style={{ marginBottom: 0, fontSize: 26 }}>Discard ({pub.discardPile.length})</div>
           </div>

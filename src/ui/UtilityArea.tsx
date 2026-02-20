@@ -144,11 +144,7 @@ function UtilityAreaComponent({
               height: h,
               borderRadius: 8,
               border: '2px dashed var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--text-muted)',
-              fontSize: 14,
+              background: 'rgba(255,255,255,0.06)',
               flexShrink: 0,
             }} />
           );

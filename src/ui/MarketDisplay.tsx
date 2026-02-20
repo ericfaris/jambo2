@@ -15,9 +15,13 @@ interface MarketDisplayProps {
   slotSize?: number;
   /** Ware token size in px. Defaults to 42. */
   tokenSize?: number;
+  /** Hide slot borders. */
+  borderless?: boolean;
+  /** Use dashed borders on slots. */
+  dashedBorder?: boolean;
 }
 
-function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize }: MarketDisplayProps) {
+function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots, flashVariant = 'normal', label, columns, slotSize = 48, tokenSize, borderless, dashedBorder }: MarketDisplayProps) {
   const isInteractive = !!onSlotClick;
 
   return (
@@ -39,7 +43,7 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
         flexWrap: columns ? undefined : 'wrap',
         background: 'transparent',
         borderRadius: 10,
-        padding: 10,
+        padding: '10px 10px 10px 0',
         boxShadow: 'none',
       }}>
         {market.map((ware, i) => (
@@ -47,8 +51,8 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
             width: slotSize,
             height: slotSize,
             borderRadius: 8,
-            border: `2px solid ${selectedSlots?.includes(i) ? 'var(--gold)' : 'var(--border)'}`,
-            background: selectedSlots?.includes(i) ? 'rgba(212,168,80,0.15)' : 'var(--surface)',
+            border: borderless ? 'none' : dashedBorder ? '2px dashed var(--border)' : `2px solid ${selectedSlots?.includes(i) ? 'var(--gold)' : 'var(--border)'}`,
+            background: dashedBorder ? (ware ? 'transparent' : 'rgba(255,255,255,0.06)') : borderless ? 'transparent' : selectedSlots?.includes(i) ? 'rgba(212,168,80,0.15)' : 'var(--surface)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -59,7 +63,7 @@ function MarketDisplayComponent({ market, onSlotClick, selectedSlots, flashSlots
             {ware ? (
               <WareToken type={ware} size={tokenSize} />
             ) : (
-              <span style={{ color: 'var(--border)', fontSize: 20 }}>-</span>
+              <span />
             )}
           </div>
         ))}
