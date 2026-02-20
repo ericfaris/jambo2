@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { useEffect, useRef } from 'react';
+import { getEffectiveVolume } from './audioSettings.ts';
 
 const BACKGROUND_MUSIC = [
   '/audio/African Village Afternoon Soundscape.mp3',
@@ -12,6 +13,8 @@ const BACKGROUND_MUSIC = [
   '/audio/Sun In Our Hands.mp3',
   '/audio/Sun on the Courtyard.mp3'
 ];
+
+const MUSIC_BASE_VOLUME = 0.15;
 
 export function useBackgroundMusic(): void {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -32,7 +35,7 @@ export function useBackgroundMusic(): void {
     const audio = new Audio();
     audioRef.current = audio;
     audio.loop = false; // We'll handle looping manually
-    audio.volume = 0.15;
+    audio.volume = getEffectiveVolume() * MUSIC_BASE_VOLUME;
 
     // Function to play next track
     const playNextTrack = () => {
@@ -54,9 +57,16 @@ export function useBackgroundMusic(): void {
     };
     audio.addEventListener('ended', handleEnded);
 
+    // Listen for volume changes from the settings UI
+    const handleVolumeChange = () => {
+      audio.volume = getEffectiveVolume() * MUSIC_BASE_VOLUME;
+    };
+    window.addEventListener('jambo-volume-change', handleVolumeChange);
+
     // Cleanup function
     return () => {
       audio.removeEventListener('ended', handleEnded);
+      window.removeEventListener('jambo-volume-change', handleVolumeChange);
       audio.pause();
       audio.src = '';
     };

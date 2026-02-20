@@ -22,6 +22,7 @@ import { MegaView } from './MegaView.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason } from './uiHints.ts';
+import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
 import { fetchUserStatsSummary, recordCompletedGame } from '../persistence/userStatsApi.ts';
 import type { UserStatsSummary } from '../persistence/userStatsApi.ts';
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
@@ -93,6 +94,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
   const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
+  const [volume, setVolume] = useState(() => getVolume());
+  const [muted, setMuted] = useState(() => getMuted());
   const [showUxDebug, setShowUxDebug] = useState(() => getInitialUxDebug());
   const [authUser, setAuthUser] = useState<AuthUserProfile | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -563,6 +566,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     setAnimationSpeed('normal');
     setShowDevTelemetry(false);
     setHighContrast(false);
+    setVolume(50);
+    setMuted(false);
     setShowUxDebug(false);
     setTelemetryEvents([]);
     setUxDebugCounts({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
@@ -575,6 +580,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
       window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
       window.localStorage.removeItem(UX_DEBUG_STORAGE_KEY);
+      resetAudioSettings();
+      window.dispatchEvent(new Event('jambo-volume-change'));
     }
   }, []);
 
@@ -995,6 +1002,54 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 <option value="normal">Normal</option>
                 <option value="fast">Fast</option>
               </select>
+            </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: 10,
+              cursor: 'pointer',
+              fontSize: 15,
+              color: 'var(--text)',
+            }}>
+              Mute Audio
+              <input
+                type="checkbox"
+                checked={muted}
+                onChange={() => {
+                  const next = !muted;
+                  setMuted(next);
+                  saveMuted(next);
+                  window.dispatchEvent(new Event('jambo-volume-change'));
+                }}
+                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+              />
+            </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: 10,
+              fontSize: 15,
+              color: muted ? 'var(--text-muted)' : 'var(--text)',
+            }}>
+              Volume
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={volume}
+                disabled={muted}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setVolume(v);
+                  saveVolume(v);
+                  window.dispatchEvent(new Event('jambo-volume-change'));
+                }}
+                style={{ width: 100, accentColor: 'var(--gold)', cursor: muted ? 'default' : 'pointer' }}
+              />
             </label>
             <label style={{
               display: 'flex',

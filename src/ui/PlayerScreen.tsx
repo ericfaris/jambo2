@@ -18,6 +18,7 @@ import { MegaView } from './MegaView.tsx';
 import { CardPlayDialog, DrawModal as SharedDrawModal } from './ActionButtons.tsx';
 import { useAudioEvents } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
+import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
 import { getPlayDisabledReason, getDrawDisabledReason } from './uiHints.ts';
 import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
@@ -87,6 +88,8 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
   const [showDevTelemetry, setShowDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
+  const [volume, setVolume] = useState(() => getVolume());
+  const [muted, setMuted] = useState(() => getMuted());
   const [authUser, setAuthUser] = useState<AuthUserProfile | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -283,11 +286,15 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     setAnimationSpeed('normal');
     setShowDevTelemetry(false);
     setHighContrast(false);
+    setVolume(50);
+    setMuted(false);
     setTelemetryEvents([]);
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(ANIMATION_SPEED_STORAGE_KEY);
       window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
       window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
+      resetAudioSettings();
+      window.dispatchEvent(new Event('jambo-volume-change'));
     }
   }, []);
 
@@ -732,6 +739,54 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
                 <option value="normal">Normal</option>
                 <option value="fast">Fast</option>
               </select>
+            </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: 10,
+              cursor: 'pointer',
+              fontSize: 15,
+              color: 'var(--text)',
+            }}>
+              Mute Audio
+              <input
+                type="checkbox"
+                checked={muted}
+                onChange={() => {
+                  const next = !muted;
+                  setMuted(next);
+                  saveMuted(next);
+                  window.dispatchEvent(new Event('jambo-volume-change'));
+                }}
+                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+              />
+            </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: 10,
+              fontSize: 15,
+              color: muted ? 'var(--text-muted)' : 'var(--text)',
+            }}>
+              Volume
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={volume}
+                disabled={muted}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setVolume(v);
+                  saveVolume(v);
+                  window.dispatchEvent(new Event('jambo-volume-change'));
+                }}
+                style={{ width: 100, accentColor: 'var(--gold)', cursor: muted ? 'default' : 'pointer' }}
+              />
             </label>
             <label style={{
               display: 'flex',
