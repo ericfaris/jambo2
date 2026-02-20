@@ -100,7 +100,8 @@
       tvMusic.playlist = shufflePlaylist(TV_MUSIC_PLAYLIST);
       tvMusic.index = 0;
     }
-    tvMusic.audio.src = tvMusic.playlist[tvMusic.index];
+    var baseUrl = (roomState.apiBaseUrl || '').replace(/\/+$/, '');
+    tvMusic.audio.src = baseUrl + tvMusic.playlist[tvMusic.index];
     tvMusic.index += 1;
     tryPlayAudio(tvMusic.audio);
   }
