@@ -336,6 +336,29 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
         overflow: 'hidden',
       }}
     >
+      <img
+        src="/assets/panels/wood_1.png"
+        alt=""
+        aria-hidden
+        draggable={false}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          transform: flipWoodBackground ? 'scaleY(-1)' : undefined,
+          pointerEvents: 'none',
+          borderRadius: 12,
+        }}
+      />
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'rgba(20,10,5,0.54)',
+        pointerEvents: 'none',
+        borderRadius: 12,
+      }} />
       {waitingMessage && (
         <div style={{
           position: 'absolute',
@@ -363,27 +386,6 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
         overflow: 'visible',
         background: 'rgba(20,10,5,0.24)',
       }}>
-        <img
-          src="/assets/panels/wood_1.png"
-          alt=""
-          aria-hidden
-          draggable={false}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            transform: flipWoodBackground ? 'scaleY(-1)' : undefined,
-            pointerEvents: 'none',
-          }}
-        />
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(20,10,5,0.54)',
-          pointerEvents: 'none',
-        }} />
         <div style={{ position: 'relative', display: 'flex', gap: 28, flexWrap: 'wrap', height: '100%', transform: 'scale(1.7)', transformOrigin: 'top left' }}>
           <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" columns={6} slotSize={36} tokenSize={29} dashedBorder />
           <div style={{ marginLeft: -15, marginRight: 20 }}>
@@ -637,11 +639,11 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
                 gap: 8,
                 background: 'transparent',
                 borderRadius: 10,
-                padding: '6px 8px',
+                padding: '12px 16px',
                 border: 'none',
                 minHeight: 0,
               }}>
-                <WareToken type={wareType} size={120} />
+                <span style={{ marginRight: 8 }}><WareToken type={wareType} size={120} /></span>
                 <span style={{ fontFamily: 'var(--font-heading)', fontSize: 48, color: 'var(--text-muted)', fontWeight: 700 }}>{`x${supply[wareType]}`}</span>
               </div>
             ))}
