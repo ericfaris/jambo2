@@ -13,6 +13,7 @@ import { MarketDisplay } from './MarketDisplay.tsx';
 import { UtilityArea } from './UtilityArea.tsx';
 import { CardFace, WareToken } from './CardFace.tsx';
 import { useAudioEvents } from './useAudioEvents.ts';
+import { useBackgroundMusic } from './useBackgroundMusic.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { FEEDBACK_TIMINGS } from './animationTimings.ts';
@@ -98,6 +99,7 @@ export function TVScreen({ ws }: TVScreenProps) {
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const [playerSectionHeight, setPlayerSectionHeight] = useState<number | null>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
+  useBackgroundMusic();
 
   // Make #root full-viewport for TV layout
   useEffect(() => {
