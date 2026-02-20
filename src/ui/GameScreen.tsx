@@ -26,6 +26,7 @@ import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, re
 import { fetchUserStatsSummary, recordCompletedGame } from '../persistence/userStatsApi.ts';
 import type { UserStatsSummary } from '../persistence/userStatsApi.ts';
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
+import { useAuthSession } from './useAuthSession.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -66,21 +67,6 @@ function isDevMode(): boolean {
   return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 }
 
-interface AuthSessionResponse {
-  authenticated: boolean;
-  user?: {
-    name: string;
-    email: string;
-    picture: string;
-  };
-}
-
-interface AuthUserProfile {
-  name: string;
-  email: string;
-  picture: string;
-}
-
 export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultiplayer = false }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty; localMultiplayer?: boolean }) {
   const { state, dispatch, error, newGame, exportReplay, importReplay } = useGameStore();
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
@@ -97,12 +83,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const [volume, setVolume] = useState(() => getVolume());
   const [muted, setMuted] = useState(() => getMuted());
   const [showUxDebug, setShowUxDebug] = useState(() => getInitialUxDebug());
-  const [authUser, setAuthUser] = useState<AuthUserProfile | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const { authUser, authError, avatarUrl, avatarLabel, logout: authLogout } = useAuthSession();
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarLabel, setAvatarLabel] = useState('U');
   const [showTutorial, setShowTutorial] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(TUTORIAL_SEEN_STORAGE_KEY) !== 'true';
@@ -149,38 +132,6 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     window.localStorage.setItem(UX_DEBUG_STORAGE_KEY, String(showUxDebug));
   }, [showUxDebug]);
 
-  const refreshAuthSession = useCallback(async () => {
-    try {
-      const response = await fetch('/api/auth/session', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to load auth session');
-      }
-
-      const data = (await response.json()) as AuthSessionResponse;
-      if (!data.authenticated || !data.user) {
-        setAuthUser(null);
-        setAvatarUrl(null);
-        setAvatarLabel('U');
-        return;
-      }
-
-      setAuthUser(data.user);
-      setAvatarUrl(data.user.picture || null);
-      const firstChar = data.user.name.trim().charAt(0).toUpperCase();
-      setAvatarLabel(firstChar || 'U');
-      setAuthError(null);
-    } catch {
-      setAuthError('Profile unavailable');
-    }
-  }, []);
-
-  useEffect(() => {
-    void refreshAuthSession();
-  }, [refreshAuthSession]);
 
   useEffect(() => {
     let isMounted = true;
@@ -205,24 +156,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   }, []);
 
   const handleLogout = useCallback(async () => {
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Logout failed');
-      }
-      setMenuOpen(false);
-      setAuthUser(null);
-      setAvatarUrl(null);
-      setAvatarLabel('U');
-      setStatsSummary(null);
-      setAuthError(null);
-    } catch {
-      setAuthError('Sign out failed');
-    }
-  }, []);
+    await authLogout();
+    setMenuOpen(false);
+    setStatsSummary(null);
+  }, [authLogout]);
 
   useEffect(() => {
     const wasGameOver = prevPhaseRef.current === 'GAME_OVER';

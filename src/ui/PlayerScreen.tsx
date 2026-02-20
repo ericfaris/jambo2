@@ -23,6 +23,7 @@ import { getPlayDisabledReason, getDrawDisabledReason } from './uiHints.ts';
 import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
 import { isCastSdkEnabled } from '../cast/factory.ts';
+import { useAuthSession } from './useAuthSession.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
 const ANIMATION_SPEED_STORAGE_KEY = 'jambo.animationSpeed';
@@ -54,21 +55,6 @@ interface PlayerScreenProps {
   ws: WebSocketGameState;
 }
 
-interface AuthSessionResponse {
-  authenticated: boolean;
-  user?: {
-    name: string;
-    email: string;
-    picture: string;
-  };
-}
-
-interface AuthUserProfile {
-  name: string;
-  email: string;
-  picture: string;
-}
-
 export function PlayerScreen({ ws }: PlayerScreenProps) {
   const pub = ws.publicState;
   const priv = ws.privateState;
@@ -90,10 +76,7 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
   const [highContrast, setHighContrast] = useState(() => getInitialHighContrast());
   const [volume, setVolume] = useState(() => getVolume());
   const [muted, setMuted] = useState(() => getMuted());
-  const [authUser, setAuthUser] = useState<AuthUserProfile | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarLabel, setAvatarLabel] = useState('U');
+  const { authUser, authError, avatarUrl, avatarLabel, logout: authLogout } = useAuthSession();
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
@@ -145,57 +128,10 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(highContrast));
   }, [highContrast]);
 
-  const refreshAuthSession = useCallback(async () => {
-    try {
-      const response = await fetch('/api/auth/session', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to load auth session');
-      }
-
-      const data = (await response.json()) as AuthSessionResponse;
-      if (!data.authenticated || !data.user) {
-        setAuthUser(null);
-        setAvatarUrl(null);
-        setAvatarLabel('U');
-        return;
-      }
-
-      setAuthUser(data.user);
-      setAvatarUrl(data.user.picture || null);
-      const firstChar = data.user.name.trim().charAt(0).toUpperCase();
-      setAvatarLabel(firstChar || 'U');
-      setAuthError(null);
-    } catch {
-      setAuthError('Profile unavailable');
-    }
-  }, []);
-
-  useEffect(() => {
-    void refreshAuthSession();
-  }, [refreshAuthSession]);
-
   const handleLogout = useCallback(async () => {
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Logout failed');
-      }
-      setMenuOpen(false);
-      setAuthUser(null);
-      setAvatarUrl(null);
-      setAvatarLabel('U');
-      setAuthError(null);
-    } catch {
-      setAuthError('Sign out failed');
-    }
-  }, []);
+    await authLogout();
+    setMenuOpen(false);
+  }, [authLogout]);
 
   if (!pub || !priv || slot === null) return null;
 

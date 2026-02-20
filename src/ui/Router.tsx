@@ -13,6 +13,8 @@ import { LoginModal } from './screens/LoginModal.tsx';
 import { PreGameSetupModal } from './screens/PreGameSetupModal.tsx';
 import { FirstPlayerReveal } from './FirstPlayerReveal.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
+import { AvatarBadge } from './AvatarBadge.tsx';
+import { useAuthSession } from './useAuthSession.ts';
 import { useWebSocketGame } from '../multiplayer/client.ts';
 import type { WebSocketGameState } from '../multiplayer/client.ts';
 import type { AIDifficulty } from '../ai/difficulties/index.ts';
@@ -100,6 +102,7 @@ export function Router() {
 
 function RouterInner() {
   const ws = useWebSocketGame();
+  const auth = useAuthSession();
   const [route, setRoute] = useState<Route>(getRoute);
   const [screen, setScreen] = useState<Screen>('menu');
   const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>('medium');
@@ -186,10 +189,13 @@ function RouterInner() {
 
   if (revealFirstPlayer !== null) {
     return (
-      <FirstPlayerReveal
-        firstPlayer={revealFirstPlayer}
-        onComplete={handleRevealComplete}
-      />
+      <>
+        <FirstPlayerReveal
+          firstPlayer={revealFirstPlayer}
+          onComplete={handleRevealComplete}
+        />
+        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
+      </>
     );
   }
 
@@ -197,7 +203,12 @@ function RouterInner() {
     if (ws.playerSlot !== null && ws.publicState && ws.privateState) {
       return <PlayerScreen ws={ws} />;
     }
-    return <CastLobby ws={ws} mode="join" aiDifficulty={aiDifficulty} roomMode={null} />;
+    return (
+      <>
+        <CastLobby ws={ws} mode="join" aiDifficulty={aiDifficulty} roomMode={null} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
+      </>
+    );
   }
 
   if (screen === 'menu') {
@@ -206,6 +217,7 @@ function RouterInner() {
         <MainMenu
           onSelectOption={handleMenuSelect}
           onTutorial={() => setShowTutorial(true)}
+          auth={auth}
         />
         {showPreGameSetup && pendingMode && (
           <PreGameSetupModal
@@ -216,6 +228,7 @@ function RouterInner() {
             castStartError={castStartError}
           />
         )}
+        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
         {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
       </>
     );
@@ -227,8 +240,10 @@ function RouterInner() {
         <MainMenu
           onSelectOption={handleMenuSelect}
           onTutorial={() => setShowTutorial(true)}
+          auth={auth}
         />
         <LoginModal onClose={() => setScreen('menu')} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
         {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
       </>
     );
@@ -246,12 +261,18 @@ function RouterInner() {
     if (ws.playerSlot !== null && ws.publicState && ws.privateState) {
       return <PlayerScreen ws={ws} />;
     }
-    return <CastLobby ws={ws} mode="host" aiDifficulty={aiDifficulty} roomMode={castRoomMode} />;
+    return (
+      <>
+        <CastLobby ws={ws} mode="host" aiDifficulty={aiDifficulty} roomMode={castRoomMode} />
+        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
+      </>
+    );
   }
 
   if (screen === 'settings') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
+        <AvatarBadge avatarUrl={auth.avatarUrl} avatarLabel={auth.avatarLabel} />
         <div className="etched-wood-border dialog-pop" style={{
           width: 'min(560px, 96vw)',
           borderRadius: 12,

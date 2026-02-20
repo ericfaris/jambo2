@@ -2,25 +2,16 @@ import { useCallback, useEffect, useState } from 'react';
 import './MainMenu.css';
 import { fetchUserStatsSummary } from '../../persistence/userStatsApi.ts';
 import type { UserStatsSummary } from '../../persistence/userStatsApi.ts';
+import type { AuthSession } from '../useAuthSession.ts';
 
 interface MainMenuProps {
   onSelectOption: (option: 'login' | 'solo' | 'multiplayer' | 'settings') => void;
   onTutorial?: () => void;
+  auth: AuthSession;
 }
 
-interface AuthSessionResponse {
-  authenticated: boolean;
-  user?: {
-    name: string;
-    email: string;
-  };
-}
-
-export function MainMenu({ onSelectOption, onTutorial }: MainMenuProps) {
-  const [session, setSession] = useState<AuthSessionResponse | null>(null);
+export function MainMenu({ onSelectOption, onTutorial, auth }: MainMenuProps) {
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
 
   const refreshStats = useCallback(async () => {
@@ -33,104 +24,73 @@ export function MainMenu({ onSelectOption, onTutorial }: MainMenuProps) {
     }
   }, []);
 
-  const refreshSession = useCallback(async () => {
-    setIsAuthLoading(true);
-    try {
-      const response = await fetch('/api/auth/session', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to load auth session');
-      }
-
-      const data = (await response.json()) as AuthSessionResponse;
-      setSession(data);
-      setAuthError(null);
-    } catch {
-      setSession(null);
-      setAuthError('Could not load profile status.');
-    } finally {
-      setIsAuthLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void refreshSession();
     void refreshStats();
-  }, [refreshSession, refreshStats]);
+  }, [refreshStats]);
 
   useEffect(() => {
     const onFocus = () => {
-      void refreshSession();
       void refreshStats();
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [refreshSession, refreshStats]);
+  }, [refreshStats]);
 
   const handleAuthAction = useCallback(async () => {
-    if (session?.authenticated) {
-      try {
-        const response = await fetch('/api/auth/logout', {
-          method: 'POST',
-          credentials: 'include',
-        });
-        if (!response.ok) {
-          throw new Error('Logout failed');
-        }
-        await refreshSession();
-        await refreshStats();
-      } catch {
-        setAuthError('Sign out failed. Please try again.');
-      }
+    if (auth.authUser) {
+      await auth.logout();
+      await refreshStats();
       return;
     }
 
     onSelectOption('login');
-  }, [onSelectOption, refreshSession, refreshStats, session?.authenticated]);
+  }, [onSelectOption, auth, refreshStats]);
 
-  const welcomeName = session?.authenticated && session.user?.name
-    ? session.user.name
-    : 'Trader';
+  const welcomeName = auth.authUser?.name ?? 'Trader';
 
   return (
     <div className="main-menu-root">
-      <div className="image-container">
-        <img
-          src="/assets/menu/main_menu.png"
-          alt="Jambo Main Menu"
-        />
-        <div className="overlay-text etched-wood-border dialog-pop">
-          <div className="menu-title">
-            Welcome, {welcomeName}
+      <div className="main-menu-bg" />
+      <div className="main-menu-content dialog-pop">
+        <div className="main-menu-label">Jambo</div>
+        <div className="main-menu-title">Welcome, {welcomeName}</div>
+        <div className="main-menu-divider" />
+
+        {statsSummary && (
+          <div className="main-menu-stats">
+            {statsSummary.wins}-{statsSummary.losses} &middot; {Math.round(statsSummary.winRate * 100)}% win rate &middot; {statsSummary.gamesPlayed} games
           </div>
-          {statsSummary && (
-            <div className="menu-subtitle">
-              Record: {statsSummary.wins}-{statsSummary.losses} ({Math.round(statsSummary.winRate * 100)}%)
-            </div>
-          )}
-          <button className="menu-action" onClick={() => onSelectOption('solo')}>Play Solo</button>
-          <button className="menu-action" onClick={() => onSelectOption('multiplayer')}>Multiplayer</button>
-          <button className="menu-action" onClick={() => onSelectOption('settings')}>Settings</button>
-          {onTutorial && (
-            <button className="menu-action" onClick={onTutorial}>How to Play</button>
-          )}
-          <button className="menu-action" onClick={() => void handleAuthAction()} disabled={isAuthLoading}>
-            {isAuthLoading ? 'Checking Profile...' : session?.authenticated ? 'Logout' : 'Login'}
+        )}
+
+        <div className="main-menu-actions">
+          <button className="menu-action menu-action-primary" onClick={() => onSelectOption('solo')}>
+            Play Solo
           </button>
-          {authError && (
-            <div className="menu-error">
-              {authError}
-            </div>
+          <button className="menu-action" onClick={() => onSelectOption('multiplayer')}>
+            Multiplayer
+          </button>
+
+          <div className="menu-thin-divider" />
+
+          {onTutorial && (
+            <button className="menu-action menu-action-subtle" onClick={onTutorial}>
+              How to Play
+            </button>
           )}
-          {statsError && (
-            <div className="menu-error">
-              {statsError}
-            </div>
-          )}
+          <button className="menu-action menu-action-subtle" onClick={() => onSelectOption('settings')}>
+            Settings
+          </button>
+          <button
+            className="menu-action menu-action-subtle"
+            onClick={() => void handleAuthAction()}
+            disabled={auth.isLoading}
+          >
+            {auth.isLoading ? 'Checking...' : auth.authUser ? 'Logout' : 'Login'}
+          </button>
         </div>
+
+        {auth.authError && <div className="menu-error">{auth.authError}</div>}
+        {statsError && <div className="menu-error">{statsError}</div>}
       </div>
     </div>
   );
