@@ -385,9 +385,9 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
         <div style={{ position: 'relative', display: 'flex', gap: 28, flexWrap: 'wrap', height: '100%', transform: 'scale(1.7)', transformOrigin: 'top left' }}>
           <MarketDisplay market={player.market} flashSlots={marketFlashSlots} label="Market" columns={6} />
           {/* Coins + Cards icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 12px', alignSelf: 'center', marginTop: -110, marginLeft: -35 }}>
-            <div style={{ position: 'relative', width: 170, height: 114 }}>
-              <img src="/assets/coins/coins.png" alt="gold" draggable={false} style={{ width: 170, height: 114, objectFit: 'contain' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 12px', alignSelf: 'center', marginTop: -110, marginLeft: 30 }}>
+            <div style={{ position: 'relative', width: 230, height: 154 }}>
+              <img src="/assets/coins/coins.png" alt="gold" draggable={false} style={{ width: 230, height: 154, objectFit: 'contain' }} />
               <span key={`tv-gold-${label}-${goldDelta ?? 0}`} className={(goldDelta ?? 0) !== 0 ? 'gold-pop' : undefined} style={{
                 position: 'absolute',
                 top: '50%',
@@ -421,8 +421,8 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
                 )}
               </span>
             </div>
-            <div style={{ position: 'relative', width: 166, height: 114 }}>
-              <img src="/assets/cards/cards_fanned_out.png" alt="hand" draggable={false} style={{ width: 166, height: 114, objectFit: 'contain' }} />
+            <div style={{ position: 'relative', width: 226, height: 154 }}>
+              <img src="/assets/cards/cards_fanned_out.png" alt="hand" draggable={false} style={{ width: 226, height: 154, objectFit: 'contain' }} />
               <span style={{
                 position: 'absolute',
                 top: '50%',
@@ -445,7 +445,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
               </span>
             </div>
           </div>
-          <div style={{ marginLeft: -20 }}>
+          <div style={{ marginLeft: 40 }}>
             <UtilityArea utilities={player.utilities} disabled label="Utilities" cardSize="small" cardScale={1.0} />
           </div>
         </div>
