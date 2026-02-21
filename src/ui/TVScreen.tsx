@@ -43,6 +43,11 @@ function getInitialHighContrast(): boolean {
   return window.localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY) === 'true';
 }
 
+function getDebugHints(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).has('debug-hints');
+}
+
 function isDevMode(): boolean {
   if (typeof window === 'undefined') return false;
   return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -96,6 +101,7 @@ export function TVScreen({ ws }: TVScreenProps) {
   const [animationSpeed] = useState<AnimationSpeed>(() => getInitialAnimationSpeed());
   const [showDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast] = useState(() => getInitialHighContrast());
+  const [debugHints] = useState(() => getDebugHints());
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const [playerSectionHeight, setPlayerSectionHeight] = useState<number | null>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
@@ -280,6 +286,62 @@ export function TVScreen({ ws }: TVScreenProps) {
           {telemetryEvents.map((entry, index) => (
             <div key={`${entry}-${index}`} style={{ marginBottom: 3 }}>
               {entry}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Debug hints overlay — activate with ?debug-hints in URL */}
+      {debugHints && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.85)',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+          padding: 24,
+          overflowY: 'auto',
+        }}>
+          <div style={{ color: '#ff0', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+            DEBUG: All TV Hint Messages
+          </div>
+          {[
+            { label: '#1 Guard Reaction', msg: 'Player 2 may play a Guard...' },
+            { label: '#2 Rain Maker Reaction', msg: 'Player 2 may react with Rain Maker...' },
+            { label: '#3 Resolution (player)', msg: 'Player 1 is choosing... (WARE_TRADE)' },
+            { label: '#4 Resolution (no player)', msg: 'Resolving WARE_TRADE...' },
+            { label: '#5 Rematch Starting', msg: 'Starting rematch...' },
+            { label: '#6 Rematch Waiting', msg: 'Waiting for Player 1, Player 2 to confirm rematch...' },
+            { label: '#7 Connected', msg: 'Connected' },
+            { label: '#8 Reconnecting', msg: 'Reconnecting...' },
+            { label: '#9 Draw Action', msg: 'Player 1 drew a card' },
+            { label: '#10 Discard Action', msg: 'Player 1 discarded a card' },
+            { label: '#11 Draw Phase', msg: 'Draw Phase (2/5)' },
+            { label: '#12 Play Phase', msg: 'Play Phase' },
+            { label: '#13 Game Over', msg: 'Game Over' },
+            { label: '#14 Final Turn', msg: 'FINAL TURN!' },
+            { label: '#15 Endgame Triggered', msg: 'Endgame triggered!' },
+          ].map(({ label, msg }) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', maxWidth: 600 }}>
+              <div style={{ color: '#ff0', fontSize: 11, fontFamily: 'monospace', minWidth: 220, textAlign: 'right' }}>
+                {label}
+              </div>
+              <div className="disabled-hint" style={{
+                textAlign: 'center',
+                padding: '8px 16px',
+                fontSize: 15,
+                fontFamily: 'var(--font-heading)',
+                flex: 1,
+              }}>
+                {msg}
+              </div>
             </div>
           ))}
         </div>
