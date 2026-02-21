@@ -1,12 +1,12 @@
-// ============================================================================
-// React Chromecast Receiver — Cast Receiver Hook
+﻿// ============================================================================
+// React Chromecast Receiver - Cast Receiver Hook
 // Manages CAF context, SYNC_ROOM messages, SSE streaming with polling fallback,
 // and converts CastPublicRoomPayload into WebSocketGameState for TVScreen.
 // ============================================================================
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { WebSocketGameState } from '../../src/multiplayer/client.ts';
-import type { PublicGameState, RoomMode, PlayerSlot, AudioEvent } from '../../src/multiplayer/types.ts';
+import type { PublicGameState, RoomMode, PlayerSlot } from '../../src/multiplayer/types.ts';
 import type { GameAction } from '../../src/engine/types.ts';
 import type { AIDifficulty } from '../../src/ai/difficulties/index.ts';
 
@@ -30,7 +30,7 @@ interface CastPublicRoomPayload {
   updatedAtMs: number;
 }
 
-// No-op stubs — the receiver is read-only
+// No-op stubs - the receiver is read-only
 const noopCreateRoom = (_mode: RoomMode, _aiDifficulty?: AIDifficulty) => {};
 const noopJoinRoom = (_code: string) => {};
 const noopResetRoomState = () => {};
@@ -44,20 +44,25 @@ declare const cast: {
     CastReceiverContext: {
       getInstance(): CastReceiverContextInstance;
     };
+    system?: {
+      MessageType?: {
+        JSON?: unknown;
+      };
+    };
   };
 };
 
 interface CastReceiverContextInstance {
   addCustomMessageListener(namespace: string, handler: (event: CustomMessageEvent) => void): void;
+  removeCustomMessageListener(namespace: string, handler: (event: CustomMessageEvent) => void): void;
   sendCustomMessage(namespace: string, senderId: string, data: unknown): void;
-  setOptions(options: Record<string, unknown>): void;
-  start(): void;
-  getPlayerManager(): PlayerManagerInstance;
+  start(options?: CastReceiverOptions): void;
 }
 
-interface PlayerManagerInstance {
-  setMessageInterceptor(type: unknown, handler: (data: unknown) => unknown): void;
-  setMediaElement(element: HTMLMediaElement): void;
+interface CastReceiverOptions {
+  disableIdleTimeout?: boolean;
+  maxInactivity?: number;
+  customNamespaces?: Record<string, unknown>;
 }
 
 interface CustomMessageEvent {
@@ -84,8 +89,6 @@ export function useCastReceiver(): WebSocketGameState {
   const streamSourceRef = useRef<EventSource | null>(null);
   const streamRetryTimerRef = useRef<number | null>(null);
 
-  // --- Polling fallback ---
-
   const clearPollTimer = useCallback(() => {
     if (pollTimerRef.current !== null) {
       window.clearInterval(pollTimerRef.current);
@@ -107,11 +110,19 @@ export function useCastReceiver(): WebSocketGameState {
     }
   }, []);
 
+  const resetReceiverState = useCallback(() => {
+    setPublicState(null);
+    setConnected(false);
+  }, []);
+
   const applySnapshot = useCallback((snapshot: CastPublicRoomPayload) => {
     if (snapshot.publicState) {
       setPublicState(snapshot.publicState);
       setConnected(true);
+      return;
     }
+    setPublicState(null);
+    setConnected(false);
   }, []);
 
   const pollPublicRoomState = useCallback(async () => {
@@ -124,18 +135,24 @@ export function useCastReceiver(): WebSocketGameState {
 
     try {
       const response = await fetch(endpoint, { method: 'GET', cache: 'no-store' });
-      if (!response.ok) return;
+      if (!response.ok) {
+        if (response.status === 400 || response.status === 403 || response.status === 404) {
+          resetReceiverState();
+        }
+        return;
+      }
       const data = await response.json() as CastPublicRoomPayload;
       applySnapshot(data);
     } catch {
-      // polling error — silently retry next interval
+      // Polling error - silently retry next interval
     }
-  }, [applySnapshot]);
+  }, [applySnapshot, resetReceiverState]);
 
   const startPolling = useCallback(() => {
     clearPollTimer();
     const rs = roomStateRef.current;
     if (!rs.roomCode || !rs.apiBaseUrl || !rs.castAccessToken) return;
+
     void pollPublicRoomState();
     pollTimerRef.current = window.setInterval(() => {
       void pollPublicRoomState();
@@ -161,18 +178,16 @@ export function useCastReceiver(): WebSocketGameState {
           const data = JSON.parse((event as MessageEvent).data) as CastPublicRoomPayload;
           applySnapshot(data);
         } catch {
-          // parse error
+          // Ignore malformed SSE payloads
         }
       });
 
       es.addEventListener('room_deleted', () => {
-        setPublicState(null);
-        setConnected(false);
+        resetReceiverState();
       });
 
       es.onerror = () => {
         closeStreamSource();
-        // Fall back to polling, then retry stream
         startPolling();
         clearStreamRetryTimer();
         streamRetryTimerRef.current = window.setTimeout(() => {
@@ -181,20 +196,18 @@ export function useCastReceiver(): WebSocketGameState {
         }, STREAM_RETRY_MS);
       };
     } catch {
-      // EventSource creation failed — use polling
       startPolling();
     }
-  }, [closeStreamSource, clearStreamRetryTimer, applySnapshot, startPolling, clearPollTimer]);
+  }, [closeStreamSource, clearStreamRetryTimer, applySnapshot, startPolling, clearPollTimer, resetReceiverState]);
 
   const restartRealtimeSync = useCallback(() => {
     clearPollTimer();
     closeStreamSource();
     clearStreamRetryTimer();
-    setPublicState(null);
+    resetReceiverState();
 
     const rs = roomStateRef.current;
     if (!rs.roomCode || !rs.apiBaseUrl || !rs.castAccessToken) {
-      setConnected(false);
       return;
     }
 
@@ -203,16 +216,13 @@ export function useCastReceiver(): WebSocketGameState {
     } else {
       startPolling();
     }
-  }, [clearPollTimer, closeStreamSource, clearStreamRetryTimer, startStream, startPolling]);
-
-  // --- CAF initialization (runs once) ---
+  }, [clearPollTimer, closeStreamSource, clearStreamRetryTimer, startStream, startPolling, resetReceiverState]);
 
   useEffect(() => {
     let context: CastReceiverContextInstance;
     try {
       context = cast.framework.CastReceiverContext.getInstance();
     } catch {
-      // No CAF SDK — running in browser for testing. Show waiting state.
       return;
     }
 
@@ -220,32 +230,81 @@ export function useCastReceiver(): WebSocketGameState {
       const senderId = event.senderId;
       let payload: Record<string, unknown>;
 
+      const sendInvalidPayload = (message: string) => {
+        context.sendCustomMessage(NAMESPACE, senderId, {
+          type: 'RECEIVER_ERROR',
+          code: 'INVALID_PAYLOAD',
+          message,
+        });
+      };
+
       if (typeof event.data === 'object' && event.data !== null) {
         payload = event.data as Record<string, unknown>;
       } else {
         try {
           payload = JSON.parse(event.data as string) as Record<string, unknown>;
         } catch {
-          context.sendCustomMessage(NAMESPACE, senderId, {
-            type: 'RECEIVER_ERROR',
-            code: 'INVALID_PAYLOAD',
-            message: 'Payload is not valid JSON.',
-          });
+          sendInvalidPayload('Payload is not valid JSON.');
           return;
         }
       }
 
-      if (payload.type !== 'SYNC_ROOM') return;
+      if (payload.type !== 'SYNC_ROOM') {
+        sendInvalidPayload(`Unknown message type: ${String(payload.type)}`);
+        return;
+      }
 
-      const code = payload.roomCode as string;
-      const mode = payload.roomMode as RoomMode;
-      const token = payload.castAccessToken as string;
-      const apiBaseUrl = (payload.apiBaseUrl as string) || window.location.origin;
+      const codeRaw = payload.roomCode;
+      if (typeof codeRaw !== 'string' || !/^\d{4}$/.test(codeRaw.trim())) {
+        sendInvalidPayload('Missing or invalid roomCode (expected 4 digits).');
+        return;
+      }
+
+      const modeRaw = payload.roomMode;
+      if (modeRaw !== 'ai' && modeRaw !== 'pvp') {
+        sendInvalidPayload('Missing or invalid roomMode (expected ai or pvp).');
+        return;
+      }
+
+      const senderSlotRaw = payload.senderPlayerSlot;
+      if (!(senderSlotRaw === null || senderSlotRaw === undefined || senderSlotRaw === 0 || senderSlotRaw === 1)) {
+        sendInvalidPayload('senderPlayerSlot must be null, 0, or 1.');
+        return;
+      }
+
+      const tokenRaw = payload.castAccessToken;
+      if (typeof tokenRaw !== 'string' || tokenRaw.trim().length < 8) {
+        sendInvalidPayload('Missing or invalid castAccessToken.');
+        return;
+      }
+
+      const apiBaseUrlRaw = payload.apiBaseUrl;
+      if (!(apiBaseUrlRaw === undefined || typeof apiBaseUrlRaw === 'string')) {
+        sendInvalidPayload('apiBaseUrl must be a string when provided.');
+        return;
+      }
+      if (typeof apiBaseUrlRaw === 'string') {
+        try {
+          const parsed = new URL(apiBaseUrlRaw);
+          if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            sendInvalidPayload('apiBaseUrl must use http or https.');
+            return;
+          }
+        } catch {
+          sendInvalidPayload('apiBaseUrl must be a valid URL.');
+          return;
+        }
+      }
+
+      const code = codeRaw.trim();
+      const mode = modeRaw as RoomMode;
+      const token = tokenRaw.trim();
+      const apiBaseUrl = (typeof apiBaseUrlRaw === 'string' ? apiBaseUrlRaw.trim() : '') || window.location.origin;
 
       roomStateRef.current = {
         roomCode: code,
         roomMode: mode,
-        senderPlayerSlot: (payload.senderPlayerSlot ?? null) as PlayerSlot | null,
+        senderPlayerSlot: (senderSlotRaw ?? null) as PlayerSlot | null,
         apiBaseUrl,
         castAccessToken: token,
       };
@@ -255,7 +314,6 @@ export function useCastReceiver(): WebSocketGameState {
       setCastAccessToken(token);
       restartRealtimeSync();
 
-      // Acknowledge
       context.sendCustomMessage(NAMESPACE, senderId, {
         type: 'RECEIVER_ROOM_SYNCED',
         roomCode: code,
@@ -265,29 +323,24 @@ export function useCastReceiver(): WebSocketGameState {
 
     context.addCustomMessageListener(NAMESPACE, handleCustomMessage);
 
-    // Disable idle timeout — prevents Chromecast from going back to screensaver.
-    // CAF v3 uses setOptions before start(), and maxInactivity=0 on PlayerManager.
-    try {
-      context.setOptions({ disableIdleTimeout: true });
-    } catch {
-      console.warn('[CastReceiver] setOptions failed — CAF version may differ');
-    }
-    try {
-      const playerManager = context.getPlayerManager();
-      // maxInactivity=0 disables the idle timeout entirely
-      (playerManager as unknown as Record<string, unknown>).maxInactivity = 0;
-    } catch {
-      console.warn('[CastReceiver] Could not set maxInactivity on PlayerManager');
-    }
+    const jsonMessageType = cast.framework.system?.MessageType?.JSON ?? 'JSON';
 
-    context.start();
+    context.start({
+      disableIdleTimeout: true,
+      maxInactivity: 120,
+      customNamespaces: {
+        [NAMESPACE]: jsonMessageType,
+      },
+    });
 
     return () => {
+      context.removeCustomMessageListener(NAMESPACE, handleCustomMessage);
       clearPollTimer();
       closeStreamSource();
       clearStreamRetryTimer();
+      resetReceiverState();
     };
-  }, [restartRealtimeSync, clearPollTimer, closeStreamSource, clearStreamRetryTimer]);
+  }, [restartRealtimeSync, clearPollTimer, closeStreamSource, clearStreamRetryTimer, resetReceiverState]);
 
   return {
     connected,
