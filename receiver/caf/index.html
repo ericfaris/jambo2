@@ -304,7 +304,7 @@
       bottom: 0;
       left: 0;
       right: 0;
-      max-height: 40vh;
+      max-height: 80vh;
       background: rgba(0, 0, 0, 0.92);
       border-top: 2px solid var(--gold);
       padding: 8px 12px;
@@ -427,6 +427,7 @@
     // Intercepts console.log/warn/error and renders them on the TV.
     (function () {
       var DEBUG = window.location.search.indexOf('debug') !== -1;
+      window.__debugEnabled = DEBUG;
       var overlay = document.getElementById('debugOverlay');
       var linesEl = document.getElementById('debugLines');
       var MAX_LINES = 80;
@@ -435,8 +436,13 @@
         overlay.classList.add('visible');
       }
 
+      // Allow receiver-app.js to enable debug capture at runtime
+      window.addEventListener('enable-debug', function () {
+        window.__debugEnabled = true;
+      });
+
       function addLine(level, args) {
-        if (!DEBUG || !linesEl) return;
+        if (!window.__debugEnabled || !linesEl) return;
         var text = Array.prototype.map.call(args, function (a) {
           if (typeof a === 'string') return a;
           try { return JSON.stringify(a); } catch (_) { return String(a); }

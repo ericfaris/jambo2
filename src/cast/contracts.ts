@@ -22,14 +22,18 @@ export interface CastSessionSummary {
 }
 
 // Sender -> Receiver control messages.
-export type SenderToReceiverMessage = {
-  type: 'SYNC_ROOM';
-  roomCode: string;
-  roomMode: RoomMode;
-  senderPlayerSlot: PlayerSlot | null;
-  apiBaseUrl?: string;
-  castAccessToken?: string;
-};
+export type SenderToReceiverMessage =
+  | {
+      type: 'SYNC_ROOM';
+      roomCode: string;
+      roomMode: RoomMode;
+      senderPlayerSlot: PlayerSlot | null;
+      apiBaseUrl?: string;
+      castAccessToken?: string;
+    }
+  | {
+      type: 'TOGGLE_DEBUG';
+    };
 
 // Receiver -> Sender status messages.
 export type ReceiverToSenderMessage =
@@ -42,6 +46,11 @@ export type ReceiverToSenderMessage =
       type: 'RECEIVER_ERROR';
       code: 'INVALID_PAYLOAD' | 'ROOM_NOT_FOUND' | 'INTERNAL';
       message: string;
+    }
+  | {
+      type: 'RECEIVER_DEBUG_TOGGLED';
+      enabled: boolean;
+      timestampMs: number;
     };
 
 export type CastChannelMessage = SenderToReceiverMessage | ReceiverToSenderMessage;

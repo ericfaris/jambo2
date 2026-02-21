@@ -616,6 +616,25 @@
       return;
     }
 
+    if (payload.type === 'TOGGLE_DEBUG') {
+      var overlay = document.getElementById('debugOverlay');
+      if (overlay) {
+        var isVisible = overlay.classList.toggle('visible');
+        // Enable log capture even if ?debug wasn't in the URL
+        if (isVisible && !window.__debugEnabled) {
+          window.__debugEnabled = true;
+          window.dispatchEvent(new CustomEvent('enable-debug'));
+        }
+        console.log('[Debug] Overlay toggled:', isVisible ? 'ON' : 'OFF');
+        sendToSender(senderId, {
+          type: 'RECEIVER_DEBUG_TOGGLED',
+          enabled: isVisible,
+          timestampMs: Date.now(),
+        });
+      }
+      return;
+    }
+
     if (payload.type !== 'SYNC_ROOM') {
       sendError(senderId, 'INVALID_PAYLOAD', 'Unknown message type: ' + String(payload.type));
       return;

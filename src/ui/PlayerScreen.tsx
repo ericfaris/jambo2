@@ -22,7 +22,7 @@ import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, re
 import { getPlayDisabledReason, getDrawDisabledReason } from './uiHints.ts';
 import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
-import { isCastSdkEnabled } from '../cast/factory.ts';
+import { getCastSessionController, isCastSdkEnabled } from '../cast/factory.ts';
 import { useAuthSession } from './useAuthSession.ts';
 
 type AnimationSpeed = 'normal' | 'fast';
@@ -742,6 +742,27 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
                 style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
               />
             </label>
+            {castSync.status === 'synced' && (
+              <button
+                onClick={() => {
+                  void getCastSessionController().sendMessage({ type: 'TOGGLE_DEBUG' });
+                }}
+                style={{
+                  marginTop: 10,
+                  width: '100%',
+                  background: 'var(--surface-light)',
+                  border: '1px solid var(--border-light)',
+                  color: 'var(--text)',
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontSize: 15,
+                }}
+              >
+                Toggle TV Debug Log
+              </button>
+            )}
             {isDevMode() && (
               <label style={{
                 display: 'flex',
