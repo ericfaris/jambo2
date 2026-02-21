@@ -102,6 +102,9 @@ export function TVScreen({ ws }: TVScreenProps) {
   const [showDevTelemetry] = useState(() => getInitialDevTelemetry());
   const [highContrast] = useState(() => getInitialHighContrast());
   const [debugHints] = useState(() => getDebugHints());
+  const [debugHintsOverlay, setDebugHintsOverlay] = useState(false);
+  const [debugGoldDelta, setDebugGoldDelta] = useState<[number, number]>([0, 0]);
+  const debugGoldCounterRef = useRef(0);
   const [telemetryEvents, setTelemetryEvents] = useState<string[]>([]);
   const [playerSectionHeight, setPlayerSectionHeight] = useState<number | null>(null);
   useAudioEvents(ws.audioEvent, ws.clearAudioEvent);
@@ -226,7 +229,8 @@ export function TVScreen({ ws }: TVScreenProps) {
         isActive={pub.currentPlayer === 1}
         flipWoodBackground={true}
         fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
-        goldDelta={visualFeedback.goldDeltas[1]}
+        goldDelta={debugGoldDelta[1] || visualFeedback.goldDeltas[1]}
+        debugGoldCounter={debugGoldCounterRef.current}
         marketFlashSlots={visualFeedback.marketFlashSlots[1]}
         waitingMessage={waitingInfo.targetPlayer === 1 ? waitingInfo.message ?? undefined : undefined}
       />
@@ -246,7 +250,8 @@ export function TVScreen({ ws }: TVScreenProps) {
         isActive={pub.currentPlayer === 0}
         fixedHeight={playerSectionHeight !== null ? playerSectionHeight + PLAYER_SECTION_EXTRA_HEIGHT_PX : null}
         onMeasureHeight={setPlayerSectionHeight}
-        goldDelta={visualFeedback.goldDeltas[0]}
+        goldDelta={debugGoldDelta[0] || visualFeedback.goldDeltas[0]}
+        debugGoldCounter={debugGoldCounterRef.current}
         marketFlashSlots={visualFeedback.marketFlashSlots[0]}
         waitingMessage={waitingInfo.targetPlayer === 0 ? waitingInfo.message ?? undefined : undefined}
       />
@@ -291,8 +296,73 @@ export function TVScreen({ ws }: TVScreenProps) {
         </div>
       )}
 
-      {/* Debug hints overlay — activate with ?debug-hints in URL */}
+      {/* Debug gold delta trigger — activate with ?debug-hints in URL */}
       {debugHints && (
+        <div style={{
+          position: 'fixed',
+          top: 10,
+          left: 10,
+          zIndex: 9998,
+          background: 'rgba(0,0,0,0.85)',
+          border: '1px solid #ff0',
+          borderRadius: 8,
+          padding: '8px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          fontSize: 12,
+          fontFamily: 'monospace',
+        }}>
+          <div style={{ color: '#ff0', fontWeight: 700 }}>Gold Delta Debug</div>
+          {['+5g (gain)', '-3g (loss)', '+18g (big sell)', '-10g (big buy)'].map((label, i) => {
+            const values = [5, -3, 18, -10];
+            return (
+              <button
+                key={label}
+                onClick={() => {
+                  setDebugGoldDelta([0, 0]);
+                  requestAnimationFrame(() => {
+                    debugGoldCounterRef.current++;
+                    setDebugGoldDelta([values[i], values[i]]);
+                    setTimeout(() => setDebugGoldDelta([0, 0]), 1500);
+                  });
+                }}
+                style={{
+                  background: '#2a1a08',
+                  color: '#f0c040',
+                  border: '1px solid #f0c040',
+                  borderRadius: 4,
+                  padding: '4px 10px',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+          <hr style={{ border: 'none', borderTop: '1px solid #555', margin: '4px 0' }} />
+          <button
+            onClick={() => setDebugHintsOverlay(v => !v)}
+            style={{
+              background: debugHintsOverlay ? '#443000' : '#2a1a08',
+              color: '#ff0',
+              border: '1px solid #ff0',
+              borderRadius: 4,
+              padding: '4px 10px',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontFamily: 'monospace',
+            }}
+          >
+            {debugHintsOverlay ? 'Hide All Hints' : 'Show All Hints'}
+          </button>
+        </div>
+      )}
+
+      {/* Debug hints overlay — toggled from debug panel */}
+      {debugHintsOverlay && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -352,7 +422,7 @@ export function TVScreen({ ws }: TVScreenProps) {
 
 // --- Sub-components ---
 
-function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground, fixedHeight, onMeasureHeight, goldDelta, marketFlashSlots, waitingMessage }: {
+function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground, fixedHeight, onMeasureHeight, goldDelta, debugGoldCounter, marketFlashSlots, waitingMessage }: {
   player: PublicPlayerState;
   playerIndex: 0 | 1;
   label: string;
@@ -361,6 +431,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
   fixedHeight?: number | null;
   onMeasureHeight?: (height: number) => void;
   goldDelta?: number;
+  debugGoldCounter?: number;
   marketFlashSlots?: number[];
   waitingMessage?: string;
 }) {
@@ -457,7 +528,7 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 12px', alignSelf: 'center', marginTop: -110, marginLeft: -35 }}>
             <div style={{ position: 'relative', width: 130, height: 88, marginTop: 30 }}>
               <img src="/assets/coins/coins.png" alt="gold" draggable={false} style={{ width: 130, height: 88, objectFit: 'contain' }} />
-              <span key={`tv-gold-${label}-${goldDelta ?? 0}`} className={(goldDelta ?? 0) !== 0 ? 'gold-pop' : undefined} style={{
+              <span style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
@@ -466,7 +537,8 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
                 height: 40,
                 borderRadius: '50%',
                 background: '#f5e6c8',
-                border: '2px solid #d4a850',
+                border: '4px solid #d4a850',
+                boxShadow: '0 0 0 3px #8b6530',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -476,20 +548,30 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
                 fontFamily: 'var(--font-heading)',
               }}>
                 {player.gold}
-                {/* DEBUG: Force-show #9 Gold Delta */}
-                <span className="gold-delta-text" style={{
-                  position: 'absolute',
-                  top: -8,
-                  right: -10,
-                  color: 'var(--accent-green)',
-                  fontSize: 7,
-                  fontWeight: 700,
-                  border: '1px solid #f0c040',
-                }}>
-                  <span style={{ color: '#f0c040', fontSize: 5 }}>[#9] </span>
-                  {(goldDelta ?? 0) !== 0 ? ((goldDelta ?? 0) > 0 ? `+${goldDelta}g` : `${goldDelta}g`) : '+3g'}
-                </span>
               </span>
+              {(goldDelta ?? 0) !== 0 && (
+                <span
+                  key={`tv-gold-delta-${label}-${goldDelta}-${debugGoldCounter ?? 0}`}
+                  className={(goldDelta ?? 0) > 0 ? 'gold-delta-arrow' : 'gold-delta-arrow-down'}
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: (goldDelta ?? 0) > 0 ? -2 : undefined,
+                    bottom: (goldDelta ?? 0) < 0 ? -2 : undefined,
+                    transform: 'translateX(-50%)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    color: '#f5e6c8',
+                    fontSize: 30,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-heading)',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <span>{(goldDelta ?? 0) > 0 ? `+${goldDelta}` : `${goldDelta}`}</span>
+                </span>
+              )}
             </div>
             <div style={{ position: 'relative', width: 128, height: 88, marginTop: 30 }}>
               <img src="/assets/cards/cards_fanned_out.png" alt="hand" draggable={false} style={{ width: 128, height: 88, objectFit: 'contain' }} />
@@ -502,7 +584,8 @@ function TVPlayerArea({ player, playerIndex, label, isActive, flipWoodBackground
                 height: 40,
                 borderRadius: '50%',
                 background: '#f5e6c8',
-                border: '2px solid #d4a850',
+                border: '4px solid #d4a850',
+                boxShadow: '0 0 0 3px #8b6530',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

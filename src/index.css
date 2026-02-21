@@ -76,7 +76,7 @@
   --anim-gold-pop: 400ms;
   --anim-gold-pop-soft: 320ms;
   --anim-gold-pop-strong: 550ms;
-  --anim-gold-delta: 1100ms;
+  --anim-gold-delta: 4500ms;
   --anim-gold-delta-soft: 950ms;
   --anim-gold-delta-strong: 1250ms;
   --anim-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -106,7 +106,7 @@
   --anim-gold-pop: 300ms;
   --anim-gold-pop-soft: 250ms;
   --anim-gold-pop-strong: 380ms;
-  --anim-gold-delta: 800ms;
+  --anim-gold-delta: 4000ms;
   --anim-gold-delta-soft: 700ms;
   --anim-gold-delta-strong: 900ms;
   --motion-fast: 110ms;
@@ -356,10 +356,18 @@ button.danger:hover:not(:disabled) {
   100% { transform: scale(1); }
 }
 
-@keyframes goldDeltaFloat {
-  0% { opacity: 0; transform: translateY(4px); }
-  20% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-12px); }
+@keyframes goldDeltaArrowUp {
+  0% { opacity: 0; transform: translateX(-50%) translateY(30px); }
+  10% { opacity: 1; }
+  20% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-50px); }
+}
+
+@keyframes goldDeltaArrowDown {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-30px); }
+  10% { opacity: 1; }
+  20% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(50px); }
 }
 
 @keyframes goldDeltaFloatSoft {
@@ -458,9 +466,13 @@ button.danger:hover:not(:disabled) {
   animation-duration: var(--anim-gold-pop-strong);
 }
 
-.gold-delta-text {
-  animation: goldDeltaFloat var(--anim-gold-delta) var(--anim-ease-standard) forwards;
+.gold-delta-arrow {
+  animation: goldDeltaArrowUp var(--anim-gold-delta) var(--anim-ease-standard) forwards;
   pointer-events: none;
+}
+
+.gold-delta-arrow-down {
+  animation: goldDeltaArrowDown var(--anim-gold-delta) var(--anim-ease-standard) forwards;
 }
 
 .gold-delta-text-soft {
@@ -598,7 +610,8 @@ button.danger:hover:not(:disabled) {
   .gold-pop,
   .gold-pop-soft,
   .gold-pop-strong,
-  .gold-delta-text,
+  .gold-delta-arrow,
+  .gold-delta-arrow-down,
   .gold-delta-text-soft,
   .gold-delta-text-strong,
   .center-row-trail-draw-top,
