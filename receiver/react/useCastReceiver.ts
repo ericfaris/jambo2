@@ -13,6 +13,7 @@ import type { AIDifficulty } from '../../src/ai/difficulties/index.ts';
 const NAMESPACE = 'urn:x-cast:com.jambo.game.v1';
 const POLL_INTERVAL_MS = 1500;
 const STREAM_RETRY_MS = 4000;
+const DEBUG_OVERLAY_TOGGLE_EVENT = 'jambo:receiver-debug-overlay-toggle';
 
 interface RoomState {
   roomCode: string | null;
@@ -247,6 +248,21 @@ export function useCastReceiver(): WebSocketGameState {
           sendInvalidPayload('Payload is not valid JSON.');
           return;
         }
+      }
+
+      if (payload.type === 'TOGGLE_DEBUG') {
+        const win = window as Window & { __jamboReceiverDebugStore?: { overlayVisible?: boolean } };
+        const currentlyVisible = win.__jamboReceiverDebugStore?.overlayVisible === true;
+        const enabled = !currentlyVisible;
+        window.dispatchEvent(new CustomEvent<{ enabled: boolean }>(DEBUG_OVERLAY_TOGGLE_EVENT, {
+          detail: { enabled },
+        }));
+        context.sendCustomMessage(NAMESPACE, senderId, {
+          type: 'RECEIVER_DEBUG_TOGGLED',
+          enabled,
+          timestampMs: Date.now(),
+        });
+        return;
       }
 
       if (payload.type !== 'SYNC_ROOM') {

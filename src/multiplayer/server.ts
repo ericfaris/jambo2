@@ -853,7 +853,13 @@ const server = createServer((req, res) => {
 
   // Static file serving
   const urlPath = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`).pathname;
-  const safePath = urlPath.replace(/\.\./g, ''); // prevent directory traversal
+  let decodedPath = urlPath;
+  try {
+    decodedPath = decodeURIComponent(urlPath);
+  } catch {
+    // Keep original path if decoding fails.
+  }
+  const safePath = decodedPath.replace(/\.\./g, ''); // prevent directory traversal
 
   // Try exact file match
   const filePath = join(STATIC_DIR, safePath);
@@ -910,4 +916,3 @@ wss.on('connection', (ws: WebSocket) => {
 server.listen(PORT, () => {
   console.log(`Jambo Cast Server running on http://localhost:${PORT} (ws path: /ws)`);
 });
-

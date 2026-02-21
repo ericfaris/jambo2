@@ -2,11 +2,11 @@
   // NOTE: This namespace must match JAMBO_CAST_NAMESPACE in src/cast/contracts.ts
   var NAMESPACE = 'urn:x-cast:com.jambo.game.v1';
   var TV_MUSIC_PLAYLIST = [
-    '/audio/African Village Afternoon Soundscape.mp3',
-    '/audio/Market Morning Mosaic.mp3',
-    '/audio/River Paths, Village Hearts Voice.mp3',
-    '/audio/Sun In Our Hands.mp3',
-    '/audio/Sun on the Courtyard.mp3',
+    '/audio/African_Village_Afternoon_Soundscape.mp3',
+    '/audio/Market_Morning_Mosaic.mp3',
+    '/audio/River_Paths_Village_Hearts_Voice.mp3',
+    '/audio/Sun_In_Our_Hands.mp3',
+    '/audio/Sun_on_the_Courtyard.mp3',
   ];
 
   var cafPlayerManager = null;

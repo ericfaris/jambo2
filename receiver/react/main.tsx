@@ -25,6 +25,7 @@ interface DebugStore {
   nextId: number;
   installed: boolean;
   maxEntries: number;
+  overlayVisible: boolean;
 }
 
 declare global {
@@ -41,6 +42,7 @@ function getDebugStore(): DebugStore {
       nextId: 1,
       installed: false,
       maxEntries: 5000,
+      overlayVisible: false,
     };
   }
   return window.__jamboReceiverDebugStore;
@@ -83,6 +85,16 @@ function clearDebugEntries(): void {
   const store = getDebugStore();
   store.entries = [];
   notifyDebugListeners();
+}
+
+function setDebugOverlayVisible(visible: boolean): void {
+  const store = getDebugStore();
+  store.overlayVisible = visible;
+  notifyDebugListeners();
+}
+
+function getDebugOverlayVisible(): boolean {
+  return getDebugStore().overlayVisible;
 }
 
 function installDebugCapture(): void {
@@ -152,8 +164,24 @@ const debugButtonStyle: CSSProperties = {
 
 function DebugOverlay() {
   const entries = useDebugEntries();
+  const store = useMemo(() => getDebugStore(), []);
+  const [visible, setVisible] = useState<boolean>(() => store.overlayVisible);
   const [expanded, setExpanded] = useState(true);
   const displayedEntries = [...entries].reverse();
+
+  useEffect(() => {
+    const onChange = () => {
+      setVisible(store.overlayVisible);
+    };
+    store.listeners.add(onChange);
+    return () => {
+      store.listeners.delete(onChange);
+    };
+  }, [store]);
+
+  if (!visible) {
+    return null;
+  }
 
   return (
     <div
@@ -268,6 +296,20 @@ function ReceiverBody() {
 function ReceiverApp() {
   useEffect(() => {
     installDebugCapture();
+
+    const onDebugToggle = (event: Event) => {
+      const detail = (event as CustomEvent<{ enabled?: boolean }>).detail;
+      const nextVisible = typeof detail?.enabled === 'boolean'
+        ? detail.enabled
+        : !getDebugOverlayVisible();
+      setDebugOverlayVisible(nextVisible);
+      addDebugEntry('log', [`[ReceiverDebug] TV debug overlay ${nextVisible ? 'enabled' : 'hidden'} by sender`]);
+    };
+
+    window.addEventListener('jambo:receiver-debug-overlay-toggle', onDebugToggle as EventListener);
+    return () => {
+      window.removeEventListener('jambo:receiver-debug-overlay-toggle', onDebugToggle as EventListener);
+    };
   }, []);
 
   return (

@@ -7,11 +7,11 @@ import { useEffect, useRef } from 'react';
 import { getEffectiveVolume } from './audioSettings.ts';
 
 const BACKGROUND_MUSIC = [
-  '/audio/African Village Afternoon Soundscape.mp3',
-  '/audio/Market Morning Mosaic.mp3',
-  '/audio/River Paths, Village Hearts Voice.mp3',
-  '/audio/Sun In Our Hands.mp3',
-  '/audio/Sun on the Courtyard.mp3',
+  '/audio/African_Village_Afternoon_Soundscape.mp3',
+  '/audio/Market_Morning_Mosaic.mp3',
+  '/audio/River_Paths_Village_Hearts_Voice.mp3',
+  '/audio/Sun_In_Our_Hands.mp3',
+  '/audio/Sun_on_the_Courtyard.mp3',
 ];
 
 const MUSIC_BASE_VOLUME = 0.15;
