@@ -83,12 +83,22 @@
     try {
       var result = audio.play();
       if (result && typeof result.catch === 'function') {
-        result.catch(function () {
-          // Ignore autoplay and transient device playback errors.
+        result.catch(function (err) {
+          console.warn('[TV Music] play() rejected:', err);
+          // Retry once after a short delay — Chromecast may need a moment
+          // after receiver start before autoplay is permitted.
+          setTimeout(function () {
+            if (tvMusic.enabled && audio.paused) {
+              console.log('[TV Music] Retrying play()...');
+              audio.play().catch(function (retryErr) {
+                console.warn('[TV Music] Retry also failed:', retryErr);
+              });
+            }
+          }, 2000);
         });
       }
     } catch (_err) {
-      // Ignore synchronous playback errors.
+      console.warn('[TV Music] Synchronous play() error:', _err);
     }
   }
 
@@ -101,7 +111,9 @@
       tvMusic.index = 0;
     }
     var baseUrl = (roomState.apiBaseUrl || '').replace(/\/+$/, '');
-    tvMusic.audio.src = baseUrl + tvMusic.playlist[tvMusic.index];
+    var trackUrl = baseUrl + tvMusic.playlist[tvMusic.index];
+    console.log('[TV Music] Loading track:', trackUrl);
+    tvMusic.audio.src = trackUrl;
     tvMusic.index += 1;
     tryPlayAudio(tvMusic.audio);
   }
@@ -113,8 +125,14 @@
         audio.loop = false;
         audio.volume = 0.15;
         audio.addEventListener('ended', playNextTvTrack);
+        audio.addEventListener('error', function () {
+          console.warn('[TV Music] Audio load error for:', audio.src);
+          // Skip to next track on load failure
+          setTimeout(playNextTvTrack, 1000);
+        });
         tvMusic.audio = audio;
       } catch (_err) {
+        console.warn('[TV Music] Failed to create Audio element:', _err);
         tvMusic.enabled = false;
         return;
       }
