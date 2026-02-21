@@ -8,5 +8,25 @@
             "approve": true,
             "matchCommandLine": true
         }
-    }
+    },
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#f48c72",
+        "activityBar.background": "#f48c72",
+        "activityBar.foreground": "#15202b",
+        "activityBar.inactiveForeground": "#15202b99",
+        "activityBarBadge.background": "#c4facf",
+        "activityBarBadge.foreground": "#15202b",
+        "commandCenter.border": "#15202b99",
+        "sash.hoverBorder": "#f48c72",
+        "statusBar.background": "#f06543",
+        "statusBar.foreground": "#15202b",
+        "statusBarItem.hoverBackground": "#ec3e14",
+        "statusBarItem.remoteBackground": "#f06543",
+        "statusBarItem.remoteForeground": "#15202b",
+        "titleBar.activeBackground": "#f06543",
+        "titleBar.activeForeground": "#15202b",
+        "titleBar.inactiveBackground": "#f0654399",
+        "titleBar.inactiveForeground": "#15202b99"
+    },
+    "peacock.color": "f06543"
 }
