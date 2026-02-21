@@ -628,7 +628,6 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
   const topDiscard = pub.discardPile.length > 0 ? pub.discardPile[0] : null;
   const [displayDiscardCard, setDisplayDiscardCard] = useState(topDiscard);
   const [actionTag, setActionTag] = useState<string | null>(null);
-  const [lastActionRecap, setLastActionRecap] = useState<string | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
   const deckPileRef = useRef<HTMLDivElement | null>(null);
   const discardPileRef = useRef<HTMLDivElement | null>(null);
@@ -659,15 +658,6 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
     const timer = window.setTimeout(() => setActionTag(null), FEEDBACK_TIMINGS.actionTagDurationMs);
     return () => window.clearTimeout(timer);
   }, [visualFeedback?.trail]);
-
-  useEffect(() => {
-    if (pub.log.length === 0) return;
-    const latest = pub.log[pub.log.length - 1];
-    const recap = `P${latest.player + 1}: ${latest.action}${latest.details ? ` - ${latest.details}` : ''}`;
-    setLastActionRecap(recap);
-    const timer = window.setTimeout(() => setLastActionRecap(null), 2500);
-    return () => window.clearTimeout(timer);
-  }, [pub.log.length]);
 
   useEffect(() => {
     const updateDrawTrailPath = () => {
@@ -755,12 +745,6 @@ function TVCenterRow({ pub, visualFeedback, supply }: { pub: PublicGameState; vi
           ) : (
             <img src="/assets/cards/card_back.png" alt="" draggable={false} />
           )}
-        </div>
-      )}
-
-      {lastActionRecap && (
-        <div className="center-row-recap">
-          {lastActionRecap}
         </div>
       )}
 

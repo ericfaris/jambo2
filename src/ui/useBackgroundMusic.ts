@@ -4,7 +4,10 @@
 // ============================================================================
 
 import { useEffect, useRef } from 'react';
-import { getEffectiveVolume } from './audioSettings.ts';
+import {
+  applyAudioSettingsToElement,
+  AUDIO_SETTINGS_CHANGE_EVENT,
+} from './audioSettings.ts';
 
 const BACKGROUND_MUSIC = [
   '/audio/African Village Afternoon Soundscape.mp3',
@@ -21,12 +24,16 @@ const MAX_RETRIES = 10;
 // Module-level singleton guard — only one music player at a time
 let activeInstance: HTMLAudioElement | null = null;
 
-export function useBackgroundMusic(): void {
+export function useBackgroundMusic(enabled = true): void {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playlistRef = useRef<string[]>([]);
   const currentTrackIndex = useRef(0);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     // If another instance is already playing, skip
     if (activeInstance !== null) {
       console.log('[Music] Already playing in another instance, skipping');
@@ -49,7 +56,7 @@ export function useBackgroundMusic(): void {
     audioRef.current = audio;
     activeInstance = audio;
     audio.loop = false;
-    audio.volume = getEffectiveVolume() * MUSIC_BASE_VOLUME;
+    applyAudioSettingsToElement(audio, MUSIC_BASE_VOLUME);
 
     let retryTimer: number | null = null;
     let retryCount = 0;
@@ -106,16 +113,16 @@ export function useBackgroundMusic(): void {
     audio.addEventListener('error', handleError);
 
     const handleVolumeChange = () => {
-      audio.volume = getEffectiveVolume() * MUSIC_BASE_VOLUME;
+      applyAudioSettingsToElement(audio, MUSIC_BASE_VOLUME);
     };
-    window.addEventListener('jambo-volume-change', handleVolumeChange);
+    window.addEventListener(AUDIO_SETTINGS_CHANGE_EVENT, handleVolumeChange);
 
     return () => {
       cleaned = true;
       if (retryTimer !== null) window.clearTimeout(retryTimer);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
-      window.removeEventListener('jambo-volume-change', handleVolumeChange);
+      window.removeEventListener(AUDIO_SETTINGS_CHANGE_EVENT, handleVolumeChange);
       document.removeEventListener('click', resumeOnInteraction);
       document.removeEventListener('touchstart', resumeOnInteraction);
       audio.pause();
@@ -125,5 +132,5 @@ export function useBackgroundMusic(): void {
         activeInstance = null;
       }
     };
-  }, []);
+  }, [enabled]);
 }

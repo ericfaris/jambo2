@@ -29,7 +29,6 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
     : null;
   const [displayDiscardCard, setDisplayDiscardCard] = useState(topDiscard);
   const [actionTag, setActionTag] = useState<string | null>(null);
-  const [lastActionRecap, setLastActionRecap] = useState<string | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
   const deckPileRef = useRef<HTMLDivElement | null>(null);
   const discardPileRef = useRef<HTMLDivElement | null>(null);
@@ -62,16 +61,6 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
     const timer = window.setTimeout(() => setActionTag(null), FEEDBACK_TIMINGS.actionTagDurationMs);
     return () => window.clearTimeout(timer);
   }, [visualFeedback?.trail]);
-
-  useEffect(() => {
-    if (state.log.length === 0) return;
-    const latest = state.log[state.log.length - 1];
-    const recap = `P${latest.player + 1}: ${latest.action}${latest.details ? ` - ${latest.details}` : ''}`;
-    setLastActionRecap(recap);
-
-    const timer = window.setTimeout(() => setLastActionRecap(null), 2500);
-    return () => window.clearTimeout(timer);
-  }, [state.log.length]);
 
   useEffect(() => {
     const updateDrawTrailPath = () => {
@@ -185,12 +174,6 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
       {actionTag && (
         <div className={`center-row-action-tag${visualFeedback?.trail?.actor === 1 ? ' center-row-action-tag-opponent' : ''}`}>
           {actionTag}
-        </div>
-      )}
-
-      {lastActionRecap && (
-        <div className="center-row-recap">
-          {lastActionRecap}
         </div>
       )}
 

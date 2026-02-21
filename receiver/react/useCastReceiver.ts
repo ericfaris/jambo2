@@ -9,6 +9,7 @@ import type { WebSocketGameState } from '../../src/multiplayer/client.ts';
 import type { PublicGameState, RoomMode, PlayerSlot } from '../../src/multiplayer/types.ts';
 import type { GameAction } from '../../src/engine/types.ts';
 import type { AIDifficulty } from '../../src/ai/difficulties/index.ts';
+import { notifyAudioSettingsChanged, setMuted, setVolume } from '../../src/ui/audioSettings.ts';
 
 const NAMESPACE = 'urn:x-cast:com.jambo.game.v1';
 const POLL_INTERVAL_MS = 1500;
@@ -262,6 +263,24 @@ export function useCastReceiver(): WebSocketGameState {
           enabled,
           timestampMs: Date.now(),
         });
+        return;
+      }
+
+      if (payload.type === 'SET_AUDIO_SETTINGS') {
+        const mutedRaw = payload.muted;
+        if (typeof mutedRaw !== 'boolean') {
+          sendInvalidPayload('muted must be a boolean.');
+          return;
+        }
+        const volumeRaw = payload.volume;
+        if (typeof volumeRaw !== 'number' || !Number.isFinite(volumeRaw)) {
+          sendInvalidPayload('volume must be a finite number.');
+          return;
+        }
+        const normalizedVolume = Math.round(Math.max(0, Math.min(100, volumeRaw)));
+        setMuted(mutedRaw);
+        setVolume(normalizedVolume);
+        notifyAudioSettingsChanged();
         return;
       }
 

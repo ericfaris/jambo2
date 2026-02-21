@@ -18,7 +18,14 @@ import { MegaView } from './MegaView.tsx';
 import { CardPlayDialog, DrawModal as SharedDrawModal } from './ActionButtons.tsx';
 import { useAudioEvents } from './useAudioEvents.ts';
 import { useVisualFeedback } from './useVisualFeedback.ts';
-import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
+import {
+  getVolume,
+  setVolume as saveVolume,
+  getMuted,
+  setMuted as saveMuted,
+  resetAudioSettings,
+  notifyAudioSettingsChanged,
+} from './audioSettings.ts';
 import { getPlayDisabledReason, getDrawDisabledReason } from './uiHints.ts';
 import { CastEndgameOverlay } from './CastEndgameOverlay.tsx';
 import { useCastRoomSync } from '../cast/useCastRoomSync.ts';
@@ -128,6 +135,17 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(highContrast));
   }, [highContrast]);
 
+  useEffect(() => {
+    if (castSync.status !== 'synced') return;
+    void getCastSessionController().sendMessage({
+      type: 'SET_AUDIO_SETTINGS',
+      muted,
+      volume: Math.max(0, Math.min(100, Math.round(volume))),
+    }).catch(() => {
+      // Ignore transient sender transport errors; local audio still applies.
+    });
+  }, [castSync.status, muted, volume]);
+
   const handleLogout = useCallback(async () => {
     await authLogout();
     setMenuOpen(false);
@@ -218,21 +236,29 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
     };
   }, [menuOpen]);
 
+  const applyAudioSettings = useCallback((nextMuted: boolean, nextVolume: number) => {
+    const normalizedVolume = Math.max(0, Math.min(100, Math.round(nextVolume)));
+    setMuted(nextMuted);
+    setVolume(normalizedVolume);
+    saveMuted(nextMuted);
+    saveVolume(normalizedVolume);
+    notifyAudioSettingsChanged();
+  }, []);
+
   const resetUiPrefs = useCallback(() => {
     setAnimationSpeed('normal');
     setShowDevTelemetry(false);
     setHighContrast(false);
-    setVolume(50);
-    setMuted(false);
+    applyAudioSettings(false, 50);
     setTelemetryEvents([]);
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(ANIMATION_SPEED_STORAGE_KEY);
       window.localStorage.removeItem(DEV_TELEMETRY_STORAGE_KEY);
       window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
       resetAudioSettings();
-      window.dispatchEvent(new Event('jambo-volume-change'));
+      notifyAudioSettingsChanged();
     }
-  }, []);
+  }, [applyAudioSettings]);
 
   const hasPendingInteraction = !!(
     priv.pendingResolution ||
@@ -686,54 +712,6 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
               fontSize: 15,
               color: 'var(--text)',
             }}>
-              Mute Audio
-              <input
-                type="checkbox"
-                checked={muted}
-                onChange={() => {
-                  const next = !muted;
-                  setMuted(next);
-                  saveMuted(next);
-                  window.dispatchEvent(new Event('jambo-volume-change'));
-                }}
-                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-              />
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              fontSize: 15,
-              color: muted ? 'var(--text-muted)' : 'var(--text)',
-            }}>
-              Volume
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={volume}
-                disabled={muted}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setVolume(v);
-                  saveVolume(v);
-                  window.dispatchEvent(new Event('jambo-volume-change'));
-                }}
-                style={{ width: 100, accentColor: 'var(--gold)', cursor: muted ? 'default' : 'pointer' }}
-              />
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 10,
-              marginTop: 10,
-              cursor: 'pointer',
-              fontSize: 15,
-              color: 'var(--text)',
-            }}>
               High Contrast Mode
               <input
                 type="checkbox"
@@ -742,46 +720,128 @@ export function PlayerScreen({ ws }: PlayerScreenProps) {
                 style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
               />
             </label>
-            {castSync.status === 'synced' && (
-              <button
-                onClick={() => {
-                  void getCastSessionController().sendMessage({ type: 'TOGGLE_DEBUG' });
-                }}
-                style={{
-                  marginTop: 10,
-                  width: '100%',
-                  background: 'var(--surface-light)',
-                  border: '1px solid var(--border-light)',
-                  color: 'var(--text)',
-                  borderRadius: 8,
-                  padding: '8px 10px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontSize: 15,
-                }}
-              >
-                Toggle TV Debug Log
-              </button>
-            )}
-            {isDevMode() && (
+
+            <div style={{
+              marginTop: 12,
+              padding: 10,
+              border: '1px solid var(--border-light)',
+              borderRadius: 8,
+              background: 'var(--surface-light)',
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Audio
+              </div>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                cursor: 'pointer',
+                fontSize: 15,
+                color: 'var(--text)',
+              }}>
+                Mute Audio
+                <input
+                  type="checkbox"
+                  checked={muted}
+                  onChange={() => {
+                    applyAudioSettings(!muted, volume);
+                  }}
+                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+                />
+              </label>
               <label style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: 10,
                 marginTop: 10,
-                cursor: 'pointer',
                 fontSize: 15,
-                color: 'var(--text)',
+                color: muted ? 'var(--text-muted)' : 'var(--text)',
               }}>
-                Dev Telemetry Overlay
+                Volume
                 <input
-                  type="checkbox"
-                  checked={showDevTelemetry}
-                  onChange={() => setShowDevTelemetry((previous) => !previous)}
-                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={volume}
+                  disabled={muted}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    applyAudioSettings(muted, v);
+                  }}
+                  style={{ width: 100, accentColor: 'var(--gold)', cursor: muted ? 'default' : 'pointer' }}
                 />
               </label>
+              <div style={{
+                marginTop: 8,
+                fontSize: 12,
+                color: castSync.status === 'synced'
+                  ? '#7fcf8b'
+                  : castSync.status === 'error'
+                    ? '#ff9977'
+                    : 'var(--text-muted)',
+              }}>
+                {castSync.status === 'synced'
+                  ? 'Audio controls are synced to TV output.'
+                  : castSync.status === 'error'
+                    ? `Cast audio sync unavailable${castSync.error ? ` (${castSync.error})` : ''}. Controlling local audio only.`
+                    : 'Controlling local audio on this device.'}
+              </div>
+            </div>
+
+            {(castSync.status === 'synced' || isDevMode()) && (
+              <div style={{
+                marginTop: 12,
+                padding: 10,
+                border: '1px solid var(--border-light)',
+                borderRadius: 8,
+                background: 'var(--surface-light)',
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Debugging
+                </div>
+                {castSync.status === 'synced' && (
+                  <button
+                    onClick={() => {
+                      void getCastSessionController().sendMessage({ type: 'TOGGLE_DEBUG' });
+                    }}
+                    style={{
+                      width: '100%',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border-light)',
+                      color: 'var(--text)',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontSize: 15,
+                    }}
+                  >
+                    Toggle TV Debug Log
+                  </button>
+                )}
+                {isDevMode() && (
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    marginTop: castSync.status === 'synced' ? 10 : 0,
+                    cursor: 'pointer',
+                    fontSize: 15,
+                    color: 'var(--text)',
+                  }}>
+                    Dev Telemetry Overlay
+                    <input
+                      type="checkbox"
+                      checked={showDevTelemetry}
+                      onChange={() => setShowDevTelemetry((previous) => !previous)}
+                      style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+                    />
+                  </label>
+                )}
+              </div>
             )}
             <button
               onClick={resetUiPrefs}
