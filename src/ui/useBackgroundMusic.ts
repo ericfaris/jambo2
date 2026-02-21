@@ -1,6 +1,6 @@
 // ============================================================================
 // Background Music Player Hook
-// Plays looping background music. Handles Chromecast autoplay.
+// Plays looping background music. Guards against multiple instances.
 // ============================================================================
 
 import { useEffect, useRef } from 'react';
@@ -18,13 +18,22 @@ const MUSIC_BASE_VOLUME = 0.15;
 const AUTOPLAY_RETRY_MS = 3000;
 const MAX_RETRIES = 10;
 
+// Module-level singleton guard — only one music player at a time
+let activeInstance: HTMLAudioElement | null = null;
+
 export function useBackgroundMusic(): void {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playlistRef = useRef<string[]>([]);
   const currentTrackIndex = useRef(0);
 
   useEffect(() => {
-    // Shuffle playlist on app load
+    // If another instance is already playing, skip
+    if (activeInstance !== null) {
+      console.log('[Music] Already playing in another instance, skipping');
+      return;
+    }
+
+    // Shuffle playlist
     const shuffled = [...BACKGROUND_MUSIC];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -38,6 +47,7 @@ export function useBackgroundMusic(): void {
     audio.style.display = 'none';
     document.body.appendChild(audio);
     audioRef.current = audio;
+    activeInstance = audio;
     audio.loop = false;
     audio.volume = getEffectiveVolume() * MUSIC_BASE_VOLUME;
 
@@ -75,7 +85,6 @@ export function useBackgroundMusic(): void {
       attemptPlay();
     };
 
-    // Start first track
     playNextTrack();
 
     // Resume on user interaction (helps with autoplay policies)
@@ -112,6 +121,9 @@ export function useBackgroundMusic(): void {
       audio.pause();
       audio.src = '';
       audio.remove();
+      if (activeInstance === audio) {
+        activeInstance = null;
+      }
     };
   }, []);
 }
