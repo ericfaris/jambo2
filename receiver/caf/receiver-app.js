@@ -690,7 +690,7 @@
         }
       }
     );
-    context.start({ maxInactivity: Infinity });
+    context.start({ disableIdleTimeout: true, maxInactivity: 120 });
     setConnection('Receiver state: ready', false);
     renderRoom();
   }
