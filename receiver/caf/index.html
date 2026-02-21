@@ -297,6 +297,43 @@
       color: #ffd39b;
       font-size: 13px;
     }
+
+    #debugOverlay {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-height: 40vh;
+      background: rgba(0, 0, 0, 0.92);
+      border-top: 2px solid var(--gold);
+      padding: 8px 12px;
+      overflow-y: auto;
+      z-index: 9999;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    #debugOverlay.visible {
+      display: block;
+    }
+
+    #debugOverlay .dbg-title {
+      color: var(--gold);
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    #debugOverlay .dbg-line {
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      word-break: break-all;
+    }
+
+    #debugOverlay .dbg-log { color: var(--text); }
+    #debugOverlay .dbg-warn { color: var(--warn); }
+    #debugOverlay .dbg-error { color: #ff6b6b; }
   </style>
   <script
     type="text/javascript"
@@ -379,6 +416,56 @@
       </div>
     </aside>
   </div>
+
+  <div id="debugOverlay">
+    <div class="dbg-title">DEBUG LOG</div>
+    <div id="debugLines"></div>
+  </div>
+
+  <script>
+    // On-screen debug console — activated by adding ?debug to the receiver URL.
+    // Intercepts console.log/warn/error and renders them on the TV.
+    (function () {
+      var DEBUG = window.location.search.indexOf('debug') !== -1;
+      var overlay = document.getElementById('debugOverlay');
+      var linesEl = document.getElementById('debugLines');
+      var MAX_LINES = 80;
+
+      if (DEBUG && overlay) {
+        overlay.classList.add('visible');
+      }
+
+      function addLine(level, args) {
+        if (!DEBUG || !linesEl) return;
+        var text = Array.prototype.map.call(args, function (a) {
+          if (typeof a === 'string') return a;
+          try { return JSON.stringify(a); } catch (_) { return String(a); }
+        }).join(' ');
+
+        var line = document.createElement('div');
+        line.className = 'dbg-line dbg-' + level;
+        var ts = new Date().toLocaleTimeString();
+        line.textContent = '[' + ts + '] ' + text;
+        linesEl.appendChild(line);
+
+        // Trim old lines
+        while (linesEl.childNodes.length > MAX_LINES) {
+          linesEl.removeChild(linesEl.firstChild);
+        }
+
+        // Auto-scroll to bottom
+        overlay.scrollTop = overlay.scrollHeight;
+      }
+
+      var origLog = console.log;
+      var origWarn = console.warn;
+      var origError = console.error;
+
+      console.log = function () { origLog.apply(console, arguments); addLine('log', arguments); };
+      console.warn = function () { origWarn.apply(console, arguments); addLine('warn', arguments); };
+      console.error = function () { origError.apply(console, arguments); addLine('error', arguments); };
+    })();
+  </script>
 
   <script src="./receiver-app.js"></script>
 </body>
