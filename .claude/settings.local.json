@@ -48,7 +48,11 @@
       "mcp__MongoDB__list-collections",
       "mcp__MongoDB__count",
       "mcp__MongoDB__find",
-      "mcp__MongoDB__update-many"
+      "mcp__MongoDB__update-many",
+      "WebFetch(domain:developers.google.com)",
+      "WebSearch",
+      "WebFetch(domain:www.chromium.org)",
+      "WebFetch(domain:rbf.dev)"
     ]
   }
 }

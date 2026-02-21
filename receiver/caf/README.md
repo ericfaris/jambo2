@@ -40,3 +40,11 @@ This folder contains the Google Cast CAF receiver implementation used for the TV
 2. Register the receiver URL under your Cast App ID in Google Cast Console.
 3. Set `VITE_CAST_SDK_ENABLED=true` and `VITE_CAST_APP_ID=<app-id>` in sender app.
 4. Start cast session from sender and create a room; receiver should transition from the waiting view to the live TV board layout.
+
+## Audio filename safety
+
+- Do not use spaces in audio file names under `public/audio/`.
+- Prefer underscore-separated names (example: `Sun_In_Our_Hands.mp3`).
+- Failure signature when this breaks on Chromecast:
+  - `NotSupportedError: The element has no supported sources`
+  - `DEMUXER_ERROR_COULD_NOT_OPEN`
