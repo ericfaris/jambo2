@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { ResolveMegaView } from '../ResolveMegaView.tsx';
 import type { AIDifficulty } from '../../ai/difficulties/index.ts';
 
 type PreGameMode = 'solo' | 'multiplayer';
@@ -11,13 +10,6 @@ interface PreGameSetupModalProps {
   onStart: (options: { castMode: boolean; aiDifficulty: AIDifficulty }) => void;
   castStartError?: string | null;
 }
-
-const sectionStyle = {
-  border: '1px solid var(--border-light)',
-  borderRadius: 10,
-  padding: 12,
-  background: 'var(--surface-light)',
-} as const;
 
 const sectionLabelStyle = {
   fontSize: 12,
@@ -35,36 +27,58 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
   const title = mode === 'solo' ? 'New Game' : 'New Multiplayer Game';
 
   return (
-    <ResolveMegaView verticalAlign="center">
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9500,
+        background: 'rgba(20,10,5,0.90)',
+        backdropFilter: 'blur(3px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
       <div
-        onClick={(event) => event.stopPropagation()}
+        className="dialog-pop"
         style={{
-          width: 'min(520px, 96vw)',
-          margin: '0 auto',
-          borderRadius: 14,
-          padding: 18,
-          backgroundImage: [
-            'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-            'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-            'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-            'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-          ].join(', '),
-          backgroundSize: '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px',
-          backgroundColor: 'var(--surface)',
-          border: '2px solid var(--border-light)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          textAlign: 'center',
           display: 'flex',
           flexDirection: 'column',
-          gap: 14,
-          color: 'var(--text)',
+          alignItems: 'center',
+          gap: 16,
+          width: 'min(460px, 90vw)',
         }}
+        onClick={(event) => event.stopPropagation()}
       >
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 28, color: 'var(--gold)' }}>
+        {/* Title */}
+        <div style={{
+          fontSize: 14,
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: 1.5,
+          color: 'var(--text-muted)',
+        }}>
+          Game Setup
+        </div>
+        <div style={{
+          fontFamily: 'var(--font-heading)',
+          fontSize: 'clamp(28px, 6vw, 44px)',
+          color: 'var(--gold)',
+          textShadow: '0 2px 12px rgba(0,0,0,0.6)',
+        }}>
           {title}
         </div>
+        <div style={{
+          width: 60,
+          height: 3,
+          borderRadius: 2,
+          background: 'var(--gold)',
+          opacity: 0.5,
+        }} />
 
         {/* Display mode */}
-        <div style={sectionStyle}>
+        <div style={{ width: '100%' }}>
           <div style={sectionLabelStyle}>Display</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <OptionButton
@@ -84,7 +98,7 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
 
         {/* AI difficulty (solo only) */}
         {mode === 'solo' && (
-          <div style={sectionStyle}>
+          <div style={{ width: '100%' }}>
             <div style={sectionLabelStyle}>AI Difficulty</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <OptionButton
@@ -109,22 +123,33 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
           </div>
         )}
 
-        {/* Actions */}
+        {/* Error */}
         {castStartError && (
-          <div style={{ color: '#ff9977', fontSize: 13, textAlign: 'right' }}>
+          <div style={{ color: '#ff9977', fontSize: 13 }}>
             {castStartError}
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+
+        {/* Divider */}
+        <div style={{
+          width: '100%',
+          height: 1,
+          background: 'var(--border-light)',
+          opacity: 0.4,
+        }} />
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={onCancel}
             style={{
-              background: 'var(--surface-light)',
+              background: 'transparent',
               border: '1px solid var(--border-light)',
-              color: 'var(--text)',
+              color: 'var(--text-muted)',
               borderRadius: 8,
-              padding: '10px 14px',
+              padding: '10px 20px',
               cursor: 'pointer',
+              fontSize: 15,
             }}
           >
             Cancel
@@ -133,18 +158,21 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
             onClick={() => onStart({ castMode, aiDifficulty: difficulty })}
             style={{
               background: 'var(--surface-accent)',
-              border: '1px solid var(--border-light)',
+              border: '2px solid var(--gold)',
               color: 'var(--gold)',
               borderRadius: 8,
-              padding: '10px 14px',
+              padding: '10px 20px',
               cursor: 'pointer',
+              fontSize: 15,
+              fontWeight: 700,
+              fontFamily: 'var(--font-heading)',
             }}
           >
             Start Game
           </button>
         </div>
       </div>
-    </ResolveMegaView>
+    </div>
   );
 }
 
@@ -161,8 +189,8 @@ function OptionButton({ selected, onClick, label, description }: {
         flex: 1,
         padding: '10px 8px',
         borderRadius: 8,
-        border: selected ? '2px solid var(--gold)' : '2px solid var(--border-light)',
-        background: selected ? 'var(--surface-accent)' : 'var(--surface)',
+        border: selected ? '2px solid var(--gold)' : '2px solid rgba(255,255,255,0.08)',
+        background: selected ? 'rgba(212,168,80,0.12)' : 'rgba(255,255,255,0.03)',
         color: selected ? 'var(--gold)' : 'var(--text)',
         cursor: 'pointer',
         textAlign: 'center',

@@ -4,106 +4,135 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  background: rgba(20,10,5,0.92);
 }
 
-.image-container {
-  position: relative;
-  width: min(1200px, 100%);
-  text-align: center;
-}
-
-.image-container img {
-  width: 100%;
-  height: auto;
-  display: block;
-  border-radius: 14px;
-  border: 2px solid var(--border-light);
-  box-shadow: 0 10px 32px rgba(0,0,0,0.45);
-}
-
-.overlay-text {
+.main-menu-bg {
   position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: min(300px, 36vw);
+  inset: 0;
+  background-image: url('/assets/menu/main_menu.png');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.main-menu-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(380px, 88vw);
+}
+
+.main-menu-label {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+}
+
+.main-menu-title {
+  font-family: var(--font-heading);
+  font-size: clamp(36px, 8vw, 56px);
+  color: var(--gold);
+  text-shadow: 0 2px 16px rgba(0,0,0,0.7);
+  line-height: 1.1;
+}
+
+.main-menu-divider {
+  width: 60px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gold);
+  opacity: 0.5;
+  margin: 4px 0;
+}
+
+.main-menu-welcome {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--text);
+}
+
+.main-menu-stats {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.main-menu-actions {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 14px;
-  border-radius: 12px;
-  background: rgba(20,10,5,0.68);
-}
-
-.menu-title {
-  color: var(--gold);
-  font-family: var(--font-heading);
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 2px;
-  text-align: left;
-}
-
-.menu-subtitle {
-  color: var(--text-muted);
-  font-size: 12px;
-  margin-bottom: 6px;
-  text-align: left;
+  width: 100%;
+  margin-top: 8px;
 }
 
 .menu-action {
-  background: var(--surface-light);
-  border: 1px solid var(--border-light);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
   color: var(--text);
   font-size: 16px;
   font-family: var(--font-heading);
   cursor: pointer;
-  padding: 8px 10px;
-  border-radius: 8px;
-  transition: background-color var(--motion-fast) var(--anim-ease-standard);
-  text-align: left;
+  padding: 12px 16px;
+  border-radius: 10px;
+  transition: background-color 0.15s, border-color 0.15s;
+  text-align: center;
 }
 
 .menu-action:hover:enabled {
-  background: var(--surface-accent);
+  background: rgba(212,168,80,0.12);
+  border-color: var(--gold);
+  color: var(--gold);
 }
 
 .menu-action:disabled {
-  opacity: 0.7;
+  opacity: 0.5;
   cursor: default;
+}
+
+.menu-action-primary {
+  background: rgba(212,168,80,0.1);
+  border: 2px solid var(--gold);
+  color: var(--gold);
+  font-size: 18px;
+  font-weight: 700;
+  padding: 14px 16px;
+}
+
+.menu-action-primary:hover:enabled {
+  background: rgba(212,168,80,0.2);
+}
+
+.menu-action-subtle {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 10px 16px;
+}
+
+.menu-action-subtle:hover:enabled {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.12);
+  color: var(--text);
 }
 
 .menu-error {
   color: var(--accent-red);
   font-size: 12px;
-  text-align: left;
 }
 
-.menu-select-row {
-  margin-top: 6px;
-  color: var(--text-muted);
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.menu-select {
-  background: var(--surface-light);
-  border: 1px solid var(--border-light);
-  color: var(--text);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 13px;
-}
-
-@media (max-width: 900px) {
-  .overlay-text {
-    position: static;
-    transform: none;
-    width: 100%;
-    margin-top: 12px;
-  }
+.menu-thin-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border-light);
+  opacity: 0.3;
+  margin: 4px 0;
 }
