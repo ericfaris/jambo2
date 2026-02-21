@@ -9,6 +9,8 @@
     '/audio/Sun on the Courtyard.mp3',
   ];
 
+  var cafPlayerManager = null;
+
   var roomState = {
     roomCode: null,
     roomMode: null,
@@ -22,7 +24,6 @@
   var streamRetryTimer = null;
   var publicRoomSnapshot = null;
   var tvMusic = {
-    audio: null,
     playlist: [],
     index: 0,
     enabled: false,
@@ -70,40 +71,22 @@
 
   function stopTvMusic() {
     tvMusic.enabled = false;
-    if (tvMusic.audio) {
-      tvMusic.audio.pause();
-      tvMusic.audio.src = '';
+    if (cafPlayerManager) {
+      try { cafPlayerManager.stop(); } catch (_) {}
     }
-  }
-
-  function tryPlayAudio(audio) {
-    if (!audio || typeof audio.play !== 'function') {
-      return;
-    }
-    try {
-      var result = audio.play();
-      if (result && typeof result.catch === 'function') {
-        result.catch(function (err) {
-          console.warn('[TV Music] play() rejected:', err);
-          // Retry once after a short delay — Chromecast may need a moment
-          // after receiver start before autoplay is permitted.
-          setTimeout(function () {
-            if (tvMusic.enabled && audio.paused) {
-              console.log('[TV Music] Retrying play()...');
-              audio.play().catch(function (retryErr) {
-                console.warn('[TV Music] Retry also failed:', retryErr);
-              });
-            }
-          }, 2000);
-        });
-      }
-    } catch (_err) {
-      console.warn('[TV Music] Synchronous play() error:', _err);
+    var bgMusicEl = document.getElementById('bgMusic');
+    if (bgMusicEl) {
+      bgMusicEl.pause();
+      bgMusicEl.src = '';
     }
   }
 
   function playNextTvTrack() {
-    if (!tvMusic.enabled || !tvMusic.audio || tvMusic.playlist.length === 0) {
+    if (!tvMusic.enabled || tvMusic.playlist.length === 0) {
+      return;
+    }
+    if (!cafPlayerManager) {
+      console.warn('[TV Music] cafPlayerManager not ready');
       return;
     }
     if (tvMusic.index >= tvMusic.playlist.length) {
@@ -112,31 +95,32 @@
     }
     var baseUrl = (roomState.apiBaseUrl || '').replace(/\/+$/, '');
     var trackUrl = baseUrl + tvMusic.playlist[tvMusic.index];
-    console.log('[TV Music] Loading track:', trackUrl);
-    tvMusic.audio.src = trackUrl;
+    console.log('[TV Music] Loading track via CAF:', trackUrl);
     tvMusic.index += 1;
-    tryPlayAudio(tvMusic.audio);
+
+    var mediaInfo = new cast.framework.messages.MediaInformation();
+    mediaInfo.contentId = trackUrl;
+    mediaInfo.contentType = 'audio/mpeg';
+    mediaInfo.streamType = cast.framework.messages.StreamType.BUFFERED;
+
+    var loadRequest = new cast.framework.messages.LoadRequestData();
+    loadRequest.media = mediaInfo;
+    loadRequest.autoplay = true;
+
+    cafPlayerManager.load(loadRequest).then(function () {
+      console.log('[TV Music] CAF load() succeeded');
+      var bgMusicEl = document.getElementById('bgMusic');
+      if (bgMusicEl) bgMusicEl.volume = 0.15;
+    }).catch(function (err) {
+      console.warn('[TV Music] CAF load() failed:', err);
+      // Skip to next track after a short delay
+      setTimeout(function () {
+        if (tvMusic.enabled) playNextTvTrack();
+      }, 2000);
+    });
   }
 
   function ensureTvMusicPlaying() {
-    if (!tvMusic.audio) {
-      try {
-        var audio = new Audio();
-        audio.loop = false;
-        audio.volume = 0.15;
-        audio.addEventListener('ended', playNextTvTrack);
-        audio.addEventListener('error', function () {
-          console.warn('[TV Music] Audio load error for:', audio.src);
-          // Skip to next track on load failure
-          setTimeout(playNextTvTrack, 1000);
-        });
-        tvMusic.audio = audio;
-      } catch (_err) {
-        console.warn('[TV Music] Failed to create Audio element:', _err);
-        tvMusic.enabled = false;
-        return;
-      }
-    }
     if (!tvMusic.enabled) {
       tvMusic.enabled = true;
       tvMusic.playlist = shufflePlaylist(TV_MUSIC_PLAYLIST);
@@ -144,8 +128,10 @@
       playNextTvTrack();
       return;
     }
-    if (tvMusic.audio.paused) {
-      tryPlayAudio(tvMusic.audio);
+    // If already enabled but paused (e.g. after error recovery), restart
+    var bgMusicEl = document.getElementById('bgMusic');
+    if (bgMusicEl && bgMusicEl.paused && cafPlayerManager) {
+      playNextTvTrack();
     }
   }
 
@@ -675,9 +661,32 @@
   function main() {
     var context = cast.framework.CastReceiverContext.getInstance();
     var playerManager = context.getPlayerManager();
+
+    // Register the dedicated <audio> element with CAF's PlayerManager
+    var bgMusicEl = document.getElementById('bgMusic');
+    if (bgMusicEl) {
+      playerManager.setMediaElement(bgMusicEl);
+    }
+    cafPlayerManager = playerManager;
+
+    // When a track finishes naturally, advance to the next one
+    playerManager.addEventListener(
+      cast.framework.events.EventType.MEDIA_FINISHED,
+      function () {
+        if (tvMusic.enabled) {
+          console.log('[TV Music] Track ended, advancing playlist');
+          playNextTvTrack();
+        }
+      }
+    );
+
     playerManager.setMessageInterceptor(
       cast.framework.messages.MessageType.LOAD,
       function (loadRequestData) {
+        // Ensure background music volume after CAF processes the load
+        setTimeout(function () {
+          if (bgMusicEl) bgMusicEl.volume = 0.15;
+        }, 100);
         return loadRequestData;
       }
     );
