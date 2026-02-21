@@ -153,6 +153,7 @@ const debugButtonStyle: CSSProperties = {
 function DebugOverlay() {
   const entries = useDebugEntries();
   const [expanded, setExpanded] = useState(true);
+  const displayedEntries = [...entries].reverse();
 
   return (
     <div
@@ -207,7 +208,7 @@ function DebugOverlay() {
           {entries.length === 0 && (
             <div style={{ color: '#d0bfaa' }}>No logs yet.</div>
           )}
-          {entries.map((entry) => (
+          {displayedEntries.map((entry) => (
             <div
               key={entry.id}
               style={{
