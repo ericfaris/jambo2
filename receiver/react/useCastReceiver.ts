@@ -50,8 +50,14 @@ declare const cast: {
 interface CastReceiverContextInstance {
   addCustomMessageListener(namespace: string, handler: (event: CustomMessageEvent) => void): void;
   sendCustomMessage(namespace: string, senderId: string, data: unknown): void;
+  setOptions(options: Record<string, unknown>): void;
   start(): void;
-  getPlayerManager(): { setMessageInterceptor(type: unknown, handler: (data: unknown) => unknown): void };
+  getPlayerManager(): PlayerManagerInstance;
+}
+
+interface PlayerManagerInstance {
+  setMessageInterceptor(type: unknown, handler: (data: unknown) => unknown): void;
+  setMediaElement(element: HTMLMediaElement): void;
 }
 
 interface CustomMessageEvent {
@@ -258,7 +264,23 @@ export function useCastReceiver(): WebSocketGameState {
     };
 
     context.addCustomMessageListener(NAMESPACE, handleCustomMessage);
-    context.start({ disableIdleTimeout: true });
+
+    // Disable idle timeout — prevents Chromecast from going back to screensaver.
+    // CAF v3 uses setOptions before start(), and maxInactivity=0 on PlayerManager.
+    try {
+      context.setOptions({ disableIdleTimeout: true });
+    } catch {
+      console.warn('[CastReceiver] setOptions failed — CAF version may differ');
+    }
+    try {
+      const playerManager = context.getPlayerManager();
+      // maxInactivity=0 disables the idle timeout entirely
+      (playerManager as unknown as Record<string, unknown>).maxInactivity = 0;
+    } catch {
+      console.warn('[CastReceiver] Could not set maxInactivity on PlayerManager');
+    }
+
+    context.start();
 
     return () => {
       clearPollTimer();
