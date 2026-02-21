@@ -645,7 +645,15 @@
       }
     );
     context.addCustomMessageListener(NAMESPACE, handleCustomMessage);
-    context.start({ disableIdleTimeout: true });
+    context.addEventListener(
+      cast.framework.system.EventType.SENDER_DISCONNECTED,
+      function () {
+        if (context.getSenders().length === 0) {
+          console.log('All senders disconnected, receiver staying alive');
+        }
+      }
+    );
+    context.start({ maxInactivity: Infinity });
     setConnection('Receiver state: ready', false);
     renderRoom();
   }
