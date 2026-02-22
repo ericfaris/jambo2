@@ -6,10 +6,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { AudioEvent } from '../multiplayer/types.ts';
-import {
-  applyAudioSettingsToElement,
-  AUDIO_SETTINGS_CHANGE_EVENT,
-} from './audioSettings.ts';
+import { getEffectiveVolume } from './audioSettings.ts';
 
 const AUDIO_FILES: Record<AudioEvent, string> = {
   'coin': '/audio/sfx/coin.mp3',
@@ -24,21 +21,6 @@ const SFX_BASE_VOLUME = 0.5;
 
 export function useAudioEvents(audioEvent: AudioEvent | null, clearAudioEvent: () => void): void {
   const lastPlayed = useRef<string | null>(null);
-  const activeAudioRef = useRef<Set<HTMLAudioElement>>(new Set());
-
-  useEffect(() => {
-    const syncActiveAudio = () => {
-      for (const activeAudio of activeAudioRef.current) {
-        applyAudioSettingsToElement(activeAudio, SFX_BASE_VOLUME);
-      }
-    };
-
-    window.addEventListener(AUDIO_SETTINGS_CHANGE_EVENT, syncActiveAudio);
-    return () => {
-      window.removeEventListener(AUDIO_SETTINGS_CHANGE_EVENT, syncActiveAudio);
-      activeAudioRef.current.clear();
-    };
-  }, []);
 
   useEffect(() => {
     if (!audioEvent) return;
@@ -51,15 +33,8 @@ export function useAudioEvents(audioEvent: AudioEvent | null, clearAudioEvent: (
     const file = AUDIO_FILES[audioEvent];
     if (file) {
       const audio = new Audio(file);
-      applyAudioSettingsToElement(audio, SFX_BASE_VOLUME);
-      activeAudioRef.current.add(audio);
-      const releaseAudio = () => {
-        activeAudioRef.current.delete(audio);
-      };
-      audio.addEventListener('ended', releaseAudio, { once: true });
-      audio.addEventListener('error', releaseAudio, { once: true });
+      audio.volume = getEffectiveVolume() * SFX_BASE_VOLUME;
       audio.play().catch(() => {
-        releaseAudio();
         // Silently fail — audio files may not exist yet
       });
     }

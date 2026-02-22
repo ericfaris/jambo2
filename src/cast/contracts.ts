@@ -33,11 +33,6 @@ export type SenderToReceiverMessage =
     }
   | {
       type: 'TOGGLE_DEBUG';
-    }
-  | {
-      type: 'SET_AUDIO_SETTINGS';
-      muted: boolean;
-      volume: number;
     };
 
 // Receiver -> Sender status messages.

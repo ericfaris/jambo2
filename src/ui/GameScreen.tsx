@@ -22,14 +22,7 @@ import { MegaView } from './MegaView.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason } from './uiHints.ts';
-import {
-  getVolume,
-  setVolume as saveVolume,
-  getMuted,
-  setMuted as saveMuted,
-  resetAudioSettings,
-  notifyAudioSettingsChanged,
-} from './audioSettings.ts';
+import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
 import { fetchUserStatsSummary, recordCompletedGame } from '../persistence/userStatsApi.ts';
 import type { UserStatsSummary } from '../persistence/userStatsApi.ts';
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
@@ -505,21 +498,13 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     window.localStorage.setItem(TUTORIAL_SEEN_STORAGE_KEY, 'true');
   }, []);
 
-  const applyAudioSettings = useCallback((nextMuted: boolean, nextVolume: number) => {
-    const normalizedVolume = Math.max(0, Math.min(100, Math.round(nextVolume)));
-    setMuted(nextMuted);
-    setVolume(normalizedVolume);
-    saveMuted(nextMuted);
-    saveVolume(normalizedVolume);
-    notifyAudioSettingsChanged();
-  }, []);
-
   const resetUiPrefs = useCallback(() => {
     setShowLog(false);
     setAnimationSpeed('normal');
     setShowDevTelemetry(false);
     setHighContrast(false);
-    applyAudioSettings(false, 50);
+    setVolume(50);
+    setMuted(false);
     setShowUxDebug(false);
     setTelemetryEvents([]);
     setUxDebugCounts({ longPending: 0, blockedPlay: 0, blockedDraw: 0 });
@@ -533,9 +518,9 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
       window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
       window.localStorage.removeItem(UX_DEBUG_STORAGE_KEY);
       resetAudioSettings();
-      notifyAudioSettingsChanged();
+      window.dispatchEvent(new Event('jambo-volume-change'));
     }
-  }, [applyAudioSettings]);
+  }, []);
 
   // Block the entire game UI until the tutorial is dismissed
   if (showTutorial) {
@@ -965,6 +950,54 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               fontSize: 15,
               color: 'var(--text)',
             }}>
+              Mute Audio
+              <input
+                type="checkbox"
+                checked={muted}
+                onChange={() => {
+                  const next = !muted;
+                  setMuted(next);
+                  saveMuted(next);
+                  window.dispatchEvent(new Event('jambo-volume-change'));
+                }}
+                style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+              />
+            </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: 10,
+              fontSize: 15,
+              color: muted ? 'var(--text-muted)' : 'var(--text)',
+            }}>
+              Volume
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={volume}
+                disabled={muted}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setVolume(v);
+                  saveVolume(v);
+                  window.dispatchEvent(new Event('jambo-volume-change'));
+                }}
+                style={{ width: 100, accentColor: 'var(--gold)', cursor: muted ? 'default' : 'pointer' }}
+              />
+            </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginTop: 10,
+              cursor: 'pointer',
+              fontSize: 15,
+              color: 'var(--text)',
+            }}>
               High Contrast Mode
               <input
                 type="checkbox"
@@ -973,108 +1006,45 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
               />
             </label>
-
-            <div style={{
-              marginTop: 12,
-              padding: 10,
-              border: '1px solid var(--border-light)',
-              borderRadius: 8,
-              background: 'var(--surface-light)',
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Audio
-              </div>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                cursor: 'pointer',
-                fontSize: 15,
-                color: 'var(--text)',
-              }}>
-                Mute Audio
-                <input
-                  type="checkbox"
-                  checked={muted}
-                  onChange={() => {
-                    applyAudioSettings(!muted, volume);
-                  }}
-                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-                />
-              </label>
+            {isDevMode() && (
               <label style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: 10,
                 marginTop: 10,
+                cursor: 'pointer',
                 fontSize: 15,
-                color: muted ? 'var(--text-muted)' : 'var(--text)',
+                color: 'var(--text)',
               }}>
-                Volume
+                Dev Telemetry Overlay
                 <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={volume}
-                  disabled={muted}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    applyAudioSettings(muted, v);
-                  }}
-                  style={{ width: 100, accentColor: 'var(--gold)', cursor: muted ? 'default' : 'pointer' }}
+                  type="checkbox"
+                  checked={showDevTelemetry}
+                  onChange={() => setShowDevTelemetry((previous) => !previous)}
+                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
                 />
               </label>
-            </div>
-
+            )}
             {isDevMode() && (
-              <div style={{
-                marginTop: 12,
-                padding: 10,
-                border: '1px solid var(--border-light)',
-                borderRadius: 8,
-                background: 'var(--surface-light)',
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                marginTop: 10,
+                cursor: 'pointer',
+                fontSize: 15,
+                color: 'var(--text)',
               }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  Debugging
-                </div>
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  cursor: 'pointer',
-                  fontSize: 15,
-                  color: 'var(--text)',
-                }}>
-                  Dev Telemetry Overlay
-                  <input
-                    type="checkbox"
-                    checked={showDevTelemetry}
-                    onChange={() => setShowDevTelemetry((previous) => !previous)}
-                    style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-                  />
-                </label>
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  marginTop: 10,
-                  cursor: 'pointer',
-                  fontSize: 15,
-                  color: 'var(--text)',
-                }}>
-                  UX Debug Counters
-                  <input
-                    type="checkbox"
-                    checked={showUxDebug}
-                    onChange={() => setShowUxDebug((previous) => !previous)}
-                    style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
-                  />
-                </label>
-              </div>
+                UX Debug Counters
+                <input
+                  type="checkbox"
+                  checked={showUxDebug}
+                  onChange={() => setShowUxDebug((previous) => !previous)}
+                  style={{ accentColor: 'var(--gold)', width: 16, height: 16, cursor: 'pointer' }}
+                />
+              </label>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
               <button

@@ -27,8 +27,6 @@
     playlist: [],
     index: 0,
     enabled: false,
-    muted: false,
-    volume: 100,
   };
 
   var placeholderEl = document.getElementById('placeholder');
@@ -71,22 +69,6 @@
     return shuffled;
   }
 
-  function normalizeVolume(rawValue) {
-    var numeric = Number(rawValue);
-    if (!isFinite(numeric)) return 100;
-    if (numeric < 0) return 0;
-    if (numeric > 100) return 100;
-    return Math.round(numeric);
-  }
-
-  function applyTvMusicVolume() {
-    var bgMusicEl = document.getElementById('bgMusic');
-    if (!bgMusicEl) return;
-    var effectiveVolume = tvMusic.muted ? 0 : (tvMusic.volume / 100);
-    bgMusicEl.muted = tvMusic.muted;
-    bgMusicEl.volume = Math.max(0, Math.min(1, effectiveVolume * 0.15));
-  }
-
   function stopTvMusic() {
     tvMusic.enabled = false;
     if (cafPlayerManager) {
@@ -127,7 +109,8 @@
 
     cafPlayerManager.load(loadRequest).then(function () {
       console.log('[TV Music] CAF load() succeeded');
-      applyTvMusicVolume();
+      var bgMusicEl = document.getElementById('bgMusic');
+      if (bgMusicEl) bgMusicEl.volume = 0.15;
     }).catch(function (err) {
       console.warn('[TV Music] CAF load() failed:', err);
       // Skip to next track after a short delay
@@ -619,21 +602,6 @@
       return;
     }
 
-    if (payload.type === 'SET_AUDIO_SETTINGS') {
-      if (typeof payload.muted !== 'boolean') {
-        sendError(senderId, 'INVALID_PAYLOAD', 'muted must be a boolean.');
-        return;
-      }
-      if (typeof payload.volume !== 'number' || !isFinite(payload.volume)) {
-        sendError(senderId, 'INVALID_PAYLOAD', 'volume must be a finite number.');
-        return;
-      }
-      tvMusic.muted = payload.muted;
-      tvMusic.volume = normalizeVolume(payload.volume);
-      applyTvMusicVolume();
-      return;
-    }
-
     if (payload.type === 'TOGGLE_DEBUG') {
       var overlay = document.getElementById('debugOverlay');
       if (overlay) {
@@ -698,7 +666,6 @@
     var bgMusicEl = document.getElementById('bgMusic');
     if (bgMusicEl) {
       playerManager.setMediaElement(bgMusicEl);
-      applyTvMusicVolume();
     }
     cafPlayerManager = playerManager;
 
@@ -716,9 +683,9 @@
     playerManager.setMessageInterceptor(
       cast.framework.messages.MessageType.LOAD,
       function (loadRequestData) {
-        // Ensure background music volume after CAF processes the load.
+        // Ensure background music volume after CAF processes the load
         setTimeout(function () {
-          applyTvMusicVolume();
+          if (bgMusicEl) bgMusicEl.volume = 0.15;
         }, 100);
         return loadRequestData;
       }

@@ -4,7 +4,6 @@
 
 const VOLUME_STORAGE_KEY = 'jambo.volume';
 const MUTED_STORAGE_KEY = 'jambo.muted';
-export const AUDIO_SETTINGS_CHANGE_EVENT = 'jambo-volume-change';
 
 export function getVolume(): number {
   if (typeof window === 'undefined') return 50;
@@ -33,17 +32,6 @@ export function setMuted(m: boolean): void {
 export function getEffectiveVolume(): number {
   if (getMuted()) return 0;
   return getVolume() / 100;
-}
-
-export function applyAudioSettingsToElement(audio: HTMLMediaElement, baseVolume = 1): void {
-  const normalizedBase = Number.isFinite(baseVolume) ? Math.max(0, Math.min(1, baseVolume)) : 1;
-  audio.muted = getMuted();
-  audio.volume = Math.max(0, Math.min(1, getEffectiveVolume() * normalizedBase));
-}
-
-export function notifyAudioSettingsChanged(): void {
-  if (typeof window === 'undefined') return;
-  window.dispatchEvent(new Event(AUDIO_SETTINGS_CHANGE_EVENT));
 }
 
 export function resetAudioSettings(): void {
