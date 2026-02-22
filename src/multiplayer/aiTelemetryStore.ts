@@ -51,7 +51,11 @@ async function getMongoClient(): Promise<MongoClient> {
     if (!uri) {
       throw new Error('MONGODB_URI is not configured');
     }
-    mongoClientPromise = new MongoClient(uri).connect();
+    mongoClientPromise = new MongoClient(uri).connect().catch((error: unknown) => {
+      // Allow subsequent writes to retry after transient connect failures.
+      mongoClientPromise = null;
+      throw error;
+    });
   }
   return mongoClientPromise;
 }

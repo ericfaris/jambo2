@@ -341,8 +341,6 @@ function scheduleAiTurn(room: Room): void {
     if (!isWaitingForPlayer(room.state, aiSlot)) return;
 
     const decisionState = room.state;
-    const candidates = getValidActions(decisionState).map((candidate) => ({ action: candidate }));
-    const features = extractAiTurnFeatures(decisionState, aiSlot);
     const action = getAiActionByDifficulty(decisionState, room.aiDifficulty);
     if (!action) return;
 
@@ -354,6 +352,8 @@ function scheduleAiTurn(room: Room): void {
       broadcastState(room, audioEvent, aiMessage);
 
       if (room.telemetrySampled && room.telemetryGameId) {
+        const candidates = getValidActions(decisionState).map((candidate) => ({ action: candidate }));
+        const features = extractAiTurnFeatures(decisionState, aiSlot);
         const turnIndex = room.telemetryDecisionIndex;
         room.telemetryDecisionIndex += 1;
 
