@@ -70,7 +70,26 @@ describe('AI difficulties baseline', () => {
 
     expect(getAiActionByDifficulty(state, 'easy', low)).toEqual({ type: 'GUARD_REACTION', play: true });
     expect(getAiActionByDifficulty(state, 'medium', high)).toEqual({ type: 'GUARD_REACTION', play: false });
-    expect(getAiActionByDifficulty(state, 'hard', low)).toEqual({ type: 'GUARD_REACTION', play: true });
+    const hard = getAiActionByDifficulty(state, 'hard', low);
+    expect(hard).not.toBeNull();
+    expect(hard).toEqual({ type: 'GUARD_REACTION', play: true });
+  });
+
+  it('hard returns a legal Rain Maker reaction decision', () => {
+    let state = createTestState(13);
+    state = withHand(state, 0, ['rain_maker_1']);
+    state = {
+      ...state,
+      discardPile: ['ware_3k_1', ...state.discardPile],
+      pendingWareCardReaction: {
+        wareCardId: 'ware_3k_1',
+        targetPlayer: 0,
+      },
+    };
+
+    const hard = getHardAiAction(state, () => 0.9);
+    expect(hard).toEqual({ type: 'WARE_CARD_REACTION', play: false });
+    expect(validateAction(state, hard!).valid).toBe(true);
   });
 
   it('medium and hard prefer profitable ware sell over ending turn', () => {
@@ -84,6 +103,64 @@ describe('AI difficulties baseline', () => {
 
     expect(medium).toEqual({ type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'sell' });
     expect(hard).toEqual({ type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'sell' });
+  });
+
+  it('easy prefers a ware action when one is available', () => {
+    let state = toPlayPhase(createTestState(445));
+    state = withHand(state, 0, ['ware_3k_1', 'well_1']);
+    state = withMarket(state, 0, ['trinkets', 'trinkets', 'trinkets', null, null, null]);
+    state = withGold(state, 0, 20);
+
+    const action = getEasyAiAction(state, () => 0.1);
+    expect(action).toEqual({ type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'buy' });
+  });
+
+  it('medium and hard prefer high-value ware buy over ending turn', () => {
+    let state = toPlayPhase(createTestState(446));
+    state = withHand(state, 0, ['ware_3k_1']);
+    state = withMarket(state, 0, [null, null, null, null, null, null]);
+    state = withGold(state, 0, 20);
+
+    const medium = getMediumAiAction(state, () => 0.1);
+    const hard = getHardAiAction(state, () => 0.1);
+
+    expect(medium).toEqual({ type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'buy' });
+    expect(hard).toEqual({ type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'buy' });
+  });
+
+  it('hard prefers shaman when it creates strong ware combo potential', () => {
+    let state = toPlayPhase(createTestState(447));
+    state = withHand(state, 0, ['shaman_1', 'ware_3s_1']);
+    state = withMarket(state, 0, ['trinkets', 'trinkets', 'trinkets', null, null, null]);
+    state = withGold(state, 0, 20);
+
+    const hard = getHardAiAction(state, () => 0.1);
+    expect(hard).toEqual({ type: 'PLAY_CARD', cardId: 'shaman_1' });
+  });
+
+  it('hard uses cheetah defensively when opponent gold is near endgame', () => {
+    let state = toPlayPhase(createTestState(448));
+    state = withHand(state, 0, ['cheetah_1', 'parrot_1']);
+    state = withMarket(state, 0, [null, null, null, null, null, null]);
+    state = withMarket(state, 1, ['tea', null, null, null, null, null]);
+    state = withGold(state, 0, 24);
+    state = withGold(state, 1, 58);
+
+    const hard = getHardAiAction(state, () => 0.1);
+    expect(hard).toEqual({ type: 'PLAY_CARD', cardId: 'cheetah_1' });
+  });
+
+  it('hard uses ape defensively when opponent hand size is very high', () => {
+    let state = toPlayPhase(createTestState(449));
+    state = withHand(state, 0, ['ape_1', 'parrot_1']);
+    state = withHand(state, 1, ['guard_1', 'guard_2', 'guard_3', 'well_1', 'well_2', 'drums_1', 'drums_2', 'ware_3k_1', 'ware_3h_1']);
+    state = withMarket(state, 0, [null, null, null, null, null, null]);
+    state = withMarket(state, 1, ['tea', null, null, null, null, null]);
+    state = withGold(state, 0, 22);
+    state = withGold(state, 1, 28);
+
+    const hard = getHardAiAction(state, () => 0.1);
+    expect(hard).toEqual({ type: 'PLAY_CARD', cardId: 'ape_1' });
   });
 
   it('medium keeps a strong drawn card in draw phase', () => {

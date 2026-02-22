@@ -9,8 +9,10 @@ import {
   getAuctionMaxBid,
   getCardEconomyValue,
   getCardPressureBonus,
+  getDefensiveAnimalPriority,
   getHandRiskPenalty,
   getMarketExposurePenalty,
+  getPeoplePlayComboPriority,
   getUtilityActivationPriority,
   getUtilityPlayPriority,
   getUtilitySetStrength,
@@ -123,18 +125,20 @@ function tacticalActionBonus(state: GameState, action: GameAction, me: 0 | 1): n
     }
     if (card.type === 'animal') {
       const pressure = getCardPressureBonus(state, me, action.cardId);
+      const defense = getDefensiveAnimalPriority(state, me, card.designId);
       if (card.designId === 'crocodile') {
-        return state.players[opponent].utilities.length * 2.6 + pressure;
+        return state.players[opponent].utilities.length * 2.6 + pressure + defense;
       }
       if (card.designId === 'parrot') {
-        return 8 + pressure;
+        return 8 + pressure + defense;
       }
-      return 2 + pressure;
+      return 2 + pressure + defense;
     }
     if (card.type === 'people') {
       const pressure = getCardPressureBonus(state, me, action.cardId);
-      if (card.designId === 'portuguese') return state.players[me].market.filter(w => w !== null).length * 1.5;
-      return 3 + pressure;
+      const combo = getPeoplePlayComboPriority(state, me, card.designId);
+      if (card.designId === 'portuguese') return state.players[me].market.filter(w => w !== null).length * 1.5 + combo;
+      return 3 + pressure + combo;
     }
     if (card.type === 'utility') {
       if (state.players[me].utilities.length >= 3) return -8;
@@ -195,6 +199,18 @@ function scoreAction(state: GameState, action: GameAction): number {
   } catch {
     return Number.NEGATIVE_INFINITY;
   }
+}
+
+function isWarePlayAction(action: GameAction): boolean {
+  return action.type === 'PLAY_CARD' && (action.wareMode === 'buy' || action.wareMode === 'sell');
+}
+
+function pickWareNearTop(scored: ReadonlyArray<{ action: GameAction; score: number }>, topScore: number): GameAction | null {
+  const nearTopThreshold = 12;
+  const wareCandidates = scored
+    .filter((entry) => isWarePlayAction(entry.action) && topScore - entry.score <= nearTopThreshold)
+    .sort((a, b) => b.score - a.score);
+  return wareCandidates[0]?.action ?? null;
 }
 
 function getHardAuctionBidAction(state: GameState): GameAction | null {
@@ -265,6 +281,8 @@ export function getHardAiAction(state: GameState, rng: () => number = createHard
 
   const scored = validActions.map((action) => ({ action, score: scoreAction(state, action) }));
   const topScore = Math.max(...scored.map(s => s.score));
+  const wareNearTop = pickWareNearTop(scored, topScore);
+  if (wareNearTop) return wareNearTop;
 
   const mediumAction = getMediumAiAction(state, rng);
   if (mediumAction) {
