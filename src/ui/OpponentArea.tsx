@@ -22,7 +22,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
         onHide={onMessageHide || (() => {})}
       />
       <div className="etched-wood-border" style={{
-        background: 'rgba(20,10,5,0.3)',
+        background: 'rgba(20,10,5,0.5)',
         borderRadius: 10,
         padding: 16,
       }}>
@@ -31,7 +31,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
         display: 'flex',
         gap: 20,
         flexWrap: 'wrap',
-        background: 'rgba(20,10,5,0.24)',
+        background: 'rgba(20,10,5,0.4)',
         borderRadius: 10,
         padding: '10px 10px 36px',
       }}>
@@ -45,6 +45,7 @@ function OpponentAreaComponent({ player, aiMessage, onMessageHide, goldDelta = 0
           fontWeight: 700,
           fontSize: 18,
           color: 'var(--text)',
+          textShadow: '0 2px 12px rgba(0,0,0,0.6)',
         }}>
           {label}
         </span>

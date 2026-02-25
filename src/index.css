@@ -167,12 +167,11 @@ h6 {
 }
 
 .etched-wood-border {
-  border: 1px solid rgba(122, 90, 62, 0.7);
+  border: 1px solid rgba(122, 90, 62, 0.5);
   box-shadow:
-    inset 0 1px 0 rgba(232, 220, 200, 0.2),
-    inset 0 -1px 0 rgba(15, 8, 4, 0.48),
-    inset 0 0 0 2px rgba(45, 28, 18, 0.42),
-    0 0 0 1px rgba(10, 5, 2, 0.35);
+    inset 0 1px 0 rgba(232, 220, 200, 0.08),
+    inset 0 -1px 0 rgba(15, 8, 4, 0.4),
+    0 4px 16px rgba(0,0,0,0.3);
 }
 
 button:focus-visible,
@@ -184,17 +183,17 @@ select:focus-visible {
 
 button {
   cursor: pointer;
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
   padding: 8px 18px;
   font-size: 1rem;
-  font-family: inherit;
+  font-family: var(--font-heading);
   line-height: 1.25;
   letter-spacing: 0.005em;
   color: var(--text);
-  background: var(--surface-light);
+  background: rgba(255,255,255,0.04);
   transition: all var(--motion-fast) var(--anim-ease-standard);
-  text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 
 .turn-emphasis {
@@ -206,8 +205,8 @@ button {
 }
 
 .turn-emphasis-active {
-  box-shadow: 0 0 20px rgba(212, 168, 80, 0.4), inset 0 0 20px rgba(212, 168, 80, 0.1);
-  border: 2px solid rgba(212, 168, 80, 0.6);
+  box-shadow: 0 0 24px rgba(212, 168, 80, 0.35), 0 4px 16px rgba(0,0,0,0.3);
+  border: 1px solid rgba(212, 168, 80, 0.5);
 }
 
 .turn-emphasis-inactive {
@@ -218,8 +217,9 @@ button {
   font-family: var(--font-heading);
   font-size: 14px;
   color: var(--text-muted);
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
   line-height: 1.25;
   margin-bottom: 6px;
 }
@@ -253,7 +253,8 @@ button {
 
 button:hover:not(:disabled) {
   border-color: var(--gold);
-  background: var(--surface-accent);
+  background: rgba(212,168,80,0.12);
+  color: var(--gold);
 }
 
 button:disabled {
@@ -262,19 +263,25 @@ button:disabled {
 }
 
 button.primary {
-  background: var(--accent-green);
-  border-color: #7a9a4a;
+  background: rgba(212,168,80,0.10);
+  border: 2px solid var(--gold);
+  color: var(--gold);
+  font-weight: 700;
 }
 button.primary:hover:not(:disabled) {
-  background: #7a9a50;
+  background: rgba(212,168,80,0.20);
+  color: var(--gold);
 }
 
 button.danger {
-  background: #4a1a12;
-  border-color: #8a3a2a;
+  background: rgba(192,64,48,0.10);
+  border: 2px solid var(--accent-red);
+  color: var(--accent-red);
+  font-weight: 700;
 }
 button.danger:hover:not(:disabled) {
-  background: #c85a40;
+  background: rgba(192,64,48,0.20);
+  color: var(--accent-red);
 }
 
 /* Animations */

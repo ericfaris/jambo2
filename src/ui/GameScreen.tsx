@@ -18,6 +18,7 @@ import { InteractionPanel } from './InteractionPanel.tsx';
 import { GameLog } from './GameLog.tsx';
 import { EndgameOverlay } from './EndgameOverlay.tsx';
 import { ResolveMegaView } from './ResolveMegaView.tsx';
+import { isHandInteraction } from './HandReferenceStrip.tsx';
 import { MegaView } from './MegaView.tsx';
 import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { useVisualFeedback } from './useVisualFeedback.ts';
@@ -546,7 +547,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         {/* Opponent area */}
         <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === opponentPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
           borderRadius: 12,
-          background: 'rgba(20,10,5,0.34)',
+          background: 'rgba(20,10,5,0.75)',
+          backdropFilter: 'blur(3px)',
         }} data-center-target="top">
           <OpponentArea
             player={state.players[opponentPlayer]}
@@ -567,14 +569,15 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         <div className={`etched-wood-border turn-emphasis ${state.currentPlayer === viewerPlayer ? 'turn-emphasis-active' : 'turn-emphasis-inactive'}`} style={{
           borderRadius: 12,
           padding: '12px',
-          background: 'rgba(20,10,5,0.28)',
+          background: 'rgba(20,10,5,0.75)',
+          backdropFilter: 'blur(3px)',
         }} data-center-target="bottom">
           {/* Player board */}
           <div className="etched-wood-border" style={{
             display: 'flex',
             flexDirection: 'column',
             gap: 14,
-            background: 'rgba(20,10,5,0.24)',
+            background: 'rgba(20,10,5,0.5)',
             borderRadius: 10,
             padding: 14,
             marginBottom: 10,
@@ -620,6 +623,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               fontWeight: 700,
               fontSize: 18,
               color: state.currentPlayer === viewerPlayer ? 'var(--gold)' : 'var(--text)',
+              textShadow: '0 2px 12px rgba(0,0,0,0.6)',
             }}>
               {localMultiplayer ? `Player ${viewerPlayer + 1}` : 'You'} {state.currentPlayer === viewerPlayer && '(Active)'}
             </span>
@@ -741,7 +745,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           flexDirection: 'column',
           gap: 6,
         }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', fontWeight: 600 }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 15, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5 }}>
             Game Log
           </div>
           <GameLog log={state.log} />
@@ -759,8 +763,8 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: menuOpen ? 'var(--surface-accent)' : 'var(--surface-light)',
-            border: '1px solid var(--border-light)',
+            background: menuOpen ? 'rgba(212,168,80,0.15)' : 'rgba(20,10,5,0.85)',
+            border: menuOpen ? '1px solid var(--gold)' : '1px solid rgba(122,90,62,0.5)',
             borderRadius: '50%',
             overflow: 'hidden',
           }}
@@ -789,21 +793,22 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
             position: 'absolute',
             top: 42,
             right: 0,
-            background: 'var(--surface)',
-            border: '1px solid var(--border-light)',
+            background: 'rgba(20,10,5,0.92)',
+            border: '1px solid rgba(122,90,62,0.5)',
             borderRadius: 10,
             padding: 12,
             minWidth: 220,
             boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(3px)',
           }}>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--gold)', marginBottom: 12 }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--gold)', marginBottom: 12, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>
               Settings
             </div>
             <div style={{
               padding: 10,
-              border: '1px solid var(--border-light)',
-              borderRadius: 8,
-              background: 'var(--surface-light)',
+              border: '1px solid rgba(212,168,80,0.2)',
+              borderRadius: 10,
+              background: 'rgba(212,168,80,0.08)',
               marginBottom: 10,
             }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
@@ -835,13 +840,14 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                   style={{
                     marginTop: 8,
                     width: '100%',
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border-light)',
-                    color: 'var(--text)',
-                    borderRadius: 6,
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'var(--text-muted)',
+                    borderRadius: 10,
                     padding: '6px 8px',
                     cursor: 'pointer',
                     textAlign: 'left',
+                    fontSize: 14,
                   }}
                 >
                   Logout
@@ -860,10 +866,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                   }}
                   style={{
                     width: '100%',
-                    background: 'var(--surface-light)',
-                    border: '1px solid var(--border-light)',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
                     color: 'var(--text)',
-                    borderRadius: 8,
+                    borderRadius: 10,
                     padding: '8px 10px',
                     cursor: 'pointer',
                     textAlign: 'left',
@@ -879,10 +885,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                   }}
                   style={{
                     width: '100%',
-                    background: 'var(--surface-light)',
-                    border: '1px solid var(--border-light)',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
                     color: 'var(--text)',
-                    borderRadius: 8,
+                    borderRadius: 10,
                     padding: '8px 10px',
                     cursor: 'pointer',
                     textAlign: 'left',
@@ -891,7 +897,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 >
                   How to Play
                 </button>
-                <div style={{ height: 1, background: 'var(--border-light)', marginBottom: 10 }} />
+                <div style={{ width: 60, height: 3, borderRadius: 2, background: 'var(--gold)', opacity: 0.5, marginBottom: 10 }} />
               </>
             )}
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -928,10 +934,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
                 value={animationSpeed}
                 onChange={(event) => setAnimationSpeed(event.target.value as AnimationSpeed)}
                 style={{
-                  background: 'var(--surface-light)',
-                  border: '1px solid var(--border-light)',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                   color: 'var(--text)',
-                  borderRadius: 6,
+                  borderRadius: 8,
                   padding: '4px 8px',
                   fontSize: 14,
                 }}
@@ -1050,10 +1056,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               <button
                 onClick={handleExportReplay}
                 style={{
-                  background: 'var(--surface-light)',
-                  border: '1px solid var(--border-light)',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                   color: 'var(--text)',
-                  borderRadius: 8,
+                  borderRadius: 10,
                   padding: '8px 10px',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -1064,10 +1070,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               <button
                 onClick={() => replayInputRef.current?.click()}
                 style={{
-                  background: 'var(--surface-light)',
-                  border: '1px solid var(--border-light)',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                   color: 'var(--text)',
-                  borderRadius: 8,
+                  borderRadius: 10,
                   padding: '8px 10px',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -1090,10 +1096,10 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               <button
                 onClick={resetUiPrefs}
                 style={{
-                  background: 'var(--surface-light)',
-                  border: '1px solid var(--border-light)',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                   color: 'var(--text)',
-                  borderRadius: 8,
+                  borderRadius: 10,
                   padding: '8px 10px',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -1147,6 +1153,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
           disabledReason={drawDisabledReason}
           viewerPlayer={viewerPlayer}
           onClose={() => setDrawModalOpen(false)}
+          onMegaView={setMegaCardId}
         />
       )}
 
@@ -1201,7 +1208,12 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
 
       {/* Resolve mega view — also stay visible during drafts when AI is picking */}
       {hasPendingInteraction && (!isAiTurn || state.pendingResolution?.type === 'DRAFT') && (
-        <ResolveMegaView verticalAlign="center">
+        <ResolveMegaView
+          verticalAlign="center"
+          hand={state.players[viewerPlayer].hand}
+          onMegaView={setMegaCardId}
+          hideHandStrip={isHandInteraction(state.pendingResolution, viewerPlayer)}
+        >
           <InteractionPanel state={state} dispatch={dispatch} viewerPlayer={viewerPlayer} onMegaView={setMegaCardId} />
         </ResolveMegaView>
       )}
