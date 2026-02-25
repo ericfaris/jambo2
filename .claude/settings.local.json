@@ -52,7 +52,8 @@
       "WebFetch(domain:developers.google.com)",
       "WebSearch",
       "WebFetch(domain:www.chromium.org)",
-      "WebFetch(domain:rbf.dev)"
+      "WebFetch(domain:rbf.dev)",
+      "Bash(cd:*)"
     ]
   }
 }

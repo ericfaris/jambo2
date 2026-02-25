@@ -3,6 +3,7 @@ import type { GameState, DeckCardId } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 import { validateActivateUtility } from '../engine/validation/actionValidator.ts';
 import { WARE_COLORS } from './CardFace.tsx';
+import { HandReferenceStrip } from './HandReferenceStrip.tsx';
 
 interface ActionButtonsProps {
   state: GameState;
@@ -124,13 +125,14 @@ export function CardPlayDialog({ cardId, onBuy, onSell, onCancel }: CardPlayDial
   );
 }
 
-export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, viewerPlayer = 0 }: {
+export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, viewerPlayer = 0, onMegaView }: {
   state: GameState;
   dispatch: (action: import('../engine/types.ts').GameAction) => void;
   disabled: boolean;
   disabledReason?: string | null;
   onClose: () => void;
   viewerPlayer?: 0 | 1;
+  onMegaView?: (cardId: DeckCardId) => void;
 }) {
   const [showCardBack, setShowCardBack] = useState(false);
   
@@ -363,6 +365,9 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
           )}
         </div>
       </div>
+      {state.players[viewerPlayer].hand.length > 0 && (
+        <HandReferenceStrip hand={state.players[viewerPlayer].hand} onMegaView={onMegaView} />
+      )}
     </div>
   );
 }

@@ -1,4 +1,29 @@
 import { MongoClient } from 'mongodb';
+import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
+
+const LOCAL_STATS_PATH = join(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')), '..', '..', '.data', 'stats.json');
+
+function loadLocalResults(): Map<string, GameResultInput[]> {
+  try {
+    const raw = readFileSync(LOCAL_STATS_PATH, 'utf-8');
+    const parsed = JSON.parse(raw) as Record<string, GameResultInput[]>;
+    return new Map(Object.entries(parsed));
+  } catch {
+    return new Map();
+  }
+}
+
+function saveLocalResults(results: Map<string, GameResultInput[]>): void {
+  try {
+    const dir = dirname(LOCAL_STATS_PATH);
+    mkdirSync(dir, { recursive: true });
+    const obj: Record<string, GameResultInput[]> = Object.fromEntries(results);
+    writeFileSync(LOCAL_STATS_PATH, JSON.stringify(obj, null, 2));
+  } catch {
+    // silently fail if write not possible
+  }
+}
 
 export interface GameResultInput {
   localProfileId: string;
@@ -35,7 +60,7 @@ interface GameResultDocument {
   createdAt: Date;
 }
 
-const memoryResults = new Map<string, GameResultInput[]>();
+const memoryResults = loadLocalResults();
 
 let mongoClientPromise: Promise<MongoClient> | null = null;
 let mongoIndexesReady = false;
@@ -137,6 +162,7 @@ export async function recordCompletedGame(result: GameResultInput): Promise<void
       return;
     }
     memoryResults.set(result.localProfileId, [...existing, result]);
+    saveLocalResults(memoryResults);
     return;
   }
 

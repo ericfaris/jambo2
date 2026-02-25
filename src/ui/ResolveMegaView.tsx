@@ -1,11 +1,18 @@
 import type { ReactNode } from 'react';
+import type { DeckCardId } from '../engine/types.ts';
+import { HandReferenceStrip } from './HandReferenceStrip.tsx';
 
 interface ResolveMegaViewProps {
   children: ReactNode;
   verticalAlign?: 'top' | 'center';
+  hand?: DeckCardId[];
+  onMegaView?: (cardId: DeckCardId) => void;
+  hideHandStrip?: boolean;
 }
 
-export function ResolveMegaView({ children, verticalAlign = 'top' }: ResolveMegaViewProps) {
+export function ResolveMegaView({ children, verticalAlign = 'top', hand, onMegaView, hideHandStrip }: ResolveMegaViewProps) {
+  const showStrip = !hideHandStrip && hand && hand.length > 0;
+
   return (
     <div
       className="overlay-fade"
@@ -32,10 +39,14 @@ export function ResolveMegaView({ children, verticalAlign = 'top' }: ResolveMega
           background: 'transparent',
           boxShadow: 'none',
           margin: '0 auto',
+          paddingBottom: showStrip ? 55 : undefined,
         }}
       >
         {children}
       </div>
+      {showStrip && (
+        <HandReferenceStrip hand={hand} onMegaView={onMegaView} />
+      )}
     </div>
   );
 }
