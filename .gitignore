@@ -123,5 +123,8 @@ dist
 # Claude Code local settings
 .claude/settings.local.json
 
+# MCP server config (contains credentials)
+.mcp.json
+
 # Local dev data (stats, etc.)
 .data/

@@ -1,4 +1,5 @@
 import { MongoClient } from 'mongodb';
+import { randomUUID } from 'crypto';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 
@@ -34,6 +35,7 @@ export interface GameResultInput {
   turnCount: number;
   rngSeed: number;
   completedAt: number;
+  actions?: unknown[];
 }
 
 export interface UserStatsSummary {
@@ -116,6 +118,9 @@ async function ensureIndexes(): Promise<void> {
   await collection.createIndex({ localProfileId: 1, completedAt: -1 });
   await collection.createIndex({ localProfileId: 1, completedAt: 1 }, { unique: true });
 
+  const gameLogs = db.collection('game_logs');
+  await gameLogs.createIndex({ localProfileId: 1, completedAt: -1 });
+
   mongoIndexesReady = true;
 }
 
@@ -171,10 +176,14 @@ export async function recordCompletedGame(result: GameResultInput): Promise<void
   const db = client.db(getMongoDbName());
   const collection = db.collection<GameResultDocument>('game_results');
 
+  const gameId = randomUUID();
+  const now = new Date();
+
   await collection.updateOne(
     { localProfileId: result.localProfileId, completedAt: new Date(result.completedAt) },
     {
       $setOnInsert: {
+        gameId,
         localProfileId: result.localProfileId,
         aiDifficulty: result.aiDifficulty,
         winner: result.winner,
@@ -183,11 +192,26 @@ export async function recordCompletedGame(result: GameResultInput): Promise<void
         turnCount: result.turnCount,
         rngSeed: result.rngSeed,
         completedAt: new Date(result.completedAt),
-        createdAt: new Date(),
+        createdAt: now,
       },
     },
     { upsert: true },
   );
+
+  if (result.actions && result.actions.length > 0) {
+    const gameLogs = db.collection('game_logs');
+    await gameLogs.insertOne({
+      gameId,
+      localProfileId: result.localProfileId,
+      rngSeed: result.rngSeed,
+      aiDifficulty: result.aiDifficulty,
+      winner: result.winner,
+      turnCount: result.turnCount,
+      actions: result.actions,
+      completedAt: new Date(result.completedAt),
+      createdAt: now,
+    });
+  }
 }
 
 export async function getStatsSummary(localProfileId: string): Promise<UserStatsSummary> {

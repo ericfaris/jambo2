@@ -24,6 +24,7 @@ interface RecordCompletedGamePayload {
   turnCount: number;
   rngSeed: number;
   completedAt: number;
+  actions?: unknown[];
 }
 
 interface RecordCompletedGameResponse {

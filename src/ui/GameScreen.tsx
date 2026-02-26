@@ -69,7 +69,7 @@ function isDevMode(): boolean {
 }
 
 export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultiplayer = false }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty; localMultiplayer?: boolean }) {
-  const { state, dispatch, error, newGame, exportReplay, importReplay } = useGameStore();
+  const { state, dispatch, error, newGame, exportReplay, importReplay, replayActions } = useGameStore();
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
   const [showLog, setShowLog] = useState(() => getInitialShowLog());
   const [menuOpen, setMenuOpen] = useState(false);
@@ -182,6 +182,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         turnCount: state.turn,
         rngSeed: state.rngSeed,
         completedAt: Date.now(),
+        actions: replayActions,
       }).then((summary) => {
         setStatsSummary(summary);
         setStatsError(null);
@@ -191,7 +192,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     }
 
     prevPhaseRef.current = state.phase;
-  }, [aiDifficulty, state]);
+  }, [aiDifficulty, state, replayActions]);
 
   const handleExportReplay = useCallback(() => {
     try {

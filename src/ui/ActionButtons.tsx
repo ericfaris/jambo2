@@ -353,6 +353,7 @@ export function DrawModal({ state, dispatch, disabled, disabledReason, onClose, 
           </div>
           {(showCardBack || !state.drawnCard) && canUseMaskBeforeDraw && (
             <button
+              className="brown"
               onClick={() => {
                 dispatch({ type: 'ACTIVATE_UTILITY', utilityIndex: maskUtilityIndex });
                 setShowCardBack(false);

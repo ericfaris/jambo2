@@ -11,6 +11,7 @@ interface RecordGameRequest {
   turnCount: number;
   rngSeed: number;
   completedAt?: number;
+  actions?: unknown[];
 }
 
 function sendJson(res: ServerResponse, statusCode: number, body: unknown): void {
@@ -21,7 +22,7 @@ function sendJson(res: ServerResponse, statusCode: number, body: unknown): void 
   res.end(payload);
 }
 
-function isValidProfileId(value: unknown): value is string {
+export function isValidProfileId(value: unknown): value is string {
   return typeof value === 'string' && /^[a-zA-Z0-9._-]{1,128}$/.test(value);
 }
 
@@ -37,6 +38,10 @@ function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
+function isInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value);
+}
+
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -49,7 +54,7 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   return JSON.parse(raw) as unknown;
 }
 
-function validateRecordRequest(payload: unknown): payload is RecordGameRequest {
+export function validateRecordRequest(payload: unknown): payload is RecordGameRequest {
   if (typeof payload !== 'object' || payload === null) {
     return false;
   }
@@ -61,7 +66,7 @@ function validateRecordRequest(payload: unknown): payload is RecordGameRequest {
   if (!isNonNegativeInteger(candidate.playerGold)) return false;
   if (!isNonNegativeInteger(candidate.opponentGold)) return false;
   if (!isNonNegativeInteger(candidate.turnCount)) return false;
-  if (!isNonNegativeInteger(candidate.rngSeed)) return false;
+  if (!isInteger(candidate.rngSeed)) return false;
   if (candidate.completedAt !== undefined && !isNonNegativeInteger(candidate.completedAt)) return false;
 
   return true;
@@ -132,6 +137,7 @@ export async function handleStatsApi(req: IncomingMessage, res: ServerResponse):
       turnCount: body.turnCount,
       rngSeed: body.rngSeed,
       completedAt: body.completedAt ?? Date.now(),
+      actions: Array.isArray(body.actions) ? body.actions : undefined,
     });
 
     const summary = await getStatsSummary(profileId);

@@ -263,25 +263,36 @@ button:disabled {
 }
 
 button.primary {
-  background: rgba(212,168,80,0.10);
-  border: 2px solid var(--gold);
-  color: var(--gold);
+  background: rgba(34,139,34,0.15);
+  border: 2px solid #2e8b2e;
+  color: #4caf50;
   font-weight: 700;
 }
 button.primary:hover:not(:disabled) {
-  background: rgba(212,168,80,0.20);
-  color: var(--gold);
+  background: rgba(34,139,34,0.30);
+  color: #4caf50;
 }
 
 button.danger {
-  background: rgba(192,64,48,0.10);
-  border: 2px solid var(--accent-red);
-  color: var(--accent-red);
+  background: rgba(210,50,40,0.15);
+  border: 2px solid #d23228;
+  color: #e05040;
   font-weight: 700;
 }
 button.danger:hover:not(:disabled) {
-  background: rgba(192,64,48,0.20);
-  color: var(--accent-red);
+  background: rgba(210,50,40,0.30);
+  color: #e05040;
+}
+
+button.brown {
+  background: rgba(139,90,43,0.15);
+  border: 2px solid #8b5a2b;
+  color: #c48a3f;
+  font-weight: 700;
+}
+button.brown:hover:not(:disabled) {
+  background: rgba(139,90,43,0.30);
+  color: #c48a3f;
 }
 
 /* Animations */
