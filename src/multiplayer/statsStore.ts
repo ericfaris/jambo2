@@ -214,6 +214,56 @@ export async function recordCompletedGame(result: GameResultInput): Promise<void
   }
 }
 
+export interface DifficultyBreakdown {
+  difficulty: 'easy' | 'medium' | 'hard';
+  gamesPlayed: number;
+  aiWins: number;
+  humanWins: number;
+  aiWinRate: number;
+  level: number;
+}
+
+export async function getDifficultyBreakdown(localProfileId: string): Promise<DifficultyBreakdown[]> {
+  const difficulties: Array<'easy' | 'medium' | 'hard'> = ['easy', 'medium', 'hard'];
+
+  let results: GameResultInput[];
+  if (!isMongoEnabled()) {
+    results = memoryResults.get(localProfileId) ?? [];
+  } else {
+    await ensureIndexes();
+    const client = await getMongoClient();
+    const db = client.db(getMongoDbName());
+    const collection = db.collection<GameResultDocument>('game_results');
+    const docs = await collection.find({ localProfileId }).toArray();
+    results = docs.map((entry) => ({
+      localProfileId: entry.localProfileId,
+      aiDifficulty: entry.aiDifficulty,
+      winner: entry.winner,
+      playerGold: entry.playerGold,
+      opponentGold: entry.opponentGold,
+      turnCount: entry.turnCount,
+      rngSeed: entry.rngSeed,
+      completedAt: entry.completedAt.getTime(),
+    }));
+  }
+
+  return difficulties.map((difficulty) => {
+    const games = results.filter((r) => r.aiDifficulty === difficulty);
+    const gamesPlayed = games.length;
+    const aiWins = games.filter((r) => r.winner === 1).length;
+    const humanWins = gamesPlayed - aiWins;
+    const aiWinRate = gamesPlayed > 0 ? aiWins / gamesPlayed : 0;
+    return {
+      difficulty,
+      gamesPlayed,
+      aiWins,
+      humanWins,
+      aiWinRate,
+      level: Math.round(aiWinRate * 100),
+    };
+  });
+}
+
 export async function getStatsSummary(localProfileId: string): Promise<UserStatsSummary> {
   if (!isMongoEnabled()) {
     const results = memoryResults.get(localProfileId) ?? [];

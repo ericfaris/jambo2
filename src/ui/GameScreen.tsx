@@ -24,8 +24,8 @@ import { TutorialOverlay } from './TutorialOverlay.tsx';
 import { useVisualFeedback } from './useVisualFeedback.ts';
 import { getDrawDisabledReason, getPlayDisabledReason } from './uiHints.ts';
 import { getVolume, setVolume as saveVolume, getMuted, setMuted as saveMuted, resetAudioSettings } from './audioSettings.ts';
-import { fetchUserStatsSummary, recordCompletedGame } from '../persistence/userStatsApi.ts';
-import type { UserStatsSummary } from '../persistence/userStatsApi.ts';
+import { fetchUserStatsSummary, fetchDifficultyBreakdown, recordCompletedGame } from '../persistence/userStatsApi.ts';
+import type { UserStatsSummary, DifficultyBreakdown } from '../persistence/userStatsApi.ts';
 import { getWinner, getFinalScores } from '../engine/endgame/EndgameManager.ts';
 import { useAuthSession } from './useAuthSession.ts';
 
@@ -87,6 +87,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
   const { authUser, authError, avatarUrl, avatarLabel, logout: authLogout } = useAuthSession();
   const [statsSummary, setStatsSummary] = useState<UserStatsSummary | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [diffBreakdown, setDiffBreakdown] = useState<DifficultyBreakdown[] | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(TUTORIAL_SEEN_STORAGE_KEY) !== 'true';
@@ -138,9 +139,13 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     let isMounted = true;
     const loadStats = async () => {
       try {
-        const summary = await fetchUserStatsSummary();
+        const [summary, breakdown] = await Promise.all([
+          fetchUserStatsSummary(),
+          fetchDifficultyBreakdown(),
+        ]);
         if (isMounted) {
           setStatsSummary(summary);
+          setDiffBreakdown(breakdown);
           setStatsError(null);
         }
       } catch {
@@ -183,9 +188,13 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         rngSeed: state.rngSeed,
         completedAt: Date.now(),
         actions: replayActions,
-      }).then((summary) => {
+      }).then(async (summary) => {
         setStatsSummary(summary);
         setStatsError(null);
+        try {
+          const breakdown = await fetchDifficultyBreakdown();
+          setDiffBreakdown(breakdown);
+        } catch { /* ignore */ }
       }).catch(() => {
         setStatsError('Stats unavailable');
       });
@@ -828,6 +837,16 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
               {statsSummary && (
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                   {statsSummary.wins}-{statsSummary.losses} · {Math.round(statsSummary.winRate * 100)}% win · {statsSummary.gamesPlayed} games
+                </div>
+              )}
+              {diffBreakdown && diffBreakdown.some((d) => d.gamesPlayed > 0) && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'flex', gap: 8 }}>
+                  {diffBreakdown.filter((d) => d.gamesPlayed > 0).map((d) => (
+                    <span key={d.difficulty} style={{ opacity: d.difficulty === aiDifficulty ? 1 : 0.6 }}>
+                      {d.difficulty[0]!.toUpperCase() + d.difficulty.slice(1)}: Lv{d.level}
+                      <span style={{ opacity: 0.5 }}> ({d.gamesPlayed}g)</span>
+                    </span>
+                  ))}
                 </div>
               )}
               {statsError && (

@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { getStatsSummary, recordCompletedGame } from './statsStore.ts';
+import { getStatsSummary, getDifficultyBreakdown, recordCompletedGame } from './statsStore.ts';
 import { getSession } from './authStore.ts';
 
 interface RecordGameRequest {
@@ -116,6 +116,19 @@ export async function handleStatsApi(req: IncomingMessage, res: ServerResponse):
     const profileId = await resolveProfileId(req, clientProfileId);
     const summary = await getStatsSummary(profileId);
     sendJson(res, 200, { summary });
+    return true;
+  }
+
+  if (method === 'GET' && requestUrl.pathname === '/api/stats/difficulty') {
+    const clientProfileId = requestUrl.searchParams.get('localProfileId');
+    if (!isValidProfileId(clientProfileId)) {
+      sendJson(res, 400, { error: 'localProfileId is required and must be alphanumeric with ._- only' });
+      return true;
+    }
+
+    const profileId = await resolveProfileId(req, clientProfileId);
+    const breakdown = await getDifficultyBreakdown(profileId);
+    sendJson(res, 200, { breakdown });
     return true;
   }
 

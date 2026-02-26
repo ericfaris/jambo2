@@ -16,6 +16,37 @@ interface StatsSummaryResponse {
   summary: UserStatsSummary;
 }
 
+export interface DifficultyBreakdown {
+  difficulty: 'easy' | 'medium' | 'hard';
+  gamesPlayed: number;
+  aiWins: number;
+  humanWins: number;
+  aiWinRate: number;
+  level: number;
+}
+
+interface DifficultyBreakdownResponse {
+  breakdown: DifficultyBreakdown[];
+}
+
+export async function fetchDifficultyBreakdown(): Promise<DifficultyBreakdown[]> {
+  const localProfileId = getLocalProfileId();
+  const url = new URL('/api/stats/difficulty', window.location.origin);
+  url.searchParams.set('localProfileId', localProfileId);
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch difficulty breakdown');
+  }
+
+  const data = (await response.json()) as DifficultyBreakdownResponse;
+  return data.breakdown;
+}
+
 interface RecordCompletedGamePayload {
   aiDifficulty: 'easy' | 'medium' | 'hard';
   winner: 0 | 1;
