@@ -83,7 +83,7 @@ function availableWareTypes(state: GameState): WareType[] {
   return WARE_TYPES.filter(w => state.wareSupply[w] > 0);
 }
 
-function getRandomInteractionResponse(state: GameState, rng: RngFn): InteractionResponse | null {
+export function getRandomInteractionResponse(state: GameState, rng: RngFn): InteractionResponse | null {
   const pr = state.pendingResolution;
   if (!pr) return null;
 
@@ -400,7 +400,7 @@ function getRandomInteractionResponse(state: GameState, rng: RngFn): Interaction
   }
 }
 
-function getFallbackInteractionResponses(state: GameState): InteractionResponse[] {
+export function getFallbackInteractionResponses(state: GameState): InteractionResponse[] {
   const pr = state.pendingResolution;
   if (!pr) return [];
 

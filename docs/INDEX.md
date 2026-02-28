@@ -7,6 +7,7 @@ This directory is the canonical documentation set for the project.
 - Product scope and behavior: `docs/PRODUCT_REQUIREMENTS.md`
 - Engine and system design: `docs/ARCHITECTURE.md`
 - AI behavior and strategy: `docs/AI_ARCHITECTURE.md`
+- AI telemetry and tuning pipeline: `docs/AI_TELEMETRY_PLAN.md`
 - UI and interaction behavior: `docs/UI_UX_SPEC.md`
 - Card and rules reference: `docs/CARD_REFERENCE.md`
 - Asset production and integration: `docs/ASSET_PIPELINE.md`
@@ -25,3 +26,4 @@ Those files are retained for context only and must not be treated as current beh
 - 2026-02-15: Introduced canonical documentation map and source-of-truth boundaries.
 - 2026-02-15: Archived superseded planning/spec documents into `docs/archive/`.
 - 2026-02-15: Added governance rules in `docs/DOCS_POLICY.md`.
+- 2026-02-22: Added AI telemetry plan and game-data tuning loop in `docs/AI_TELEMETRY_PLAN.md`.

@@ -1,0 +1,8 @@
+label,games,p0Wins,p1Wins,ties,p0WinRate,p1WinRate,avgTurns,avgGoldDelta,stalls,well_act_per_game,supplies_act_per_game,leopard_statue_act_per_game,boat_act_per_game,weapons_act_per_game,scale_act_per_game,drums_act_per_game,kettle_act_per_game,throne_act_per_game,mask_of_transformation_act_per_game
+easy vs easy,100,56,43,1,0.56,0.43,61.76,3.42,0,2.42,1.35,0.56,0.68,1.82,1.63,2.57,1.70,2.04,0.00
+easy vs medium,100,21,79,0,0.21,0.79,46.82,-16.87,0,10.22,8.15,2.24,2.51,5.31,3.44,4.74,4.13,4.11,0.00
+easy vs hard,100,14,86,0,0.14,0.86,45.56,-18.68,0,7.96,6.91,3.39,2.84,4.23,3.61,3.34,4.75,3.72,0.00
+medium vs medium,100,59,39,2,0.59,0.39,40.75,6.1,0,11.83,6.96,3.92,4.68,8.36,5.10,7.01,6.84,5.35,0.00
+medium vs hard,100,47,52,1,0.47,0.52,37.43,-5.82,0,11.01,7.36,4.07,4.18,7.32,5.20,5.27,5.42,5.33,0.00
+hard vs medium,100,58,42,0,0.58,0.42,39.85,3.99,0,11.00,8.70,3.81,4.50,5.70,5.92,7.07,6.44,5.21,0.00
+hard vs hard,100,38,62,0,0.38,0.62,38.18,-8.03,0,11.90,7.75,4.28,3.84,6.73,5.96,5.36,5.84,5.25,0.00

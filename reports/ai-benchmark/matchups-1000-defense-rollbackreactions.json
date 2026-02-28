@@ -1,0 +1,687 @@
+﻿{
+  "gamesPerMatchup": 1000,
+  "seedBase": 120000,
+  "maxSteps": 2500,
+  "maxGameMs": 8000,
+  "summaries": [
+    {
+      "label": "easy vs easy",
+      "games": 1000,
+      "p0Wins": 505,
+      "p1Wins": 481,
+      "ties": 14,
+      "p0WinRate": 0.505,
+      "p1WinRate": 0.481,
+      "decisiveSkew": 0.024,
+      "skewFlag": "none",
+      "stalls": 0,
+      "avgTurns": 59.02,
+      "avgGoldP0": 54.7,
+      "avgGoldP1": 54.55,
+      "avgGoldDelta": 0.15,
+      "stallReasons": {},
+      "utilityStats": {
+        "played": {
+          "well": 974,
+          "drums": 937,
+          "throne": 647,
+          "boat": 678,
+          "scale": 617,
+          "mask_of_transformation": 647,
+          "supplies": 658,
+          "kettle": 624,
+          "leopard_statue": 676,
+          "weapons": 699
+        },
+        "activated": {
+          "well": 2694,
+          "drums": 2839,
+          "throne": 1768,
+          "boat": 609,
+          "scale": 1550,
+          "mask_of_transformation": 0,
+          "supplies": 1740,
+          "kettle": 1518,
+          "leopard_statue": 646,
+          "weapons": 1834
+        },
+        "bySeat": {
+          "p0": {
+            "played": {
+              "well": 468,
+              "drums": 443,
+              "throne": 310,
+              "boat": 340,
+              "scale": 314,
+              "mask_of_transformation": 331,
+              "supplies": 307,
+              "kettle": 330,
+              "leopard_statue": 361,
+              "weapons": 361
+            },
+            "activated": {
+              "well": 1358,
+              "drums": 1312,
+              "throne": 896,
+              "boat": 286,
+              "scale": 779,
+              "mask_of_transformation": 0,
+              "supplies": 875,
+              "kettle": 791,
+              "leopard_statue": 326,
+              "weapons": 955
+            }
+          },
+          "p1": {
+            "played": {
+              "well": 506,
+              "drums": 494,
+              "throne": 337,
+              "boat": 338,
+              "scale": 303,
+              "mask_of_transformation": 316,
+              "supplies": 351,
+              "kettle": 294,
+              "leopard_statue": 315,
+              "weapons": 338
+            },
+            "activated": {
+              "well": 1336,
+              "drums": 1527,
+              "throne": 872,
+              "boat": 323,
+              "scale": 771,
+              "mask_of_transformation": 0,
+              "supplies": 865,
+              "kettle": 727,
+              "leopard_statue": 320,
+              "weapons": 879
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "easy vs medium",
+      "games": 1000,
+      "p0Wins": 165,
+      "p1Wins": 829,
+      "ties": 6,
+      "p0WinRate": 0.165,
+      "p1WinRate": 0.829,
+      "decisiveSkew": 0.664,
+      "skewFlag": "high",
+      "stalls": 0,
+      "avgTurns": 46.37,
+      "avgGoldP0": 43.78,
+      "avgGoldP1": 61.08,
+      "avgGoldDelta": -17.3,
+      "stallReasons": {},
+      "utilityStats": {
+        "played": {
+          "well": 1182,
+          "drums": 962,
+          "throne": 635,
+          "boat": 821,
+          "scale": 701,
+          "mask_of_transformation": 616,
+          "supplies": 863,
+          "kettle": 710,
+          "leopard_statue": 800,
+          "weapons": 795
+        },
+        "activated": {
+          "well": 9039,
+          "drums": 5299,
+          "throne": 3827,
+          "boat": 2872,
+          "scale": 3744,
+          "mask_of_transformation": 0,
+          "supplies": 6586,
+          "kettle": 3791,
+          "leopard_statue": 2845,
+          "weapons": 4881
+        },
+        "bySeat": {
+          "p0": {
+            "played": {
+              "well": 346,
+              "drums": 355,
+              "throne": 228,
+              "boat": 243,
+              "scale": 243,
+              "mask_of_transformation": 267,
+              "supplies": 236,
+              "kettle": 257,
+              "leopard_statue": 247,
+              "weapons": 259
+            },
+            "activated": {
+              "well": 778,
+              "drums": 775,
+              "throne": 516,
+              "boat": 214,
+              "scale": 460,
+              "mask_of_transformation": 0,
+              "supplies": 432,
+              "kettle": 515,
+              "leopard_statue": 193,
+              "weapons": 453
+            }
+          },
+          "p1": {
+            "played": {
+              "well": 836,
+              "drums": 607,
+              "throne": 407,
+              "boat": 578,
+              "scale": 458,
+              "mask_of_transformation": 349,
+              "supplies": 627,
+              "kettle": 453,
+              "leopard_statue": 553,
+              "weapons": 536
+            },
+            "activated": {
+              "well": 8261,
+              "drums": 4524,
+              "throne": 3311,
+              "boat": 2658,
+              "scale": 3284,
+              "mask_of_transformation": 0,
+              "supplies": 6154,
+              "kettle": 3276,
+              "leopard_statue": 2652,
+              "weapons": 4428
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "easy vs hard",
+      "games": 1000,
+      "p0Wins": 124,
+      "p1Wins": 870,
+      "ties": 6,
+      "p0WinRate": 0.124,
+      "p1WinRate": 0.87,
+      "decisiveSkew": 0.746,
+      "skewFlag": "high",
+      "stalls": 0,
+      "avgTurns": 43.92,
+      "avgGoldP0": 40.87,
+      "avgGoldP1": 62.06,
+      "avgGoldDelta": -21.19,
+      "stallReasons": {},
+      "utilityStats": {
+        "played": {
+          "well": 1084,
+          "drums": 863,
+          "throne": 627,
+          "boat": 748,
+          "scale": 682,
+          "mask_of_transformation": 584,
+          "supplies": 787,
+          "kettle": 606,
+          "leopard_statue": 762,
+          "weapons": 754
+        },
+        "activated": {
+          "well": 7723,
+          "drums": 3223,
+          "throne": 3721,
+          "boat": 2914,
+          "scale": 3743,
+          "mask_of_transformation": 0,
+          "supplies": 6512,
+          "kettle": 3305,
+          "leopard_statue": 3039,
+          "weapons": 4773
+        },
+        "bySeat": {
+          "p0": {
+            "played": {
+              "well": 326,
+              "drums": 303,
+              "throne": 225,
+              "boat": 236,
+              "scale": 252,
+              "mask_of_transformation": 220,
+              "supplies": 217,
+              "kettle": 210,
+              "leopard_statue": 233,
+              "weapons": 234
+            },
+            "activated": {
+              "well": 666,
+              "drums": 701,
+              "throne": 387,
+              "boat": 193,
+              "scale": 461,
+              "mask_of_transformation": 0,
+              "supplies": 418,
+              "kettle": 442,
+              "leopard_statue": 175,
+              "weapons": 474
+            }
+          },
+          "p1": {
+            "played": {
+              "well": 758,
+              "drums": 560,
+              "throne": 402,
+              "boat": 512,
+              "scale": 430,
+              "mask_of_transformation": 364,
+              "supplies": 570,
+              "kettle": 396,
+              "leopard_statue": 529,
+              "weapons": 520
+            },
+            "activated": {
+              "well": 7057,
+              "drums": 2522,
+              "throne": 3334,
+              "boat": 2721,
+              "scale": 3282,
+              "mask_of_transformation": 0,
+              "supplies": 6094,
+              "kettle": 2863,
+              "leopard_statue": 2864,
+              "weapons": 4299
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "medium vs medium",
+      "games": 1000,
+      "p0Wins": 505,
+      "p1Wins": 486,
+      "ties": 9,
+      "p0WinRate": 0.505,
+      "p1WinRate": 0.486,
+      "decisiveSkew": 0.019,
+      "skewFlag": "none",
+      "stalls": 0,
+      "avgTurns": 40.12,
+      "avgGoldP0": 53.62,
+      "avgGoldP1": 52.96,
+      "avgGoldDelta": 0.66,
+      "stallReasons": {},
+      "utilityStats": {
+        "played": {
+          "well": 1751,
+          "drums": 1267,
+          "throne": 912,
+          "boat": 1130,
+          "scale": 1037,
+          "mask_of_transformation": 781,
+          "supplies": 1292,
+          "kettle": 997,
+          "leopard_statue": 1190,
+          "weapons": 1153
+        },
+        "activated": {
+          "well": 11693,
+          "drums": 7624,
+          "throne": 5474,
+          "boat": 4272,
+          "scale": 5496,
+          "mask_of_transformation": 0,
+          "supplies": 8187,
+          "kettle": 5822,
+          "leopard_statue": 4154,
+          "weapons": 6683
+        },
+        "bySeat": {
+          "p0": {
+            "played": {
+              "well": 864,
+              "drums": 617,
+              "throne": 475,
+              "boat": 567,
+              "scale": 543,
+              "mask_of_transformation": 400,
+              "supplies": 661,
+              "kettle": 504,
+              "leopard_statue": 593,
+              "weapons": 600
+            },
+            "activated": {
+              "well": 5821,
+              "drums": 3664,
+              "throne": 2837,
+              "boat": 2042,
+              "scale": 2884,
+              "mask_of_transformation": 0,
+              "supplies": 4219,
+              "kettle": 2972,
+              "leopard_statue": 2127,
+              "weapons": 3568
+            }
+          },
+          "p1": {
+            "played": {
+              "well": 887,
+              "drums": 650,
+              "throne": 437,
+              "boat": 563,
+              "scale": 494,
+              "mask_of_transformation": 381,
+              "supplies": 631,
+              "kettle": 493,
+              "leopard_statue": 597,
+              "weapons": 553
+            },
+            "activated": {
+              "well": 5872,
+              "drums": 3960,
+              "throne": 2637,
+              "boat": 2230,
+              "scale": 2612,
+              "mask_of_transformation": 0,
+              "supplies": 3968,
+              "kettle": 2850,
+              "leopard_statue": 2027,
+              "weapons": 3115
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "medium vs hard",
+      "games": 1000,
+      "p0Wins": 389,
+      "p1Wins": 604,
+      "ties": 7,
+      "p0WinRate": 0.389,
+      "p1WinRate": 0.604,
+      "decisiveSkew": 0.215,
+      "skewFlag": "high",
+      "stalls": 0,
+      "avgTurns": 38.53,
+      "avgGoldP0": 49.96,
+      "avgGoldP1": 56.02,
+      "avgGoldDelta": -6.07,
+      "stallReasons": {},
+      "utilityStats": {
+        "played": {
+          "well": 1762,
+          "drums": 1259,
+          "throne": 873,
+          "boat": 1152,
+          "scale": 998,
+          "mask_of_transformation": 822,
+          "supplies": 1248,
+          "kettle": 978,
+          "leopard_statue": 1242,
+          "weapons": 1114
+        },
+        "activated": {
+          "well": 11372,
+          "drums": 5822,
+          "throne": 4961,
+          "boat": 4458,
+          "scale": 5440,
+          "mask_of_transformation": 0,
+          "supplies": 7715,
+          "kettle": 5751,
+          "leopard_statue": 4495,
+          "weapons": 6499
+        },
+        "bySeat": {
+          "p0": {
+            "played": {
+              "well": 876,
+              "drums": 647,
+              "throne": 422,
+              "boat": 591,
+              "scale": 480,
+              "mask_of_transformation": 405,
+              "supplies": 666,
+              "kettle": 478,
+              "leopard_statue": 653,
+              "weapons": 581
+            },
+            "activated": {
+              "well": 5716,
+              "drums": 3503,
+              "throne": 2396,
+              "boat": 2143,
+              "scale": 2721,
+              "mask_of_transformation": 0,
+              "supplies": 4065,
+              "kettle": 2772,
+              "leopard_statue": 2083,
+              "weapons": 3255
+            }
+          },
+          "p1": {
+            "played": {
+              "well": 886,
+              "drums": 612,
+              "throne": 451,
+              "boat": 561,
+              "scale": 518,
+              "mask_of_transformation": 417,
+              "supplies": 582,
+              "kettle": 500,
+              "leopard_statue": 589,
+              "weapons": 533
+            },
+            "activated": {
+              "well": 5656,
+              "drums": 2319,
+              "throne": 2565,
+              "boat": 2315,
+              "scale": 2719,
+              "mask_of_transformation": 0,
+              "supplies": 3650,
+              "kettle": 2979,
+              "leopard_statue": 2412,
+              "weapons": 3244
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "hard vs medium",
+      "games": 1000,
+      "p0Wins": 553,
+      "p1Wins": 442,
+      "ties": 5,
+      "p0WinRate": 0.553,
+      "p1WinRate": 0.442,
+      "decisiveSkew": 0.111,
+      "skewFlag": "moderate",
+      "stalls": 0,
+      "avgTurns": 40.2,
+      "avgGoldP0": 54.08,
+      "avgGoldP1": 51.74,
+      "avgGoldDelta": 2.34,
+      "stallReasons": {},
+      "utilityStats": {
+        "played": {
+          "well": 1780,
+          "drums": 1287,
+          "throne": 905,
+          "boat": 1145,
+          "scale": 985,
+          "mask_of_transformation": 787,
+          "supplies": 1383,
+          "kettle": 956,
+          "leopard_statue": 1216,
+          "weapons": 1168
+        },
+        "activated": {
+          "well": 11987,
+          "drums": 7540,
+          "throne": 5358,
+          "boat": 4050,
+          "scale": 5348,
+          "mask_of_transformation": 0,
+          "supplies": 8844,
+          "kettle": 5429,
+          "leopard_statue": 4383,
+          "weapons": 6747
+        },
+        "bySeat": {
+          "p0": {
+            "played": {
+              "well": 893,
+              "drums": 667,
+              "throne": 439,
+              "boat": 596,
+              "scale": 527,
+              "mask_of_transformation": 415,
+              "supplies": 691,
+              "kettle": 468,
+              "leopard_statue": 626,
+              "weapons": 574
+            },
+            "activated": {
+              "well": 6028,
+              "drums": 3693,
+              "throne": 2535,
+              "boat": 2104,
+              "scale": 2830,
+              "mask_of_transformation": 0,
+              "supplies": 4525,
+              "kettle": 2705,
+              "leopard_statue": 2186,
+              "weapons": 3391
+            }
+          },
+          "p1": {
+            "played": {
+              "well": 887,
+              "drums": 620,
+              "throne": 466,
+              "boat": 549,
+              "scale": 458,
+              "mask_of_transformation": 372,
+              "supplies": 692,
+              "kettle": 488,
+              "leopard_statue": 590,
+              "weapons": 594
+            },
+            "activated": {
+              "well": 5959,
+              "drums": 3847,
+              "throne": 2823,
+              "boat": 1946,
+              "scale": 2518,
+              "mask_of_transformation": 0,
+              "supplies": 4319,
+              "kettle": 2724,
+              "leopard_statue": 2197,
+              "weapons": 3356
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "hard vs hard",
+      "games": 1000,
+      "p0Wins": 403,
+      "p1Wins": 595,
+      "ties": 2,
+      "p0WinRate": 0.403,
+      "p1WinRate": 0.595,
+      "decisiveSkew": 0.192,
+      "skewFlag": "moderate",
+      "stalls": 0,
+      "avgTurns": 38.55,
+      "avgGoldP0": 49.16,
+      "avgGoldP1": 56.62,
+      "avgGoldDelta": -7.46,
+      "stallReasons": {},
+      "utilityStats": {
+        "played": {
+          "well": 1773,
+          "drums": 1329,
+          "throne": 930,
+          "boat": 1182,
+          "scale": 1000,
+          "mask_of_transformation": 802,
+          "supplies": 1257,
+          "kettle": 950,
+          "leopard_statue": 1248,
+          "weapons": 1145
+        },
+        "activated": {
+          "well": 11168,
+          "drums": 6005,
+          "throne": 5138,
+          "boat": 4345,
+          "scale": 5212,
+          "mask_of_transformation": 0,
+          "supplies": 7699,
+          "kettle": 5595,
+          "leopard_statue": 4623,
+          "weapons": 6438
+        },
+        "bySeat": {
+          "p0": {
+            "played": {
+              "well": 906,
+              "drums": 669,
+              "throne": 470,
+              "boat": 576,
+              "scale": 499,
+              "mask_of_transformation": 394,
+              "supplies": 645,
+              "kettle": 491,
+              "leopard_statue": 638,
+              "weapons": 586
+            },
+            "activated": {
+              "well": 5752,
+              "drums": 3559,
+              "throne": 2526,
+              "boat": 1924,
+              "scale": 2577,
+              "mask_of_transformation": 0,
+              "supplies": 3907,
+              "kettle": 2707,
+              "leopard_statue": 2210,
+              "weapons": 3084
+            }
+          },
+          "p1": {
+            "played": {
+              "well": 867,
+              "drums": 660,
+              "throne": 460,
+              "boat": 606,
+              "scale": 501,
+              "mask_of_transformation": 408,
+              "supplies": 612,
+              "kettle": 459,
+              "leopard_statue": 610,
+              "weapons": 559
+            },
+            "activated": {
+              "well": 5416,
+              "drums": 2446,
+              "throne": 2612,
+              "boat": 2421,
+              "scale": 2635,
+              "mask_of_transformation": 0,
+              "supplies": 3792,
+              "kettle": 2888,
+              "leopard_statue": 2413,
+              "weapons": 3354
+            }
+          }
+        }
+      }
+    }
+  ]
+}

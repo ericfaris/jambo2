@@ -13,7 +13,10 @@ import { createInitialState } from '../engine/GameState.ts';
 import { processAction } from '../engine/GameEngine.ts';
 import { getAiActionByDifficulty } from '../ai/difficulties/index.ts';
 import { getAiActionDescription } from '../ai/aiActionDescriptions.ts';
+import { extractAiTurnFeatures } from '../ai/telemetry/extract.ts';
+import { getAiTelemetryEnabled, getAiTelemetrySampleRate, shouldSampleTelemetryGame } from '../ai/telemetry/config.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
+import { getValidActions } from '../engine/validation/actionValidator.ts';
 import { extractPublicState, extractPrivateState } from './stateSplitter.ts';
 import type { GameState, GameAction } from '../engine/types.ts';
 import { CONSTANTS } from '../engine/types.ts';
@@ -29,6 +32,7 @@ import { loadLocalEnv } from './loadEnv.ts';
 import { handleAuthApi } from './auth.ts';
 import { handleStatsApi } from './statsApi.ts';
 import { resolveCastPublicRoom, toCastPublicRoomPayload, validateCastRoomAccess } from './castApi.ts';
+import { recordAiDecision, recordAiGameSummary } from './aiTelemetryStore.ts';
 
 loadLocalEnv();
 
@@ -56,11 +60,20 @@ interface Room {
   reservedSlots: ReservedPlayerSlot[];
   rematchVotes: Set<PlayerSlot>;
   lastActivity: number;
+  telemetryGameId: string | null;
+  telemetryStartedAt: number | null;
+  telemetryDecisionIndex: number;
+  telemetrySampled: boolean;
 }
 
 const rooms = new Map<string, Room>();
 const PLAYER_RECONNECT_GRACE_MS = 90_000;
 const castRoomStreams = new Map<string, Set<import('node:http').ServerResponse>>();
+const AI_TELEMETRY_ENABLED = getAiTelemetryEnabled();
+const AI_TELEMETRY_SAMPLE_RATE = getAiTelemetrySampleRate();
+const AI_SCHEMA_VERSION = 1;
+const AI_VERSION = process.env['AI_VERSION'] ?? process.env['npm_package_version'] ?? 'dev';
+const ENGINE_VERSION = process.env['ENGINE_VERSION'] ?? process.env['npm_package_version'] ?? 'dev';
 
 // --- Helpers ---
 
@@ -78,6 +91,17 @@ function generateReconnectToken(): string {
 
 function generateCastAccessToken(): string {
   return randomBytes(24).toString('base64url');
+}
+
+function generateTelemetryGameId(): string {
+  return `${Date.now().toString(36)}-${randomBytes(8).toString('hex')}`;
+}
+
+function initializeTelemetryForNewGame(room: Room): void {
+  room.telemetryGameId = generateTelemetryGameId();
+  room.telemetryStartedAt = Date.now();
+  room.telemetryDecisionIndex = 0;
+  room.telemetrySampled = AI_TELEMETRY_ENABLED && shouldSampleTelemetryGame(AI_TELEMETRY_SAMPLE_RATE);
 }
 
 function send(ws: WebSocket, msg: ServerMessage): void {
@@ -316,15 +340,40 @@ function scheduleAiTurn(room: Room): void {
     // Re-check — state may have changed
     if (!isWaitingForPlayer(room.state, aiSlot)) return;
 
-    const action = getAiActionByDifficulty(room.state, room.aiDifficulty);
+    const decisionState = room.state;
+    const action = getAiActionByDifficulty(decisionState, room.aiDifficulty);
     if (!action) return;
 
     try {
-      room.state = processAction(room.state, action);
+      room.state = processAction(decisionState, action);
       room.lastActivity = Date.now();
       const audioEvent = detectAudioEvent(action);
       const aiMessage = getAiActionDescription(action, room.state);
       broadcastState(room, audioEvent, aiMessage);
+
+      if (room.telemetrySampled && room.telemetryGameId) {
+        const candidates = getValidActions(decisionState).map((candidate) => ({ action: candidate }));
+        const features = extractAiTurnFeatures(decisionState, aiSlot);
+        const turnIndex = room.telemetryDecisionIndex;
+        room.telemetryDecisionIndex += 1;
+
+        void recordAiDecision({
+          gameId: room.telemetryGameId,
+          roomCode: room.code,
+          aiDifficulty: room.aiDifficulty,
+          aiPlayerSlot: aiSlot,
+          turnIndex,
+          features,
+          candidates,
+          chosen: action,
+          schemaVersion: AI_SCHEMA_VERSION,
+          aiVersion: AI_VERSION,
+          engineVersion: ENGINE_VERSION,
+          createdAt: Date.now(),
+        }).catch((error: unknown) => {
+          console.error('[AI telemetry] Decision write failed:', (error as Error).message);
+        });
+      }
 
       // Check game over
       if (room.state.phase === 'GAME_OVER') {
@@ -390,6 +439,39 @@ function broadcastGameOver(room: Room): void {
   for (const conn of room.connections) {
     send(conn.ws, { type: 'GAME_OVER', public: publicState });
   }
+
+  if (room.mode === 'ai' && room.telemetrySampled && room.telemetryGameId && room.telemetryStartedAt !== null) {
+    const state = room.state;
+    const aiSlot: PlayerSlot = 1;
+    const opponentSlot: PlayerSlot = 0;
+    const aiGold = state.players[aiSlot].gold;
+    const opponentGold = state.players[opponentSlot].gold;
+    const winner: 0 | 1 | null = aiGold === opponentGold ? null : (aiGold > opponentGold ? aiSlot : opponentSlot);
+
+    void recordAiGameSummary({
+      gameId: room.telemetryGameId,
+      roomCode: room.code,
+      aiDifficulty: room.aiDifficulty,
+      aiPlayerSlot: aiSlot,
+      winner,
+      aiGold,
+      opponentGold,
+      turnCount: state.turn,
+      rngSeed: state.rngSeed,
+      schemaVersion: AI_SCHEMA_VERSION,
+      aiVersion: AI_VERSION,
+      engineVersion: ENGINE_VERSION,
+      startedAt: room.telemetryStartedAt,
+      completedAt: Date.now(),
+    }).catch((error: unknown) => {
+      console.error('[AI telemetry] Game summary write failed:', (error as Error).message);
+    });
+  }
+
+  room.telemetryGameId = null;
+  room.telemetryStartedAt = null;
+  room.telemetryDecisionIndex = 0;
+  room.telemetrySampled = false;
 }
 
 // --- Game Start ---
@@ -401,12 +483,14 @@ function tryStartGame(room: Room): void {
   if (room.mode === 'ai' && playerCount >= 1) {
     room.rematchVotes.clear();
     room.state = createInitialState();
+    initializeTelemetryForNewGame(room);
     broadcastState(room, null);
     // AI is player 1 — if it's their turn first, start AI loop
     scheduleAiTurn(room);
   } else if (room.mode === 'pvp' && playerCount >= 2) {
     room.rematchVotes.clear();
     room.state = createInitialState();
+    initializeTelemetryForNewGame(room);
     broadcastState(room, null);
   }
 }
@@ -425,6 +509,10 @@ function handleCreateRoom(ws: WebSocket, mode: RoomMode, aiDifficulty: AIDifficu
     reservedSlots: [],
     rematchVotes: new Set<PlayerSlot>(),
     lastActivity: Date.now(),
+    telemetryGameId: null,
+    telemetryStartedAt: null,
+    telemetryDecisionIndex: 0,
+    telemetrySampled: false,
   };
   rooms.set(code, room);
   send(ws, { type: 'ROOM_CREATED', code, castAccessToken: room.castAccessToken });
@@ -629,6 +717,7 @@ function handleRematchRequest(ws: WebSocket): void {
   if (!allReady) return;
 
   room.state = createInitialState();
+  initializeTelemetryForNewGame(room);
   room.rematchVotes.clear();
   broadcastState(room, null, null);
   broadcastRematchStatus(room);

@@ -1,16 +1,20 @@
-import type { GameAction, GameState, UtilityDesignId } from '../../engine/types.ts';
+import type { GameAction, GameState, UtilityDesignId, WareType } from '../../engine/types.ts';
+
 import { getCard } from '../../engine/cards/CardDatabase.ts';
 import { processAction } from '../../engine/GameEngine.ts';
 import { getValidActions } from '../../engine/validation/actionValidator.ts';
 import { getMediumAiAction } from './MediumAI.ts';
-import { getRandomAiAction } from '../RandomAI.ts';
+import { getRandomAiAction, getRandomInteractionResponse, getFallbackInteractionResponses } from '../RandomAI.ts';
 import { createRng } from '../../utils/rng.ts';
 import {
+  countCurrentlySellableWareCards,
   getAuctionMaxBid,
   getCardEconomyValue,
   getCardPressureBonus,
+  getDefensiveAnimalPriority,
   getHandRiskPenalty,
   getMarketExposurePenalty,
+  getPeoplePlayComboPriority,
   getUtilityActivationPriority,
   getUtilityPlayPriority,
   getUtilitySetStrength,
@@ -77,14 +81,24 @@ function evaluateBoard(state: GameState, perspective: 0 | 1): number {
   const myExposurePenalty = getMarketExposurePenalty(state.players[me]);
   const oppExposurePenalty = getMarketExposurePenalty(state.players[opp]);
 
+  // Sell-readiness scoring
+  const myMarketCounts: Record<WareType, number> = { trinkets: 0, hides: 0, tea: 0, silk: 0, fruit: 0, salt: 0 };
+  for (const slot of state.players[me].market) { if (slot) myMarketCounts[slot] += 1; }
+  const oppMarketCounts: Record<WareType, number> = { trinkets: 0, hides: 0, tea: 0, silk: 0, fruit: 0, salt: 0 };
+  for (const slot of state.players[opp].market) { if (slot) oppMarketCounts[slot] += 1; }
+  const mySellable = countCurrentlySellableWareCards(state.players[me], myMarketCounts);
+  const oppSellable = countCurrentlySellableWareCards(state.players[opp], oppMarketCounts);
+
   let score = 0;
   score += myGold * 6.5;
-  score -= oppGold * 3.0;
+  score -= oppGold * 4.0;
   score += myCapacity * 0.8;
   score -= oppCapacity * 0.5;
   score += (myMarketFilled - oppMarketFilled) * 0.5;
-  score += (myHandValue - oppHandValue) * 0.42;
+  score += myHandValue * 0.55 - oppHandValue * 0.35;
   score += (myUtilities - oppUtilities) * 1.2;
+  score += mySellable * 4.5;
+  score -= oppSellable * 2.5;
   score += getUtilitySetStrength(state, me);
   score -= getUtilitySetStrength(state, opp) * 0.8;
   score -= myExposurePenalty;
@@ -95,8 +109,24 @@ function evaluateBoard(state: GameState, perspective: 0 | 1): number {
   if (state.turnModifiers.buyDiscount > 0 && state.currentPlayer === me) score += 6;
   if (state.turnModifiers.sellBonus > 0 && state.currentPlayer === me) score += 9;
 
-  const meTargetGap = Math.max(0, 60 - myGold);
-  score += (60 - meTargetGap) * 0.15;
+  // Nonlinear endgame proximity bonus
+  const meGap = Math.max(0, 60 - myGold);
+  if (meGap <= 8) {
+    score += 25 + (8 - meGap) * 5; // burst bonus: 25 at 8g away, up to 65 at 0g away
+  } else if (meGap <= 20) {
+    score += (20 - meGap) * 1.5; // ramp: 0 at 20g away, 18 at 8g away
+  }
+
+  // Urgency penalty when opponent is close to 60g
+  const oppGap = Math.max(0, 60 - oppGold);
+  if (oppGap <= 12) {
+    score -= (12 - oppGap) * 2.5;
+  }
+
+  // Bonus for having triggered endgame
+  if (state.endgame !== null) {
+    score += 40;
+  }
 
   if (state.phase === 'GAME_OVER') {
     if (myGold > oppGold) score += 800;
@@ -116,25 +146,42 @@ function tacticalActionBonus(state: GameState, action: GameAction, me: 0 | 1): n
   if (action.type === 'PLAY_CARD') {
     const card = getCard(action.cardId);
     if (card.type === 'ware' && action.wareMode === 'sell' && card.wares) {
-      return 12 + card.wares.sellPrice * 0.6;
+      const myGold = state.players[me].gold;
+      const oppGold = state.players[opponent].gold;
+      const sellPrice = card.wares.sellPrice + state.turnModifiers.sellBonus;
+      let bonus = 12 + sellPrice * 0.6;
+      // Massive bonus if this sell triggers endgame
+      if (myGold + sellPrice >= 60) bonus += 35;
+      // Bonus if sell gets us within 8g of 60
+      else if (myGold + sellPrice >= 52) bonus += 12;
+      // Urgency bonus when opponent is near 60g
+      if (oppGold >= 48) bonus += 8;
+      return bonus;
     }
     if (card.type === 'ware' && action.wareMode === 'buy' && card.wares) {
-      return (getWareAcquisitionPriority(state, me, card.wares) - 44) * 0.5;
+      const myGold = state.players[me].gold;
+      const effectiveBuy = Math.max(0, card.wares.buyPrice - state.turnModifiers.buyDiscount);
+      let bonus = (getWareAcquisitionPriority(state, me, card.wares) - 44) * 0.5;
+      // Penalize buying when close to 60g if the spend drops us below 48g
+      if (myGold >= 48 && myGold - effectiveBuy < 48) bonus -= 10;
+      return bonus;
     }
     if (card.type === 'animal') {
       const pressure = getCardPressureBonus(state, me, action.cardId);
+      const defense = getDefensiveAnimalPriority(state, me, card.designId);
       if (card.designId === 'crocodile') {
-        return state.players[opponent].utilities.length * 2.6 + pressure;
+        return state.players[opponent].utilities.length * 2.6 + pressure + defense;
       }
       if (card.designId === 'parrot') {
-        return 8 + pressure;
+        return 8 + pressure + defense;
       }
-      return 2 + pressure;
+      return 2 + pressure + defense;
     }
     if (card.type === 'people') {
       const pressure = getCardPressureBonus(state, me, action.cardId);
-      if (card.designId === 'portuguese') return state.players[me].market.filter(w => w !== null).length * 1.5;
-      return 3 + pressure;
+      const combo = getPeoplePlayComboPriority(state, me, card.designId);
+      if (card.designId === 'portuguese') return state.players[me].market.filter(w => w !== null).length * 1.5 + combo;
+      return 3 + pressure + combo;
     }
     if (card.type === 'utility') {
       if (state.players[me].utilities.length >= 3) return -8;
@@ -167,7 +214,7 @@ function opponentBestReplyPenalty(nextState: GameState, perspective: 0 | 1): num
 
   let worstOpponentDelta = Number.POSITIVE_INFINITY;
 
-  for (const opponentAction of opponentActions.slice(0, 12)) {
+  for (const opponentAction of opponentActions.slice(0, 20)) {
     try {
       const afterReply = processAction(nextState, opponentAction);
       const deltaForPerspective = scoreStateDelta(nextState, afterReply, perspective);
@@ -181,7 +228,7 @@ function opponentBestReplyPenalty(nextState: GameState, perspective: 0 | 1): num
 
   if (!Number.isFinite(worstOpponentDelta)) return 0;
   if (worstOpponentDelta >= 0) return 0;
-  return -worstOpponentDelta * 0.2;
+  return -worstOpponentDelta * 0.3;
 }
 
 function scoreAction(state: GameState, action: GameAction): number {
@@ -195,6 +242,125 @@ function scoreAction(state: GameState, action: GameAction): number {
   } catch {
     return Number.NEGATIVE_INFINITY;
   }
+}
+
+function isWarePlayAction(action: GameAction): boolean {
+  return action.type === 'PLAY_CARD' && (action.wareMode === 'buy' || action.wareMode === 'sell');
+}
+
+function pickWareNearTop(scored: ReadonlyArray<{ action: GameAction; score: number }>, topScore: number): GameAction | null {
+  const nearTopThreshold = 12;
+  const wareCandidates = scored
+    .filter((entry) => isWarePlayAction(entry.action) && topScore - entry.score <= nearTopThreshold)
+    .sort((a, b) => b.score - a.score);
+  return wareCandidates[0]?.action ?? null;
+}
+
+function getHardGuardReaction(state: GameState): GameAction {
+  const gr = state.pendingGuardReaction;
+  if (!gr) return { type: 'GUARD_REACTION', play: false };
+
+  const defender = gr.targetPlayer;
+  const hasGuard = state.players[defender].hand.some(id => getCard(id).designId === 'guard');
+  if (!hasGuard) return { type: 'GUARD_REACTION', play: false };
+
+  // Simulate both outcomes
+  try {
+    const afterGuard = processAction(state, { type: 'GUARD_REACTION', play: true });
+    const afterSkip = processAction(state, { type: 'GUARD_REACTION', play: false });
+
+    const guardScore = evaluateBoard(afterGuard, defender);
+    const skipScore = evaluateBoard(afterSkip, defender);
+
+    // Add bias toward guarding high-impact animals
+    const animalCard = getCard(gr.animalCard);
+    const animalBias: Record<string, number> = {
+      elephant: 8, ape: 6, lion: 6, snake: 5, hyena: 4, crocodile: 2, parrot: 2, cheetah: 2,
+    };
+    const bias = animalBias[animalCard.designId] ?? 2;
+
+    return { type: 'GUARD_REACTION', play: guardScore + bias >= skipScore };
+  } catch {
+    return { type: 'GUARD_REACTION', play: false };
+  }
+}
+
+function getHardWareCardReaction(state: GameState): GameAction {
+  const wr = state.pendingWareCardReaction;
+  if (!wr) return { type: 'WARE_CARD_REACTION', play: false };
+
+  const defender = wr.targetPlayer;
+  const hasRainMaker = state.players[defender].hand.some(id => getCard(id).designId === 'rain_maker');
+  if (!hasRainMaker) return { type: 'WARE_CARD_REACTION', play: false };
+
+  // Simulate both outcomes
+  try {
+    const afterPlay = processAction(state, { type: 'WARE_CARD_REACTION', play: true });
+    const afterSkip = processAction(state, { type: 'WARE_CARD_REACTION', play: false });
+
+    const playScore = evaluateBoard(afterPlay, defender);
+    const skipScore = evaluateBoard(afterSkip, defender);
+
+    return { type: 'WARE_CARD_REACTION', play: playScore > skipScore };
+  } catch {
+    return { type: 'WARE_CARD_REACTION', play: false };
+  }
+}
+
+function getHardInteractionAction(state: GameState, rng: () => number): GameAction | null {
+  const pr = state.pendingResolution;
+  if (!pr) return null;
+
+  const responder = getPendingResponder(state);
+
+  // Gather candidate responses: random pick + all fallback options
+  const candidates: import('../../engine/types.ts').InteractionResponse[] = [];
+  const randomResponse = getRandomInteractionResponse(state, rng);
+  if (randomResponse) candidates.push(randomResponse);
+  candidates.push(...getFallbackInteractionResponses(state));
+
+  // Deduplicate
+  const seen = new Set<string>();
+  const unique: import('../../engine/types.ts').InteractionResponse[] = [];
+  for (const c of candidates) {
+    const key = JSON.stringify(c);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(c);
+  }
+
+  if (unique.length === 0) return null;
+
+  // If only one option, just use it
+  if (unique.length === 1) {
+    const action: GameAction = { type: 'RESOLVE_INTERACTION', response: unique[0] };
+    try {
+      processAction(state, action);
+      return action;
+    } catch {
+      return null;
+    }
+  }
+
+  // Simulate each and pick best by board eval
+  let bestAction: GameAction | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  for (const response of unique) {
+    const action: GameAction = { type: 'RESOLVE_INTERACTION', response };
+    try {
+      const next = processAction(state, action);
+      const score = evaluateBoard(next, responder);
+      if (score > bestScore) {
+        bestScore = score;
+        bestAction = action;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return bestAction;
 }
 
 function getHardAuctionBidAction(state: GameState): GameAction | null {
@@ -256,8 +422,18 @@ export function getHardAiAction(state: GameState, rng: () => number = createHard
     if (auctionAction) return auctionAction;
   }
 
-  if (state.pendingResolution || state.pendingGuardReaction || state.pendingWareCardReaction) {
+  if (state.pendingResolution) {
+    const smartAction = getHardInteractionAction(state, rng);
+    if (smartAction) return smartAction;
     return getRandomAiAction(state, rng);
+  }
+
+  if (state.pendingGuardReaction) {
+    return getHardGuardReaction(state);
+  }
+
+  if (state.pendingWareCardReaction) {
+    return getHardWareCardReaction(state);
   }
 
   const validActions = getValidActions(state);
@@ -265,17 +441,14 @@ export function getHardAiAction(state: GameState, rng: () => number = createHard
 
   const scored = validActions.map((action) => ({ action, score: scoreAction(state, action) }));
   const topScore = Math.max(...scored.map(s => s.score));
+  const wareNearTop = pickWareNearTop(scored, topScore);
+  if (wareNearTop) return wareNearTop;
 
   const mediumAction = getMediumAiAction(state, rng);
   if (mediumAction) {
-    if (state.turn <= 3) {
-      return mediumAction;
-    }
-
     const mediumKey = JSON.stringify(mediumAction);
     const mediumScored = scored.find(s => JSON.stringify(s.action) === mediumKey);
-    const divergenceThreshold = state.currentPlayer === 0 ? 40 : 20;
-    if (mediumScored && topScore - mediumScored.score <= divergenceThreshold) {
+    if (mediumScored && topScore - mediumScored.score <= 10) {
       return mediumAction;
     }
   }

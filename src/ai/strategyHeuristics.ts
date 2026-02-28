@@ -6,7 +6,7 @@ import type {
   WareCardWares,
   WareType,
 } from '../engine/types.ts';
-import { WARE_TYPES } from '../engine/types.ts';
+import { CONSTANTS, WARE_TYPES } from '../engine/types.ts';
 import { getCard } from '../engine/cards/CardDatabase.ts';
 
 const UTILITY_PLAY_BASE: Record<UtilityDesignId, number> = {
@@ -323,6 +323,223 @@ export function getCardPressureBonus(state: GameState, playerIndex: 0 | 1, cardI
   return 0;
 }
 
+function getWareHandReadinessScore(
+  player: PlayerState,
+  marketCounts: Record<WareType, number>,
+  sellBonus: number,
+): number {
+  let score = 0;
+
+  for (const cardId of player.hand) {
+    const card = getCard(cardId);
+    if (card.type !== 'ware' || !card.wares) continue;
+
+    const needed = getNeededByType(card.wares, marketCounts);
+    const missing = WARE_TYPES.reduce((sum, type) => sum + needed[type], 0);
+    const sellValue = card.wares.sellPrice + sellBonus;
+
+    if (missing === 0) score += 6 + sellValue * 0.35;
+    else if (missing === 1) score += 3 + sellValue * 0.18;
+    else if (missing === 2) score += 1 + sellValue * 0.08;
+  }
+
+  return score;
+}
+
+export function countCurrentlySellableWareCards(player: PlayerState, marketCounts: Record<WareType, number>): number {
+  let sellable = 0;
+  for (const cardId of player.hand) {
+    const card = getCard(cardId);
+    if (card.type !== 'ware' || !card.wares) continue;
+    const needed = getNeededByType(card.wares, marketCounts);
+    const missing = WARE_TYPES.reduce((sum, type) => sum + needed[type], 0);
+    if (missing === 0) sellable += 1;
+  }
+  return sellable;
+}
+
+export function getPeoplePlayComboPriority(
+  state: GameState,
+  playerIndex: 0 | 1,
+  designId: string,
+): number {
+  const player = state.players[playerIndex];
+  const opponent: 0 | 1 = playerIndex === 0 ? 1 : 0;
+  const opponentPlayer = state.players[opponent];
+  const { filled, empty, counts } = countMarket(player);
+  const currentReadiness = getWareHandReadinessScore(player, counts, state.turnModifiers.sellBonus);
+
+  if (designId === 'shaman') {
+    let bestDelta = 0;
+
+    for (const giveType of WARE_TYPES) {
+      const giveCount = counts[giveType];
+      if (giveCount <= 0) continue;
+
+      for (const receiveType of WARE_TYPES) {
+        if (receiveType === giveType) continue;
+        if (state.wareSupply[receiveType] < giveCount) continue;
+
+        const afterCounts = { ...counts };
+        afterCounts[giveType] -= giveCount;
+        afterCounts[receiveType] += giveCount;
+        const afterReadiness = getWareHandReadinessScore(player, afterCounts, state.turnModifiers.sellBonus);
+        bestDelta = Math.max(bestDelta, afterReadiness - currentReadiness);
+      }
+    }
+
+    return Math.min(26, bestDelta * 1.8);
+  }
+
+  if (designId === 'basket_maker') {
+    if (player.gold < 2 || empty < 2) return -8;
+
+    let bestDelta = 0;
+    for (const wareType of WARE_TYPES) {
+      if (state.wareSupply[wareType] < 2) continue;
+      const afterCounts = { ...counts };
+      afterCounts[wareType] += 2;
+      const afterReadiness = getWareHandReadinessScore(player, afterCounts, state.turnModifiers.sellBonus);
+      bestDelta = Math.max(bestDelta, afterReadiness - currentReadiness);
+    }
+
+    const hasDancer = hasCardDesign(player, 'dancer');
+    const dancerSetupBonus = hasDancer && filled >= 1 ? 3 : 0;
+    return Math.min(20, bestDelta * 1.5 + dancerSetupBonus);
+  }
+
+  if (designId === 'wise_man') {
+    const hasWareCards = player.hand.some((cardId) => getCard(cardId).type === 'ware');
+    if (!hasWareCards) return -10;
+
+    const marketHasSellPotential = countCurrentlySellableWareCards(player, counts) > 0;
+    const buyPotential = player.hand.some((cardId) => {
+      const card = getCard(cardId);
+      if (card.type !== 'ware' || !card.wares) return false;
+      const effectiveBuy = Math.max(0, card.wares.buyPrice - (state.turnModifiers.buyDiscount + 2));
+      return player.gold >= effectiveBuy && empty >= card.wares.types.length;
+    });
+
+    let score = 0;
+    if (marketHasSellPotential) score += 9;
+    if (buyPotential) score += 6;
+    if (state.actionsLeft <= 1) score -= 7;
+    return score;
+  }
+
+  if (designId === 'dancer') {
+    const marketFilled = filled;
+    if (marketFilled < 3) return -12;
+
+    let bestSellPrice = 0;
+    for (const cardId of player.hand) {
+      const card = getCard(cardId);
+      if (card.type !== 'ware' || !card.wares) continue;
+      bestSellPrice = Math.max(bestSellPrice, card.wares.sellPrice + state.turnModifiers.sellBonus);
+    }
+
+    if (bestSellPrice === 0) return -10;
+    return Math.min(18, bestSellPrice * 0.9 + (marketFilled >= 4 ? 2 : 0));
+  }
+
+  if (designId === 'portuguese') {
+    if (filled === 0) return -10;
+    const sellableWareCards = countCurrentlySellableWareCards(player, counts);
+    let score = filled * 1.2;
+    if (sellableWareCards === 0) score += 8;
+    else if (sellableWareCards === 1) score += 3;
+    return Math.min(16, score);
+  }
+
+  if (designId === 'tribal_elder') {
+    const oppPressure = Math.max(0, opponentPlayer.hand.length - 3) * 2;
+    const ownNeed = Math.max(0, 4 - player.hand.length) * 1.5;
+    return Math.min(14, oppPressure + ownNeed);
+  }
+
+  if (designId === 'psychic') {
+    const hasComboPieces = hasCardDesign(player, 'shaman') || hasCardDesign(player, 'dancer') || hasCardDesign(player, 'wise_man');
+    return hasComboPieces ? 5 : 2;
+  }
+
+  return 0;
+}
+
+export function getDefensiveAnimalPriority(
+  state: GameState,
+  playerIndex: 0 | 1,
+  designId: string,
+): number {
+  const me = state.players[playerIndex];
+  const opponentIndex: 0 | 1 = playerIndex === 0 ? 1 : 0;
+  const opponent = state.players[opponentIndex];
+
+  const myGold = me.gold;
+  const oppGold = opponent.gold;
+  const myHand = me.hand.length;
+  const oppHand = opponent.hand.length;
+  const myUtilities = me.utilities.length;
+  const oppUtilities = opponent.utilities.length;
+  const myMarketFilled = me.market.filter((w) => w !== null).length;
+  const oppMarketFilled = opponent.market.filter((w) => w !== null).length;
+
+  const goldThreat = Math.max(0, oppGold - 45) + Math.max(0, oppGold - myGold - 8) * 0.6;
+  const handThreat = Math.max(0, oppHand - 6) + Math.max(0, oppHand - myHand - 2) * 0.8;
+  const utilityThreat = Math.max(0, oppUtilities - myUtilities);
+  const marketThreat = Math.max(0, oppMarketFilled - myMarketFilled);
+  const nearEndgameThreat = oppGold >= CONSTANTS.ENDGAME_GOLD_THRESHOLD - 6 ? 1 : 0;
+
+  let score = 0;
+
+  if (designId === 'cheetah') {
+    score += goldThreat * 2.2;
+    score += handThreat * 0.6;
+    if (nearEndgameThreat) score += 24;
+  }
+
+  if (designId === 'hyena') {
+    score += handThreat * 3.0;
+    if (oppHand >= 8) score += 9;
+    if (myHand <= 1) score -= 5;
+  }
+
+  if (designId === 'ape') {
+    score += handThreat * 2.6;
+    score += utilityThreat * 0.5;
+    if (myHand <= 1) score -= 8;
+    else score += 2;
+  }
+
+  if (designId === 'lion') {
+    score += utilityThreat * 4.4;
+    if (oppUtilities >= 2) score += 8;
+  }
+
+  if (designId === 'snake') {
+    score += utilityThreat * 3.6;
+    if (oppUtilities >= 2) score += 6;
+    if (myUtilities === 0) score -= 2;
+  }
+
+  if (designId === 'crocodile') {
+    score += utilityThreat * 2.8;
+    if (oppUtilities >= 1) score += 4;
+  }
+
+  if (designId === 'parrot') {
+    score += marketThreat * 2.0;
+    if (oppGold >= 50) score += 3;
+  }
+
+  if (designId === 'elephant') {
+    score += marketThreat * 2.4;
+    score += handThreat * 0.5;
+    if (oppMarketFilled >= 4) score += 5;
+  }
+
+  return Math.max(0, Math.min(30, score));
+}
+
 export function getWareAcquisitionPriority(
   state: GameState,
   playerIndex: 0 | 1,
@@ -337,10 +554,10 @@ export function getWareAcquisitionPriority(
   const missing = WARE_TYPES.reduce((sum, type) => sum + needed[type], 0);
   const sellReadiness = getSellReadinessBonus(wares, counts);
 
-  let score = 42;
-  score += margin * 1.1;
-  score += sellReadiness * 2;
-  score += missing <= 1 ? 8 : missing === 2 ? 3 : -2;
+  let score = 50;
+  score += margin * 1.35;
+  score += sellReadiness * 3;
+  score += missing <= 1 ? 13 : missing === 2 ? 6 : -1;
   if (empty < wares.types.length) score -= 20;
   if (player.gold < effectiveBuy) score -= 25;
   score -= getMarketExposurePenalty(player) * 0.5;

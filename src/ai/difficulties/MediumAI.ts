@@ -124,6 +124,18 @@ function scoreAction(state: GameState, action: GameAction): number {
   }
 }
 
+function isWarePlayAction(action: GameAction): boolean {
+  return action.type === 'PLAY_CARD' && (action.wareMode === 'buy' || action.wareMode === 'sell');
+}
+
+function pickWareNearTop(scored: ReadonlyArray<{ action: GameAction; score: number }>, topScore: number): GameAction | null {
+  const nearTopThreshold = 9;
+  const wareCandidates = scored
+    .filter((entry) => isWarePlayAction(entry.action) && topScore - entry.score <= nearTopThreshold)
+    .sort((a, b) => b.score - a.score);
+  return wareCandidates[0]?.action ?? null;
+}
+
 function getMediumAuctionBidAction(state: GameState): GameAction | null {
   const pr = state.pendingResolution;
   if (!pr || pr.type !== 'AUCTION' || pr.wares.length < 2) return null;
@@ -153,7 +165,15 @@ export function getMediumAiAction(state: GameState, rng: () => number = createMe
     if (auctionAction) return auctionAction;
   }
 
-  if (state.pendingResolution || state.pendingGuardReaction || state.pendingWareCardReaction) {
+  // Medium plays guard 60% and ware card reactions 55% (vs RandomAI's 30%)
+  if (state.pendingGuardReaction) {
+    return { type: 'GUARD_REACTION', play: rng() < 0.6 };
+  }
+  if (state.pendingWareCardReaction) {
+    return { type: 'WARE_CARD_REACTION', play: rng() < 0.55 };
+  }
+
+  if (state.pendingResolution) {
     return getRandomAiAction(state, rng);
   }
 
@@ -162,6 +182,8 @@ export function getMediumAiAction(state: GameState, rng: () => number = createMe
 
   const scored = validActions.map((action) => ({ action, score: scoreAction(state, action) }));
   const topScore = Math.max(...scored.map(s => s.score));
+  const wareNearTop = pickWareNearTop(scored, topScore);
+  if (wareNearTop) return wareNearTop;
   const best = scored.filter(s => s.score === topScore).map(s => s.action);
   return pick(best, rng);
 }
