@@ -165,7 +165,15 @@ export function getMediumAiAction(state: GameState, rng: () => number = createMe
     if (auctionAction) return auctionAction;
   }
 
-  if (state.pendingResolution || state.pendingGuardReaction || state.pendingWareCardReaction) {
+  // Medium plays guard 60% and ware card reactions 55% (vs RandomAI's 30%)
+  if (state.pendingGuardReaction) {
+    return { type: 'GUARD_REACTION', play: rng() < 0.6 };
+  }
+  if (state.pendingWareCardReaction) {
+    return { type: 'WARE_CARD_REACTION', play: rng() < 0.55 };
+  }
+
+  if (state.pendingResolution) {
     return getRandomAiAction(state, rng);
   }
 

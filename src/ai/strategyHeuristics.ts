@@ -346,7 +346,7 @@ function getWareHandReadinessScore(
   return score;
 }
 
-function countCurrentlySellableWareCards(player: PlayerState, marketCounts: Record<WareType, number>): number {
+export function countCurrentlySellableWareCards(player: PlayerState, marketCounts: Record<WareType, number>): number {
   let sellable = 0;
   for (const cardId of player.hand) {
     const card = getCard(cardId);
