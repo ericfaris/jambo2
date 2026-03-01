@@ -5,10 +5,13 @@ Last reviewed: 2026-03-01
 ## Now
 
 - Stabilize rules fidelity and resolution safety
-- Strengthen AI-vs-AI evaluation and balancing loops
-- Harden docs as a single-source-of-truth system
-- **Stall prevention test coverage** — systematic edge-case tests for all 22 resolution types (empty supply, full market, empty hand, zero wares)
-- **Rules audit** — verify every card's gold values, ware counts, and interaction timing against the physical rulebook
+- Strengthen AI-vs-AI evaluation and balancing loops *(Expert vs Hard: 59% combined, target 65-70%)*
+
+## Done (this cycle)
+
+- **Harden docs** — CARD_REFERENCE.md, CLAUDE.md, and CardDatabase.ts fully cross-checked; all three sources consistent
+- **Rules audit** — every card's gold values, ware counts, and interaction timing verified; Traveling Merchant corrected to match digital implementation
+- **Stall prevention test coverage** — added tests for Well (0g), Supplies (0g/empty hand), Basket Maker (no supply), Carrier (no supply)
 
 ## Next
 
