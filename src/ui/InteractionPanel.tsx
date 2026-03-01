@@ -536,7 +536,10 @@ function WareTradePanel({ pr, dispatch }: { state: GameState; pr: Extract<Pendin
   if (pr.step === 'SELECT_GIVE') {
     return <WareTypePicker prompt="Select ware type to give (all of that type)" onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} />;
   }
-  return <WareTypePicker prompt="Select ware type to receive" onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} exclude={pr.giveType} />;
+  const receivePrompt = pr.giveType != null && pr.giveCount != null
+    ? `Trade all ${pr.giveCount} ${pr.giveType} — pick a type to receive:`
+    : 'Select ware type to receive';
+  return <WareTypePicker prompt={receivePrompt} onPick={(wt) => resolve(dispatch, { type: 'SELECT_WARE_TYPE', wareType: wt })} exclude={pr.giveType} />;
 }
 
 function AuctionPanel({ pr, state, viewerPlayer, dispatch }: { pr: Extract<PendingResolution, { type: 'AUCTION' }>; state: GameState; viewerPlayer: 0 | 1; dispatch: InteractionPanelProps['dispatch'] }) {
@@ -596,7 +599,7 @@ function DeckPeekPanel({ pr, dispatch, onMegaView }: { pr: Extract<PendingResolu
   return (
     <div>
       <div className="ui-prompt-text">
-        Pick {pr.pickCount} card(s) from the revealed cards:
+        Pick {pr.pickCount} card(s) to keep — the rest return to the top of the deck in order.
       </div>
       <SelectableCardArea
         cards={pr.revealedCards}
@@ -817,10 +820,7 @@ function OpponentDiscardPanel({ state, pr, viewerPlayer, dispatch, onMegaView }:
   return (
     <div>
       <div className="ui-prompt-text">
-        You have {target.hand.length} card(s). Discard down to {pr.discardTo} ({discardCount} total) — selected {selected.length}/{discardCount}.
-      </div>
-      <div className="ui-helper-text" style={{ marginBottom: 8, opacity: 0.9 }}>
-        You are at {target.hand.length} card(s), so discard {discardCount} to end at {pr.discardTo}.
+        Discard {discardCount} card(s) to reach {pr.discardTo} in hand — {selected.length}/{discardCount} selected.
       </div>
       <SelectableCardArea
         cards={target.hand}
@@ -843,8 +843,8 @@ function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<Pe
       <div>
         <div className="ui-prompt-text">
           {isMyPick
-            ? `Draft step: pick 1 ware (${pr.availableWares.length} left).`
-            : `Opponent is picking a ware... (${pr.availableWares.length} left)`}
+            ? `Pick 1 ware to keep — you and your opponent alternate. (${pr.availableWares.length} in pool)`
+            : `Opponent is picking... (${pr.availableWares.length} in pool)`}
         </div>
         <div style={getWareGridStyle(pr.availableWares.length)}>
           {pr.availableWares.map((wt, i) => (
@@ -868,8 +868,8 @@ function DraftPanel({ pr, viewerPlayer, dispatch, onMegaView }: { pr: Extract<Pe
     <div>
       <div className="ui-prompt-text">
         {isMyPick
-          ? `Draft step: pick 1 ${pr.draftMode === 'cards' ? 'card' : 'utility'} (${cards.length} left).`
-          : `Opponent is picking a ${pr.draftMode === 'cards' ? 'card' : 'utility'}... (${cards.length} left)`}
+          ? `Pick 1 ${pr.draftMode === 'cards' ? 'card' : 'utility'} to keep — you and your opponent alternate. (${cards.length} in pool)`
+          : `Opponent is picking a ${pr.draftMode === 'cards' ? 'card' : 'utility'}... (${cards.length} in pool)`}
       </div>
       {isMyPick ? (
         <SelectableCardArea

@@ -50,6 +50,10 @@ export function formatResolutionBreadcrumb(pr: PendingResolution): string {
       return `Utility > ${pr.utilityDesign} > ${pr.step}`;
     case 'AUCTION':
       return `Auction > ${pr.wares.length < 2 ? 'Select Wares' : 'Bidding'}`;
+    case 'DRAFT':
+      return `Draft > ${pr.draftMode}`;
+    case 'WARE_TRADE':
+      return `Shaman > ${pr.step === 'SELECT_GIVE' ? 'Select Give Type' : 'Select Receive Type'}`;
     default:
       return pr.type.replace(/_/g, ' > ');
   }
