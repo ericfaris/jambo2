@@ -278,8 +278,8 @@ export async function handleAuthApi(req: IncomingMessage, res: ServerResponse): 
         throw new Error('Invalid token audience or required claim missing');
       }
 
-      const linkedProfileId = flowState.localProfileId
-        ?? await getLinkedProfileId(tokenInfo.sub)
+      const linkedProfileId = await getLinkedProfileId(tokenInfo.sub)
+        ?? flowState.localProfileId
         ?? null;
 
       if (linkedProfileId) {
