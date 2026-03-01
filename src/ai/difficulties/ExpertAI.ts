@@ -34,13 +34,13 @@ function scoreStateDelta(before: GameState, after: GameState, perspective: 0 | 1
 
 // Main action selection parameters
 const ROLLOUT_COUNT = 30;
-const ROLLOUT_DEPTH = 12;
+const ROLLOUT_DEPTH = 16;
 const TOP_K = 10;
 const HARD_WEIGHT = 0.4;
 const ROLLOUT_WEIGHT = 0.6;
 
-// Interaction handler parameters — fewer rollouts per candidate keeps it fast
-const INTERACTION_ROLLOUT_COUNT = 8;
+// Interaction handler parameters — deeper evaluation for Draft/Shaman/Psychic decisions
+const INTERACTION_ROLLOUT_COUNT = 16;
 
 /**
  * Run a single Monte Carlo rollout from a given state using MediumAI as the

@@ -5,7 +5,7 @@ Last reviewed: 2026-03-01
 ## Now
 
 - Stabilize rules fidelity and resolution safety
-- Strengthen AI-vs-AI evaluation and balancing loops *(Expert vs Hard: 59% combined, target 65-70%)*
+- Strengthen AI-vs-AI evaluation and balancing loops *(Expert vs Hard: 70% combined — target met)*
 
 ## Done (this cycle)
 
