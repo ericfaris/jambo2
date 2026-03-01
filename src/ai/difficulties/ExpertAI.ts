@@ -32,11 +32,15 @@ function scoreStateDelta(before: GameState, after: GameState, perspective: 0 | 1
   return evaluateBoard(after, perspective) - evaluateBoard(before, perspective);
 }
 
-const ROLLOUT_COUNT = 20;
-const ROLLOUT_DEPTH = 8;
-const TOP_K = 8;
+// Main action selection parameters
+const ROLLOUT_COUNT = 30;
+const ROLLOUT_DEPTH = 12;
+const TOP_K = 10;
 const HARD_WEIGHT = 0.4;
 const ROLLOUT_WEIGHT = 0.6;
+
+// Interaction handler parameters — fewer rollouts per candidate keeps it fast
+const INTERACTION_ROLLOUT_COUNT = 8;
 
 /**
  * Run a single Monte Carlo rollout from a given state using MediumAI as the
@@ -82,7 +86,7 @@ function averageRolloutScore(
 }
 
 /**
- * Compute the 1-ply "Hard-style" score for an action (immediate delta + tactical bonus).
+ * Compute the 1-ply Hard-style score for an action (immediate delta + tactical bonus).
  * Used for top-K filtering before running expensive rollouts.
  */
 function hardScore(state: GameState, action: GameAction): number {
@@ -98,12 +102,13 @@ function hardScore(state: GameState, action: GameAction): number {
 }
 
 /**
- * Expert interaction handler — exhaustive evaluation of ALL possible responses.
+ * Expert interaction handler — evaluates ALL possible responses with MC rollouts.
  *
- * Hard's interaction handler evaluates random + fallback responses (~5-10 options).
- * Expert generates multiple random samples AND all fallback options, giving it
- * a much broader search of the response space. This matters for complex
- * interactions like Draft picks, Shaman trades, Psychic card selection, etc.
+ * Hard's interaction handler picks best by 1-ply board eval (~5-10 options).
+ * Expert generates multiple random samples AND all fallback options, then runs
+ * MC rollouts on each candidate for deeper evaluation. This significantly improves
+ * decisions on complex interactions: Draft picks, Shaman trades, Psychic card
+ * selection, Tribal Elder choices, ware type selections, etc.
  */
 function getExpertInteractionAction(state: GameState, rng: () => number): GameAction | null {
   const pr = state.pendingResolution;
@@ -149,7 +154,8 @@ function getExpertInteractionAction(state: GameState, rng: () => number): GameAc
     }
   }
 
-  // Simulate each and pick best by board eval
+  // Evaluate each candidate with MC rollouts — unlike Hard's 1-ply eval, this
+  // looks ahead to see which response leads to the best future position.
   let bestAction: GameAction | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
@@ -157,7 +163,8 @@ function getExpertInteractionAction(state: GameState, rng: () => number): GameAc
     const action: GameAction = { type: 'RESOLVE_INTERACTION', response };
     try {
       const next = processAction(state, action);
-      const score = evaluateBoard(next, responder);
+      const rolloutRng = createRng(Math.floor(rng() * 0x7fffffff));
+      const score = averageRolloutScore(next, responder, INTERACTION_ROLLOUT_COUNT, rolloutRng);
       if (score > bestScore) {
         bestScore = score;
         bestAction = action;
@@ -169,8 +176,6 @@ function getExpertInteractionAction(state: GameState, rng: () => number): GameAc
 
   return bestAction;
 }
-
-// scoreAction removed — replaced by hardScore + MC rollout blending in getExpertAiAction
 
 function isWarePlayAction(action: GameAction): boolean {
   return action.type === 'PLAY_CARD' && (action.wareMode === 'buy' || action.wareMode === 'sell');
@@ -191,7 +196,7 @@ export function getExpertAiAction(state: GameState, rng: () => number = createEx
     if (auctionAction) return auctionAction;
   }
 
-  // Pending interactions — Expert's exhaustive response evaluation
+  // Pending interactions — Expert's rollout-enhanced response evaluation
   if (state.pendingResolution) {
     const smartAction = getExpertInteractionAction(state, rng);
     if (smartAction) return smartAction;
@@ -227,14 +232,14 @@ export function getExpertAiAction(state: GameState, rng: () => number = createEx
 
   // Phase 3: Run MC rollouts for each top-K candidate, compute blended score
   const blended: { action: GameAction; score: number }[] = [];
-  for (const { action, hScore } of topK) {
+  for (const { action, hScore: hS } of topK) {
     try {
       const next = processAction(state, action);
       const rolloutRng = createRng(Math.floor(rng() * 0x7fffffff));
       const rolloutAvg = averageRolloutScore(next, me, ROLLOUT_COUNT, rolloutRng);
       const baselineEval = evaluateBoard(state, me);
       const rolloutDelta = rolloutAvg - baselineEval;
-      const finalScore = HARD_WEIGHT * hScore + ROLLOUT_WEIGHT * rolloutDelta;
+      const finalScore = HARD_WEIGHT * hS + ROLLOUT_WEIGHT * rolloutDelta;
       blended.push({ action, score: finalScore });
     } catch {
       blended.push({ action, score: Number.NEGATIVE_INFINITY });
@@ -243,7 +248,8 @@ export function getExpertAiAction(state: GameState, rng: () => number = createEx
 
   const topScore = Math.max(...blended.map(s => s.score));
 
-  // Prefer ware plays if near top (same logic as before)
+  // Prefer ware plays if near top — MC rollouts have variance that can marginally
+  // underscore sells; this correction ensures sells aren't missed when nearly optimal
   const wareNearTop = pickWareNearTop(blended, topScore);
   if (wareNearTop) return wareNearTop;
 

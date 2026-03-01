@@ -48,7 +48,9 @@ describe('AI difficulties baseline', () => {
     expect(easy).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
     expect(medium).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
     expect(hard).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
-    expect(expert).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
+    // Expert uses MC rollout evaluation for interactions — may choose differently from Hard
+    expect(expert?.type).toBe('RESOLVE_INTERACTION');
+    expect((expert as { type: string; response: { type: string } } | null)?.response?.type).toBe('BINARY_CHOICE');
   });
 
   it('is deterministic when injected with seeded rng', () => {
