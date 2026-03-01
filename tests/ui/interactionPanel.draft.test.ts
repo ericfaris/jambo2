@@ -61,8 +61,8 @@ describe('Draft panel stays visible during opponent pick', () => {
         createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0 }),
       );
 
-      expect(html).toContain('Draft step: pick 1 ware');
-      expect(html).toContain('4 left');
+      expect(html).toContain('Pick 1 ware to keep');
+      expect(html).toContain('4 in pool');
       // Buttons should be present (interactive)
       expect(html).toContain('<button');
     });
@@ -78,8 +78,8 @@ describe('Draft panel stays visible during opponent pick', () => {
         createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0 }),
       );
 
-      expect(html).toContain('Opponent is picking a ware');
-      expect(html).toContain('4 left');
+      expect(html).toContain('Opponent is picking...');
+      expect(html).toContain('4 in pool');
       // Should NOT have clickable buttons — wares rendered as divs with opacity
       expect(html).toContain('opacity:0.6');
     });
@@ -95,7 +95,7 @@ describe('Draft panel stays visible during opponent pick', () => {
         createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0 }),
       );
 
-      expect(html).toContain('2 left');
+      expect(html).toContain('2 in pool');
     });
   });
 
@@ -112,8 +112,8 @@ describe('Draft panel stays visible during opponent pick', () => {
         createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0 }),
       );
 
-      expect(html).toContain('Draft step: pick 1 card');
-      expect(html).toContain('3 left');
+      expect(html).toContain('Pick 1 card to keep');
+      expect(html).toContain('3 in pool');
     });
 
     it('renders read-only panel with cards when it is the opponent\'s pick', () => {
@@ -128,8 +128,8 @@ describe('Draft panel stays visible during opponent pick', () => {
         createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0 }),
       );
 
-      expect(html).toContain('Opponent is picking a card');
-      expect(html).toContain('3 left');
+      expect(html).toContain('Opponent is picking a card...');
+      expect(html).toContain('3 in pool');
       // Panel should still be rendered (not null/empty)
       expect(html).toContain('Ape - Resolve');
     });
@@ -148,8 +148,8 @@ describe('Draft panel stays visible during opponent pick', () => {
         createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0 }),
       );
 
-      expect(html).toContain('Draft step: pick 1 utility');
-      expect(html).toContain('2 left');
+      expect(html).toContain('Pick 1 utility to keep');
+      expect(html).toContain('2 in pool');
     });
 
     it('renders read-only panel with utilities when it is the opponent\'s pick', () => {
@@ -164,8 +164,8 @@ describe('Draft panel stays visible during opponent pick', () => {
         createElement(InteractionPanel, { state, dispatch: noopDispatch, viewerPlayer: 0 }),
       );
 
-      expect(html).toContain('Opponent is picking a utility');
-      expect(html).toContain('2 left');
+      expect(html).toContain('Opponent is picking a utility...');
+      expect(html).toContain('2 in pool');
       expect(html).toContain('Lion - Resolve');
     });
   });
@@ -200,12 +200,12 @@ describe('Draft panel stays visible during opponent pick', () => {
       expect(htmlOppPick).toContain('Elephant - Resolve');
 
       // My pick is interactive, opp pick shows waiting text
-      expect(htmlMyPick).toContain('Draft step: pick 1 ware');
-      expect(htmlOppPick).toContain('Opponent is picking a ware');
+      expect(htmlMyPick).toContain('Pick 1 ware to keep');
+      expect(htmlOppPick).toContain('Opponent is picking...');
 
       // Pool sizes differ
-      expect(htmlMyPick).toContain('6 left');
-      expect(htmlOppPick).toContain('5 left');
+      expect(htmlMyPick).toContain('6 in pool');
+      expect(htmlOppPick).toContain('5 in pool');
     });
   });
 });

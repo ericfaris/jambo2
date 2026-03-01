@@ -127,9 +127,11 @@ export function evaluateBoard(state: GameState, perspective: 0 | 1): number {
     score -= (12 - oppGap) * 2.5;
   }
 
-  // Bonus for having triggered endgame
+  // Endgame trigger: +40 from the perspective of whoever triggered it (they have the gold),
+  // −25 from the perspective of whoever must play their final turn from behind.
   if (state.endgame !== null) {
-    score += 40;
+    if (state.endgame.triggerPlayer === me) score += 40;
+    else score -= 25;
   }
 
   if (state.phase === 'GAME_OVER') {

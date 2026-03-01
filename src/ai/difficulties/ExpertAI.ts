@@ -4,6 +4,7 @@ import { processAction } from '../../engine/GameEngine.ts';
 import { getValidActions } from '../../engine/validation/actionValidator.ts';
 import { getRandomAiAction, getRandomInteractionResponse, getFallbackInteractionResponses } from '../RandomAI.ts';
 import { createRng } from '../../utils/rng.ts';
+import { getCard } from '../../engine/cards/CardDatabase.ts';
 import {
   evaluateBoard,
   getPendingResponder,
@@ -43,7 +44,37 @@ const ROLLOUT_WEIGHT = 0.6;
 const INTERACTION_ROLLOUT_COUNT = 16;
 
 /**
- * Run a single Monte Carlo rollout from a given state using MediumAI as the
+ * Endgame-aware rollout policy. Extends MediumAI with one critical rule:
+ * always take a sell that triggers the 60g endgame if one is available.
+ * This makes rollouts simulate realistic futures instead of sitting on
+ * sellable wares that would end the game.
+ */
+function getRolloutAction(state: GameState, rng: () => number): GameAction | null {
+  if (!state.pendingResolution && !state.pendingGuardReaction && !state.pendingWareCardReaction) {
+    const me = state.currentPlayer;
+    const myGold = state.players[me].gold;
+    if (myGold < 60) {
+      const validActions = getValidActions(state);
+      let bestTrigger: GameAction | null = null;
+      let bestGain = -1;
+      for (const action of validActions) {
+        if (action.type !== 'PLAY_CARD' || action.wareMode !== 'sell') continue;
+        const card = getCard(action.cardId);
+        if (!card.wares) continue;
+        const gain = card.wares.sellPrice + state.turnModifiers.sellBonus;
+        if (myGold + gain >= 60 && gain > bestGain) {
+          bestGain = gain;
+          bestTrigger = action;
+        }
+      }
+      if (bestTrigger) return bestTrigger;
+    }
+  }
+  return getMediumAiAction(state, rng);
+}
+
+/**
+ * Run a single Monte Carlo rollout from a given state using an endgame-aware
  * rollout policy. Simulates `depth` actions (both players), then evaluates
  * the resulting board from `perspective`.
  */
@@ -57,7 +88,7 @@ function monteCarloRollout(
   for (let i = 0; i < depth; i++) {
     if (current.phase === 'GAME_OVER') break;
     const rolloutRng = createRng(Math.floor(rng() * 0x7fffffff));
-    const action = getMediumAiAction(current, rolloutRng);
+    const action = getRolloutAction(current, rolloutRng);
     if (!action) break;
     try {
       current = processAction(current, action);
