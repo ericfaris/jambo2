@@ -11,7 +11,7 @@ Last reviewed: 2026-03-01
 
 - **Harden docs** — CARD_REFERENCE.md, CLAUDE.md, and CardDatabase.ts fully cross-checked; all three sources consistent
 - **Rules audit** — every card's gold values, ware counts, and interaction timing verified; Traveling Merchant corrected to match digital implementation
-- **Stall prevention test coverage** — added tests for Well (0g), Supplies (0g/empty hand), Basket Maker (no supply), Carrier (no supply)
+- **Stall prevention test coverage** — resolver guards and validation gates covered for all 22 resolution types (Portuguese, Psychic, Tribal Elder, Shaman, Elephant draft, Supplies, Wise Man, Arabian Merchant, Parrot full-market, Throne full-market, Cheetah 0g opponent, plus earlier Well/Basket Maker/Carrier)
 
 ## Next
 

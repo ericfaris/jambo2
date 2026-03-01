@@ -524,3 +524,240 @@ describe('Carrier: auto-resolves ware step when supply is empty', () => {
     expect(s4.pendingResolution).toBeNull();
   });
 });
+
+// ============================================================================
+// Additional stall coverage — resolver guards for remaining resolution types
+// ============================================================================
+
+describe('Portuguese (WARE_SELL_BULK): auto-resolves when market is empty', () => {
+  it('resolver guard clears pending when no wares in market', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['portuguese_1']);
+    s = removeFromDeck(s, 'portuguese_1');
+    s = withGold(s, 0, 20);
+    s = withMarket(s, 0, [null, null, null, null, null, null]);
+
+    // Play Portuguese — enters WARE_SELL_BULK (no upfront validation gate)
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'portuguese_1' });
+    expect(s2.pendingResolution?.type).toBe('WARE_SELL_BULK');
+
+    // Send any response — guard fires first (no wares) and auto-resolves
+    const s3 = resolve(s2, { type: 'SELL_WARES', wareIndices: [] });
+    expect(s3.pendingResolution).toBeNull();
+  });
+});
+
+describe('Psychic (DECK_PEEK): auto-resolves when deck is empty', () => {
+  it('revealedCards is empty when deck is empty — resolver auto-resolves', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['psychic_1']);
+    s = removeFromDeck(s, 'psychic_1');
+    s = withGold(s, 0, 20);
+    // Drain deck to discard to maintain 110-card invariant
+    s = { ...s, discardPile: [...s.deck, ...s.discardPile], deck: [] };
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'psychic_1' });
+    expect(s2.pendingResolution?.type).toBe('DECK_PEEK');
+    expect((s2.pendingResolution as any).revealedCards.length).toBe(0);
+
+    // Send any response — guard fires (revealedCards empty) and auto-resolves
+    const s3 = resolve(s2, { type: 'DECK_PEEK_PICK', cardIndex: 0 });
+    expect(s3.pendingResolution).toBeNull();
+  });
+});
+
+describe('Tribal Elder: OPPONENT_DISCARD auto-resolves when opponent is already at or below target', () => {
+  it('chains to OPPONENT_DISCARD which immediately clears when opponent has <= 3 cards', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['tribal_elder_1']);
+    s = removeFromDeck(s, 'tribal_elder_1');
+    s = withGold(s, 0, 20);
+    // Opponent has 2 cards — already below discard-to threshold of 3
+    s = withHand(s, 1, ['ware_3k_1', 'well_1']);
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'tribal_elder_1' });
+    expect(s2.pendingResolution?.type).toBe('BINARY_CHOICE');
+
+    // Choose option 1: opponent discards to 3 — chains to OPPONENT_DISCARD
+    const s3 = resolve(s2, { type: 'BINARY_CHOICE', choice: 1 });
+    expect(s3.pendingResolution?.type).toBe('OPPONENT_DISCARD');
+
+    // Send any response — guard fires (opponent.hand.length <= 3) and auto-resolves
+    const s4 = resolve(s3, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [] });
+    expect(s4.pendingResolution).toBeNull();
+    // Opponent's 2 cards untouched
+    expect(hand(s4, 1).length).toBe(2);
+  });
+
+  it('requires discard when opponent has > 3 cards', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['tribal_elder_1']);
+    s = removeFromDeck(s, 'tribal_elder_1');
+    s = withGold(s, 0, 20);
+    // Opponent has 5 cards — must discard 2
+    s = withHand(s, 1, ['ware_3k_1', 'well_1', 'drums_1', 'drums_2', 'ware_3h_1']);
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'tribal_elder_1' });
+    const s3 = resolve(s2, { type: 'BINARY_CHOICE', choice: 1 });
+    expect(s3.pendingResolution?.type).toBe('OPPONENT_DISCARD');
+
+    // Opponent discards indices 0 and 1 (2 cards) to get down to 3
+    const s4 = resolve(s3, { type: 'OPPONENT_DISCARD_SELECTION', cardIndices: [0, 1] });
+    expect(s4.pendingResolution).toBeNull();
+    expect(hand(s4, 1).length).toBe(3);
+  });
+});
+
+describe('Shaman (WARE_TRADE): SELECT_RECEIVE guard auto-resolves when supply has no valid receive type', () => {
+  it('auto-resolves at SELECT_RECEIVE step when entire supply is depleted', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['shaman_1']);
+    s = removeFromDeck(s, 'shaman_1');
+    s = withGold(s, 0, 20);
+    // 2 trinkets on market — valid give type
+    s = withMarket(s, 0, ['trinkets', 'trinkets', null, null, null, null]);
+    // All supply depleted — no valid receive type for count=2
+    s = { ...s, wareSupply: { trinkets: 0, hides: 0, tea: 0, silk: 0, fruit: 0, salt: 0 } };
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'shaman_1' });
+    expect(s2.pendingResolution?.type).toBe('WARE_TRADE');
+
+    // Select 'trinkets' as the give type — transitions to SELECT_RECEIVE
+    const s3 = resolve(s2, { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' });
+    expect((s3.pendingResolution as any).step).toBe('SELECT_RECEIVE');
+
+    // Send any response — guard fires at SELECT_RECEIVE (no valid receive type) and auto-resolves
+    const s4 = resolve(s3, { type: 'SELECT_WARE_TYPE', wareType: 'hides' });
+    expect(s4.pendingResolution).toBeNull();
+  });
+});
+
+describe('Elephant (DRAFT): resolves after final ware is picked', () => {
+  it('resolves immediately when only 1 ware total is in the pool', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['elephant_1']);
+    s = withGold(s, 0, 20);
+    // Only P0 has 1 ware; P1 market empty
+    s = withMarket(s, 0, ['trinkets', null, null, null, null, null]);
+    s = withMarket(s, 1, [null, null, null, null, null, null]);
+    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5 } };
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'elephant_1' });
+    expect(s2.pendingResolution?.type).toBe('DRAFT');
+    expect((s2.pendingResolution as any).availableWares.length).toBe(1);
+
+    // P0 picks the only ware — pool exhausted, resolves
+    const s3 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
+    expect(s3.pendingResolution).toBeNull();
+  });
+});
+
+describe('Supplies (SUPPLIES_DISCARD): auto-resolves when hand is empty at discard step', () => {
+  it('skips discard and draws until ware when hand is empty', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, []);
+    s = withGold(s, 0, 10);
+    s = withUtility(s, 0, 'supplies_1', 'supplies');
+
+    // Activate Supplies — requires gold or hand card; 10g satisfies validation
+    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    expect(s2.pendingResolution?.type).toBe('BINARY_CHOICE');
+
+    // Choose "discard a card" (choice 1) with empty hand — chains to SUPPLIES_DISCARD
+    const s3 = resolve(s2, { type: 'BINARY_CHOICE', choice: 1 });
+    expect(s3.pendingResolution?.type).toBe('SUPPLIES_DISCARD');
+
+    // Send any response — guard fires (hand empty) and auto-resolves without discarding
+    const s4 = resolve(s3, { type: 'SELECT_CARD', cardId: 'dummy_nonexistent' });
+    expect(s4.pendingResolution).toBeNull();
+  });
+});
+
+describe('Wise Man from Afar (TURN_MODIFIER): auto-resolves immediately', () => {
+  it('applies modifier and clears pendingResolution in one PLAY_CARD step', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['wise_man_1']);
+    s = removeFromDeck(s, 'wise_man_1');
+    s = withGold(s, 0, 20);
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'wise_man_1' });
+    // No RESOLVE_INTERACTION needed — modifier applied inline
+    expect(s2.pendingResolution).toBeNull();
+    expect(s2.turnModifiers.buyDiscount).toBe(2);
+    expect(s2.turnModifiers.sellBonus).toBe(2);
+  });
+});
+
+describe('Arabian Merchant: requires 2 empty market slots', () => {
+  it('blocks when player has fewer than 2 empty market slots', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['arabian_merchant_1']);
+    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withGold(s, 0, 20);
+    // Only 1 empty slot — not enough for 2 auctioned cards
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', null]);
+    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 5, hides: 5, tea: 5, silk: 5, fruit: 5 } };
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' })).toThrow(/need at least 2 empty market slots/);
+  });
+
+  it('allowed when 2+ empty slots exist', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['arabian_merchant_1']);
+    s = removeFromDeck(s, 'arabian_merchant_1');
+    s = withGold(s, 0, 20);
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'arabian_merchant_1' });
+    expect(s2.pendingResolution?.type).toBe('AUCTION');
+  });
+});
+
+describe('Parrot: blocks when own market has no empty slots', () => {
+  it('blocks when active player market is full', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['parrot_1']);
+    s = withGold(s, 0, 20);
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
+    s = withMarket(s, 1, ['trinkets', null, null, null, null, null]);
+    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 3, hides: 5, tea: 5, silk: 5, fruit: 5, salt: 5 } };
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'parrot_1' })).toThrow(/your market has no empty slots/);
+  });
+});
+
+describe('Throne (WARE_THEFT_SWAP): resolver guard auto-resolves when active market is full', () => {
+  it('STEAL step auto-resolves when active player market has no empty slots', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, []);
+    s = withGold(s, 0, 20);
+    // Active player market full
+    s = withMarket(s, 0, ['trinkets', 'hides', 'tea', 'silk', 'fruit', 'salt']);
+    // Opponent has wares (validation passes)
+    s = withMarket(s, 1, ['trinkets', null, null, null, null, null]);
+    s = { ...s, wareSupply: { ...s.wareSupply, trinkets: 3, hides: 5, tea: 5, silk: 5, fruit: 5, salt: 5 } };
+    s = withUtility(s, 0, 'throne_1', 'throne');
+
+    // Validation passes (opponent has wares), but resolver guard fires (active market full)
+    const s2 = act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 });
+    expect(s2.pendingResolution?.type).toBe('WARE_THEFT_SWAP');
+
+    // Send any response — guard fires and auto-resolves
+    const s3 = resolve(s2, { type: 'SELECT_WARE', wareIndex: 0 });
+    expect(s3.pendingResolution).toBeNull();
+  });
+});
+
+describe('Cheetah (OPPONENT_CHOICE): handles opponent with 0g gracefully', () => {
+  it('transfers 0g when opponent has no gold (choice 0 = give gold)', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['cheetah_1']);
+    s = withGold(s, 0, 20);
+    s = withGold(s, 1, 0);
+
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'cheetah_1' });
+    expect(s2.pendingResolution?.type).toBe('OPPONENT_CHOICE');
+
+    // Opponent chooses to give gold — but has 0g, so 0 transferred
+    const s3 = resolve(s2, { type: 'OPPONENT_CHOICE', choice: 0 });
+    expect(s3.pendingResolution).toBeNull();
+    expect(gold(s3, 0)).toBe(20); // active player unchanged
+    expect(gold(s3, 1)).toBe(0);  // opponent still 0g
+  });
+});
