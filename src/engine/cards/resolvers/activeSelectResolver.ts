@@ -1,17 +1,16 @@
 // ============================================================================
-// Active Select Resolver - Throne (swap), Parrot (steal), Crocodile (utility)
+// Active Select Resolver - Throne (swap), Parrot (steal)
 // ============================================================================
 
 import type {
   GameState,
   PendingWareTheftSwap,
   PendingWareTheftSingle,
-  PendingUtilityTheft,
   InteractionResponse,
 } from '../../types.ts';
 import { addWareToMarket, removeWareFromMarket } from '../../market/MarketManager.ts';
 
-type ActiveSelectPending = PendingWareTheftSwap | PendingWareTheftSingle | PendingUtilityTheft;
+type ActiveSelectPending = PendingWareTheftSwap | PendingWareTheftSingle;
 
 export function resolveActiveSelect(
   state: GameState,
@@ -23,8 +22,6 @@ export function resolveActiveSelect(
       return resolveThrone(state, pending, response);
     case 'WARE_THEFT_SINGLE':
       return resolveParrot(state, pending, response);
-    case 'UTILITY_THEFT_SINGLE':
-      return resolveCrocodile(state, pending, response);
     default:
       throw new Error(`Unknown active select type`);
   }
@@ -190,50 +187,3 @@ function resolveParrot(
   };
 }
 
-function resolveCrocodile(
-  state: GameState,
-  _pending: PendingUtilityTheft,
-  response: InteractionResponse
-): GameState {
-  const activePlayer = state.currentPlayer;
-  const opponent: 0 | 1 = activePlayer === 0 ? 1 : 0;
-
-  // Guard: opponent has no utilities — auto-resolve
-  if (state.players[opponent].utilities.length === 0) {
-    return {
-      ...state,
-      pendingResolution: null,
-      log: [...state.log, { turn: state.turn, player: activePlayer, action: 'CROCODILE_DISCARD', details: 'Opponent has no utilities to discard' }],
-    };
-  }
-
-  if (response.type !== 'SELECT_WARE') {
-    // Reusing SELECT_WARE index for utility selection
-    throw new Error('Expected SELECT_WARE (index) for Crocodile utility discard');
-  }
-  const { wareIndex: utilityIndex } = response;
-
-  const opponentUtils = state.players[opponent].utilities;
-  if (utilityIndex < 0 || utilityIndex >= opponentUtils.length) {
-    throw new Error(`Invalid opponent utility index ${utilityIndex}`);
-  }
-
-  const discardedUtility = opponentUtils[utilityIndex];
-  const newUtilities = opponentUtils.filter((_, i) => i !== utilityIndex);
-
-  const newPlayers = [...state.players] as [typeof state.players[0], typeof state.players[1]];
-  newPlayers[opponent] = { ...newPlayers[opponent], utilities: newUtilities };
-
-  return {
-    ...state,
-    players: newPlayers,
-    discardPile: [discardedUtility.cardId, ...state.discardPile],
-    pendingResolution: null,
-    log: [...state.log, {
-      turn: state.turn,
-      player: activePlayer,
-      action: 'CROCODILE_DISCARD',
-      details: `Discarded opponent's ${discardedUtility.cardId}`,
-    }],
-  };
-}

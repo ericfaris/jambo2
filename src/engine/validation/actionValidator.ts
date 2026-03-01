@@ -264,10 +264,11 @@ export function validatePlayCard(
         return fail('Cannot play Dancer: need at least 3 wares in market');
       }
     }
-    // Basket Maker: need 2g and 2 empty market slots
+    // Basket Maker: need 2g, 2 empty market slots, and at least 1 ware type in supply
     if (isDesign(cardId, 'basket_maker')) {
       if (player.gold < 2) return fail('Cannot play Basket Maker: need at least 2g');
       if (player.market.filter(w => w === null).length < 2) return fail('Cannot play Basket Maker: need at least 2 empty market slots');
+      if (!Object.values(state.wareSupply).some(v => v > 0)) return fail('Cannot play Basket Maker: no wares in supply');
     }
     // Shaman: need at least 1 ware in market to trade
     if (isDesign(cardId, 'shaman') && !player.market.some(w => w !== null)) {

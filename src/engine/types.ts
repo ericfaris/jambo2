@@ -136,10 +136,6 @@ export interface PendingWareTheftSingle {
   sourceCard: DeckCardId;
 }
 
-export interface PendingUtilityTheft {
-  type: 'UTILITY_THEFT_SINGLE';
-  sourceCard: DeckCardId;
-}
 
 export interface PendingWareTrade {
   type: 'WARE_TRADE';
@@ -265,7 +261,7 @@ export type PendingResolution =
   | PendingDraft
   | PendingWareTheftSwap
   | PendingWareTheftSingle
-  | PendingUtilityTheft
+
   | PendingWareTrade
   | PendingBinaryChoice
   | PendingDeckPeek

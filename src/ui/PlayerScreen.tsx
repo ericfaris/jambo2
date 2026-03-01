@@ -1133,7 +1133,7 @@ function getResolutionStatusMessage(type: NonNullable<PublicGameState['pendingRe
     case 'WARE_THEFT_SINGLE':
     case 'WARE_THEFT_SWAP':
       return 'Resolving ware theft...';
-    case 'UTILITY_THEFT_SINGLE':
+
     case 'UTILITY_KEEP':
     case 'UTILITY_REPLACE':
     case 'UTILITY_EFFECT':

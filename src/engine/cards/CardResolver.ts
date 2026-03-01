@@ -274,7 +274,6 @@ export function resolveInteraction(
       return resolveWareTrade(state, pending, response);
     case 'WARE_THEFT_SWAP':
     case 'WARE_THEFT_SINGLE':
-    case 'UTILITY_THEFT_SINGLE':
       return resolveActiveSelect(state, pending, response);
     case 'OPPONENT_DISCARD':
       return resolveOpponentSelect(state, pending, response);

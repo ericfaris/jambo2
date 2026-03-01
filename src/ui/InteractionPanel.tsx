@@ -479,8 +479,7 @@ function ResolutionContent({ state, pr, dispatch, viewerPlayer, onMegaView }: { 
       return <WareTheftSinglePanel state={state} dispatch={dispatch} />;
     case 'WARE_THEFT_SWAP':
       return <WareTheftSwapPanel state={state} pr={pr} dispatch={dispatch} />;
-    case 'UTILITY_THEFT_SINGLE':
-      return <UtilityTheftPanel state={state} dispatch={dispatch} onMegaView={onMegaView} />;
+
     case 'HAND_SWAP':
       return <HandSwapPanel state={state} pr={pr} dispatch={dispatch} onMegaView={onMegaView} />;
     case 'OPPONENT_DISCARD':
@@ -743,23 +742,6 @@ function WareTheftSwapPanel({ state, pr, dispatch }: { state: GameState; pr: Ext
   );
 }
 
-function UtilityTheftPanel({ state, dispatch, onMegaView }: { state: GameState; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
-  const cp = state.currentPlayer;
-  const opponent: 0 | 1 = cp === 0 ? 1 : 0;
-  const opUtils = state.players[opponent].utilities;
-  return (
-    <div>
-      <div className="ui-prompt-text">
-        Select 1 opponent utility to steal ({opUtils.length} available).
-      </div>
-      <div style={getCardGridStyle(opUtils.length)}>
-        {opUtils.map((u, i) => (
-          <CardFace key={u.cardId} cardId={u.cardId} small onClick={() => resolve(dispatch, { type: 'SELECT_UTILITY', utilityIndex: i })} onMegaView={onMegaView} />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function HandSwapPanel({ state, pr, dispatch, onMegaView }: { state: GameState; pr: Extract<PendingResolution, { type: 'HAND_SWAP' }>; dispatch: InteractionPanelProps['dispatch']; onMegaView?: (cardId: DeckCardId) => void }) {
   const cp = state.currentPlayer;

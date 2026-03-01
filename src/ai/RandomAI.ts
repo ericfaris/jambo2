@@ -168,18 +168,6 @@ export function getRandomInteractionResponse(state: GameState, rng: RngFn): Inte
       return { type: 'SELECT_WARE', wareIndex: pick(mySlots, rng).i };
     }
 
-    case 'UTILITY_THEFT_SINGLE': {
-      const opponent: 0 | 1 = cp === 0 ? 1 : 0;
-      const opUtils = state.players[opponent].utilities;
-      // Resolver auto-resolves when opponent has no utilities; send dummy to trigger guard
-      if (opUtils.length === 0) return { type: 'SELECT_UTILITY', utilityIndex: 0 };
-      const utilityIndex = pickBestUtilityIndex(
-        state,
-        opponent,
-        opUtils.map((u) => u.designId),
-      );
-      return { type: 'SELECT_UTILITY', utilityIndex };
-    }
 
     case 'HAND_SWAP': {
       if (pr.step === 'TAKE') {

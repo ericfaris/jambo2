@@ -33,6 +33,20 @@ export function resolveCarrierWareSelect(
     };
   }
 
+  // Guard: no supply available — auto-resolve
+  if (!Object.values(state.wareSupply).some(v => v > 0)) {
+    return {
+      ...state,
+      pendingResolution: null,
+      log: [...state.log, {
+        turn: state.turn,
+        player: state.currentPlayer,
+        action: 'CARRIER_WARES',
+        details: 'No wares available in supply',
+      }],
+    };
+  }
+
   if (response.type !== 'SELECT_WARE_TYPE') {
     throw new Error('Expected SELECT_WARE_TYPE response for Carrier ware selection');
   }
