@@ -449,3 +449,78 @@ describe('getValidActions respects preconditions', () => {
     expect(utilIndices).toContain(2);     // well allowed
   });
 });
+
+// ============================================================================
+// New validations added 2026-03-01
+// ============================================================================
+
+describe('Well: requires 1g', () => {
+  it('blocks when player has 0g', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, []);
+    s = withGold(s, 0, 0);
+    s = withUtility(s, 0, 'well_1', 'well');
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/need at least 1g/);
+  });
+
+  it('allowed when player has 1g+', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, []);
+    s = withGold(s, 0, 1);
+    s = withUtility(s, 0, 'well_1', 'well');
+    // Does not throw
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).not.toThrow();
+  });
+});
+
+describe('Supplies: requires gold or hand card', () => {
+  it('blocks when player has 0g and empty hand', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, []);
+    s = withGold(s, 0, 0);
+    s = withUtility(s, 0, 'supplies_1', 'supplies');
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).toThrow(/need at least 1g or 1 card/);
+  });
+
+  it('allowed when player has a card in hand (even with 0g)', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['ware_3k_1']);
+    s = removeFromDeck(s, 'ware_3k_1');
+    s = withGold(s, 0, 0);
+    s = withUtility(s, 0, 'supplies_1', 'supplies');
+    expect(() => act(s, { type: 'ACTIVATE_UTILITY', utilityIndex: 0 })).not.toThrow();
+  });
+});
+
+describe('Basket Maker: blocks when supply is empty', () => {
+  it('blocks when all ware types have 0 supply', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['basket_maker_1']);
+    s = removeFromDeck(s, 'basket_maker_1');
+    s = withGold(s, 0, 20);
+    s = { ...s, wareSupply: { trinkets: 0, hides: 0, tea: 0, silk: 0, fruit: 0, salt: 0 } };
+    expect(() => act(s, { type: 'PLAY_CARD', cardId: 'basket_maker_1' })).toThrow(/no wares in supply/);
+  });
+});
+
+describe('Carrier: auto-resolves ware step when supply is empty', () => {
+  it('auto-resolves CARRIER_WARE_SELECT when all supply is 0', () => {
+    let s = toPlayPhase(createTestState());
+    s = withHand(s, 0, ['carrier_1']);
+    s = removeFromDeck(s, 'carrier_1');
+    s = withGold(s, 0, 20);
+    s = { ...s, wareSupply: { trinkets: 0, hides: 0, tea: 0, silk: 0, fruit: 0, salt: 0 } };
+
+    // Play Carrier — shows BINARY_CHOICE
+    const s2 = act(s, { type: 'PLAY_CARD', cardId: 'carrier_1' });
+    expect(s2.pendingResolution?.type).toBe('BINARY_CHOICE');
+
+    // Choose wares option (choice 0) — transitions to CARRIER_WARE_SELECT
+    const s3 = resolve(s2, { type: 'BINARY_CHOICE', choice: 0 });
+    expect(s3.pendingResolution?.type).toBe('CARRIER_WARE_SELECT');
+
+    // Send dummy response — guard should auto-resolve since supply is empty
+    const s4 = resolve(s3, { type: 'SELECT_WARE_TYPE', wareType: 'trinkets' });
+    expect(s4.pendingResolution).toBeNull();
+  });
+});

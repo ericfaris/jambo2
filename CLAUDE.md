@@ -221,7 +221,7 @@ Each costs 1 action:
 - **Wise Man from Afar (x2)**: This turn: buys cost 2g less, sells earn 2g more
 - **Portuguese (x2)**: Return any wares from market to supply, get 2g per ware
 - **Basket Maker (x2)**: Pay 2g, take 2 of same ware type from supply
-- **Traveling Merchant (x2)**: Auction 2 of your wares between both players
+- **Traveling Merchant (x2)**: Select 2 ware types from supply to auction; winner pays bid and receives both wares
 - **Arabian Merchant (x2)**: Reveal top 3 deck cards, auction them
 - **Dancer (x2)**: Pick ware card from hand, sell any 3 market wares at that card's sell price
 - **Carrier (x1)**: Choose: take 2 same-type wares OR draw 2 cards. Opponent gets the other.

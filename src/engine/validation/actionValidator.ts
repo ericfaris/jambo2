@@ -320,6 +320,12 @@ export function validateActivateUtility(state: GameState, utilityIndex: number):
 
   // Utility-specific precondition checks
   switch (utility.designId) {
+    case 'well':
+      if (player.gold < 1) return fail('Cannot activate Well: need at least 1g');
+      break;
+    case 'supplies':
+      if (player.gold < 1 && player.hand.length === 0) return fail('Cannot activate Supplies: need at least 1g or 1 card in hand');
+      break;
     case 'leopard_statue':
       if (player.gold < 2) return fail('Cannot activate Leopard Statue: need at least 2g');
       if (player.market.filter(s => s === null).length < 1) return fail('Cannot activate Leopard Statue: no empty market slots');

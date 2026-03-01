@@ -123,8 +123,8 @@ People cards have one-time effects and are discarded after use. People cards **c
 
 ### Traveling Merchant (x2)
 - **Cost:** 1 action
-- **Effect:** Select 2 wares from your own market to auction. Players alternate bidding (starting at 1g). First pass ends auction. Winner pays bid amount and receives both wares.
-- **Requirements:** Active player has 2+ wares in market.
+- **Effect:** Select 2 ware types from supply to put up for auction. Players alternate bidding (starting at 1g). First pass ends auction. Winner pays bid amount and receives both wares from supply.
+- **Requirements:** At least 1 ware type available in supply.
 
 ### Arabian Merchant (x2)
 - **Cost:** 1 action
