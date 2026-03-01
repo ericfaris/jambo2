@@ -362,6 +362,9 @@ export const DEFAULT_MATCHUPS: Array<[AIDifficulty, AIDifficulty]> = [
   ['medium', 'hard'],
   ['hard', 'medium'],
   ['hard', 'hard'],
+  ['hard', 'expert'],
+  ['expert', 'hard'],
+  ['expert', 'expert'],
 ];
 
 export interface MatchupRunResult {
@@ -394,7 +397,7 @@ if (isMain) {
   const games = Number(process.argv[2] ?? 30);
   const seedBase = Number(process.argv[3] ?? 9000);
   const maxSteps = Number(process.argv[4] ?? 2500);
-  const maxGameMs = Number(process.argv[5] ?? 8000);
+  const maxGameMs = Number(process.argv[5] ?? 15000);
   const limits: RunLimits = { maxSteps, maxGameMs };
 
   const result = runAiMatchups(games, seedBase, limits);

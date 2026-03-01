@@ -98,8 +98,10 @@ function scoreAction(state: GameState, action: GameAction): number {
       if (!utility) return 30;
       return getUtilityActivationPriority(state, me, utility.designId);
     }
-    case 'DRAW_CARD':
-      return state.actionsLeft > 2 ? 63 : 56;
+    case 'DRAW_CARD': {
+      const handPenalty = Math.max(0, player.hand.length - 4) * 4;
+      return (state.actionsLeft > 2 ? 63 : 56) - handPenalty;
+    }
     case 'KEEP_CARD':
       if (state.drawnCard) {
         const card = getCard(state.drawnCard);

@@ -53,7 +53,8 @@
       "WebSearch",
       "WebFetch(domain:www.chromium.org)",
       "WebFetch(domain:rbf.dev)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "mcp__MongoDB__aggregate"
     ]
   }
 }

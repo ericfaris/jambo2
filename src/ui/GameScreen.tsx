@@ -69,7 +69,7 @@ function isDevMode(): boolean {
 }
 
 export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultiplayer = false }: { onBackToMenu?: () => void; aiDifficulty?: AIDifficulty; localMultiplayer?: boolean }) {
-  const { state, dispatch, error, newGame, exportReplay, importReplay, replayActions } = useGameStore();
+  const { state, dispatch, error, newGame, exportReplay, importReplay, replayActions, taggedActions } = useGameStore();
   const [wareDialog, setWareDialog] = useState<DeckCardId | null>(null);
   const [showLog, setShowLog] = useState(() => getInitialShowLog());
   const [menuOpen, setMenuOpen] = useState(false);
@@ -187,7 +187,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         turnCount: state.turn,
         rngSeed: state.rngSeed,
         completedAt: Date.now(),
-        actions: replayActions,
+        actions: taggedActions,
       }).then(async (summary) => {
         setStatsSummary(summary);
         setStatsError(null);
@@ -201,7 +201,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
     }
 
     prevPhaseRef.current = state.phase;
-  }, [aiDifficulty, state, replayActions]);
+  }, [aiDifficulty, state, replayActions, taggedActions]);
 
   const handleExportReplay = useCallback(() => {
     try {
@@ -356,7 +356,7 @@ export function GameScreen({ onBackToMenu, aiDifficulty = 'medium', localMultipl
         // Set AI message before dispatching action
         const message = getAiActionDescription(action, state);
         setAiMessage(message);
-        dispatch(action);
+        dispatch(action, `AI (${aiDifficulty})`);
       }
     }, delay);
 

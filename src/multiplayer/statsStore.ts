@@ -28,7 +28,7 @@ function saveLocalResults(results: Map<string, GameResultInput[]>): void {
 
 export interface GameResultInput {
   localProfileId: string;
-  aiDifficulty: 'easy' | 'medium' | 'hard';
+  aiDifficulty: 'easy' | 'medium' | 'hard' | 'expert';
   winner: 0 | 1;
   playerGold: number;
   opponentGold: number;
@@ -52,7 +52,7 @@ export interface UserStatsSummary {
 
 interface GameResultDocument {
   localProfileId: string;
-  aiDifficulty: 'easy' | 'medium' | 'hard';
+  aiDifficulty: 'easy' | 'medium' | 'hard' | 'expert';
   winner: 0 | 1;
   playerGold: number;
   opponentGold: number;
@@ -215,7 +215,7 @@ export async function recordCompletedGame(result: GameResultInput): Promise<void
 }
 
 export interface DifficultyBreakdown {
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   gamesPlayed: number;
   aiWins: number;
   humanWins: number;
@@ -224,7 +224,7 @@ export interface DifficultyBreakdown {
 }
 
 export async function getDifficultyBreakdown(localProfileId: string): Promise<DifficultyBreakdown[]> {
-  const difficulties: Array<'easy' | 'medium' | 'hard'> = ['easy', 'medium', 'hard'];
+  const difficulties: Array<'easy' | 'medium' | 'hard' | 'expert'> = ['easy', 'medium', 'hard', 'expert'];
 
   let results: GameResultInput[];
   if (!isMongoEnabled()) {

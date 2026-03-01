@@ -3,6 +3,7 @@ import { validateAction } from '../../src/engine/validation/actionValidator.ts';
 import { getEasyAiAction } from '../../src/ai/difficulties/EasyAI.ts';
 import { getMediumAiAction } from '../../src/ai/difficulties/MediumAI.ts';
 import { getHardAiAction } from '../../src/ai/difficulties/HardAI.ts';
+import { getExpertAiAction } from '../../src/ai/difficulties/ExpertAI.ts';
 import { getAiActionByDifficulty } from '../../src/ai/difficulties/index.ts';
 import { createTestState, toPlayPhase, withGold, withHand, withMarket, withUtility } from '../helpers/testHelpers.ts';
 
@@ -15,14 +16,17 @@ describe('AI difficulties baseline', () => {
     const easy = getEasyAiAction(state);
     const medium = getMediumAiAction(state);
     const hard = getHardAiAction(state);
+    const expert = getExpertAiAction(state);
 
     expect(easy).not.toBeNull();
     expect(medium).not.toBeNull();
     expect(hard).not.toBeNull();
+    expect(expert).not.toBeNull();
 
     expect(validateAction(state, easy!).valid).toBe(true);
     expect(validateAction(state, medium!).valid).toBe(true);
     expect(validateAction(state, hard!).valid).toBe(true);
+    expect(validateAction(state, expert!).valid).toBe(true);
   });
 
   it('handles pending interaction states across all difficulties', () => {
@@ -39,10 +43,12 @@ describe('AI difficulties baseline', () => {
     const easy = getEasyAiAction(state, () => 0.1);
     const medium = getMediumAiAction(state, () => 0.1);
     const hard = getHardAiAction(state, () => 0.1);
+    const expert = getExpertAiAction(state, () => 0.1);
 
     expect(easy).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
     expect(medium).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
     expect(hard).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
+    expect(expert).toEqual({ type: 'RESOLVE_INTERACTION', response: { type: 'BINARY_CHOICE', choice: 0 } });
   });
 
   it('is deterministic when injected with seeded rng', () => {
@@ -53,6 +59,7 @@ describe('AI difficulties baseline', () => {
     const seeded = () => 0.2;
     expect(getMediumAiAction(state, seeded)).toEqual(getMediumAiAction(state, seeded));
     expect(getHardAiAction(state, seeded)).toEqual(getHardAiAction(state, seeded));
+    expect(getExpertAiAction(state, seeded)).toEqual(getExpertAiAction(state, seeded));
   });
 
   it('routes by selected difficulty', () => {
@@ -190,13 +197,16 @@ describe('AI difficulties baseline', () => {
     const easy = getEasyAiAction(state, () => 0.1);
     const medium = getMediumAiAction(state, () => 0.1);
     const hard = getHardAiAction(state, () => 0.1);
+    const expert = getExpertAiAction(state, () => 0.1);
 
     expect(easy).not.toBeNull();
     expect(medium).not.toBeNull();
     expect(hard).not.toBeNull();
+    expect(expert).not.toBeNull();
 
     expect(validateAction(state, easy!).valid).toBe(true);
     expect(validateAction(state, medium!).valid).toBe(true);
     expect(validateAction(state, hard!).valid).toBe(true);
+    expect(validateAction(state, expert!).valid).toBe(true);
   });
 });

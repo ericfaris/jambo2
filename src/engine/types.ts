@@ -393,7 +393,6 @@ export type InteractionResponse =
 // --- Game Constants ---
 export const CONSTANTS = {
   MAX_ACTIONS: 5,
-  MAX_HAND_SIZE: 5,
   MAX_UTILITIES: 3,
   MARKET_SLOTS: 6,
   STAND_EXPANSION_SLOTS: 3,

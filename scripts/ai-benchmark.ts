@@ -19,19 +19,19 @@ const BENCHMARK_CONFIGS: Record<BenchmarkMode, BenchmarkConfig> = {
     games: 20,
     seedBase: 23000,
     maxSteps: 2500,
-    maxGameMs: 8000,
+    maxGameMs: 15000,
   },
   medium: {
     games: 100,
     seedBase: 23000,
     maxSteps: 2500,
-    maxGameMs: 8000,
+    maxGameMs: 15000,
   },
   long: {
     games: 300,
     seedBase: 23000,
     maxSteps: 2500,
-    maxGameMs: 8000,
+    maxGameMs: 15000,
   },
 };
 

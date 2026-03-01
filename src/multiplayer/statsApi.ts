@@ -4,7 +4,7 @@ import { getSession } from './authStore.ts';
 
 interface RecordGameRequest {
   localProfileId: string;
-  aiDifficulty: 'easy' | 'medium' | 'hard';
+  aiDifficulty: 'easy' | 'medium' | 'hard' | 'expert';
   winner: 0 | 1;
   playerGold: number;
   opponentGold: number;
@@ -26,8 +26,8 @@ export function isValidProfileId(value: unknown): value is string {
   return typeof value === 'string' && /^[a-zA-Z0-9._-]{1,128}$/.test(value);
 }
 
-function isDifficulty(value: unknown): value is 'easy' | 'medium' | 'hard' {
-  return value === 'easy' || value === 'medium' || value === 'hard';
+function isDifficulty(value: unknown): value is 'easy' | 'medium' | 'hard' | 'expert' {
+  return value === 'easy' || value === 'medium' || value === 'hard' || value === 'expert';
 }
 
 function isWinner(value: unknown): value is 0 | 1 {

@@ -17,7 +17,7 @@ interface StatsSummaryResponse {
 }
 
 export interface DifficultyBreakdown {
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   gamesPlayed: number;
   aiWins: number;
   humanWins: number;
@@ -48,7 +48,7 @@ export async function fetchDifficultyBreakdown(): Promise<DifficultyBreakdown[]>
 }
 
 interface RecordCompletedGamePayload {
-  aiDifficulty: 'easy' | 'medium' | 'hard';
+  aiDifficulty: 'easy' | 'medium' | 'hard' | 'expert';
   winner: 0 | 1;
   playerGold: number;
   opponentGold: number;

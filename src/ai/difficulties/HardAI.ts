@@ -34,7 +34,7 @@ function createHardRng(state: GameState): () => number {
   return createRng(seed);
 }
 
-function getPendingResponder(state: GameState): 0 | 1 {
+export function getPendingResponder(state: GameState): 0 | 1 {
   const pr = state.pendingResolution;
   if (!pr) return state.currentPlayer;
 
@@ -62,7 +62,7 @@ function getResponder(state: GameState): 0 | 1 {
   return state.currentPlayer;
 }
 
-function evaluateBoard(state: GameState, perspective: 0 | 1): number {
+export function evaluateBoard(state: GameState, perspective: 0 | 1): number {
   const me = perspective;
   const opp: 0 | 1 = me === 0 ? 1 : 0;
 
@@ -106,6 +106,10 @@ function evaluateBoard(state: GameState, perspective: 0 | 1): number {
   score -= getHandRiskPenalty(myHand);
   score += getHandRiskPenalty(oppHand) * 0.45;
 
+  // Cards beyond 5 are wasted actions — penalize hoarding
+  const handPenalty = Math.max(0, myHand - 5) * 1.5;
+  score -= handPenalty;
+
   if (state.turnModifiers.buyDiscount > 0 && state.currentPlayer === me) score += 6;
   if (state.turnModifiers.sellBonus > 0 && state.currentPlayer === me) score += 9;
 
@@ -140,7 +144,7 @@ function scoreStateDelta(before: GameState, after: GameState, perspective: 0 | 1
   return evaluateBoard(after, perspective) - evaluateBoard(before, perspective);
 }
 
-function tacticalActionBonus(state: GameState, action: GameAction, me: 0 | 1): number {
+export function tacticalActionBonus(state: GameState, action: GameAction, me: 0 | 1): number {
   const opponent: 0 | 1 = me === 0 ? 1 : 0;
 
   if (action.type === 'PLAY_CARD') {
@@ -203,7 +207,7 @@ function tacticalActionBonus(state: GameState, action: GameAction, me: 0 | 1): n
   return 0;
 }
 
-function opponentBestReplyPenalty(nextState: GameState, perspective: 0 | 1): number {
+export function opponentBestReplyPenalty(nextState: GameState, perspective: 0 | 1): number {
   if (nextState.phase === 'GAME_OVER') return 0;
 
   const responder = getResponder(nextState);
@@ -256,7 +260,7 @@ function pickWareNearTop(scored: ReadonlyArray<{ action: GameAction; score: numb
   return wareCandidates[0]?.action ?? null;
 }
 
-function getHardGuardReaction(state: GameState): GameAction {
+export function getHardGuardReaction(state: GameState): GameAction {
   const gr = state.pendingGuardReaction;
   if (!gr) return { type: 'GUARD_REACTION', play: false };
 
@@ -285,7 +289,7 @@ function getHardGuardReaction(state: GameState): GameAction {
   }
 }
 
-function getHardWareCardReaction(state: GameState): GameAction {
+export function getHardWareCardReaction(state: GameState): GameAction {
   const wr = state.pendingWareCardReaction;
   if (!wr) return { type: 'WARE_CARD_REACTION', play: false };
 
@@ -307,7 +311,7 @@ function getHardWareCardReaction(state: GameState): GameAction {
   }
 }
 
-function getHardInteractionAction(state: GameState, rng: () => number): GameAction | null {
+export function getHardInteractionAction(state: GameState, rng: () => number): GameAction | null {
   const pr = state.pendingResolution;
   if (!pr) return null;
 
@@ -363,7 +367,7 @@ function getHardInteractionAction(state: GameState, rng: () => number): GameActi
   return bestAction;
 }
 
-function getHardAuctionBidAction(state: GameState): GameAction | null {
+export function getHardAuctionBidAction(state: GameState): GameAction | null {
   const pr = state.pendingResolution;
   if (!pr || pr.type !== 'AUCTION' || pr.wares.length < 2) return null;
 

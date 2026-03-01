@@ -119,6 +119,12 @@ export function PreGameSetupModal({ mode, aiDifficulty: initialDifficulty, onCan
                 label="Hard"
                 description="Deep evaluation"
               />
+              <OptionButton
+                selected={difficulty === 'expert'}
+                onClick={() => setDifficulty('expert')}
+                label="Expert"
+                description="2-ply look-ahead"
+              />
             </div>
           </div>
         )}
