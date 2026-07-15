@@ -128,3 +128,4 @@ dist
 
 # Local dev data (stats, etc.)
 .data/
+.claude/investigations/
