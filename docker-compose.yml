@@ -1,0 +1,44 @@
+# Project name fixes the container name to jambo2-app-1 regardless of the
+# directory the compose file lives in.
+name: jambo2
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        # VITE_CAST_APP_ID is a BUILD-TIME arg — Vite bakes it into the client
+        # bundle (import.meta.env.VITE_CAST_APP_ID) at `npm run build`. Setting
+        # it only as a runtime env below would NOT reach the browser code, so it
+        # must be passed here too.
+        VITE_CAST_APP_ID: ${VITE_CAST_APP_ID:-4E18430D}
+    image: ericfaris/jambo2:latest
+    restart: unless-stopped
+    # Run as the host user (uid:gid 1000) so nothing runs as root.
+    user: "1000:1000"
+    # Block privilege escalation (setuid binaries can't gain new privs).
+    security_opt:
+      - no-new-privileges:true
+    # Host-side binding stays on 127.0.0.1 — the Cloudflare Tunnel is the only
+    # public entry point. A single Node process serves the static client, the
+    # WebSocket, and the HTTP auth API on container port 3001 (see server.ts PORT).
+    ports:
+      - "127.0.0.1:8500:3001"
+    environment:
+      # MongoDB Atlas connection string — read from .env (never committed).
+      - MONGODB_URI=${MONGODB_URI:-}
+      # Database name (matches Dockerfile default).
+      - MONGODB_DB=${MONGODB_DB:-jambo}
+      # Google OAuth credentials — read from .env. Only the redirect URI moves
+      # to the new domain; the client id/secret are unchanged.
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      # OAuth callback + public base URL on the new self-hosted domain.
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-https://jambo.mooseflip.com/api/auth/google/callback}
+      - APP_BASE_URL=${APP_BASE_URL:-https://jambo.mooseflip.com}
+      # Also exposed at runtime: server.ts reads process.env.VITE_CAST_APP_ID
+      # (server-side, separate from the client bundle baked in via build.args).
+      - VITE_CAST_APP_ID=${VITE_CAST_APP_ID:-4E18430D}
+      # Server port inside the container (Node listens on all interfaces; the
+      # ports mapping above restricts host exposure to 127.0.0.1).
+      - PORT=3001
