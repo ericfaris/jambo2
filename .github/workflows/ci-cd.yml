@@ -1,5 +1,11 @@
 name: CI/CD
 
+# jambo2 is self-hosted on the local Docker lab (built with
+# `docker compose up -d --build` on the host and exposed via Cloudflare
+# Tunnel at https://jambo.mooseflip.com). There is no registry push or
+# remote deploy — this workflow verifies the app builds/tests and that the
+# Docker image still builds, so breakage is caught before merge.
+
 on:
   push:
     branches: [main]
@@ -33,15 +39,11 @@ jobs:
       - name: Test
         run: npm test -- --run
 
-  docker_publish:
-    name: Build and Push Docker Image
+  docker_build:
+    name: Build Docker Image (no push)
     runs-on: ubuntu-latest
     needs: build_test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    env:
-      DOCKERHUB_USERNAME_SECRET: DOCKERHUB_USERNAME
-      DOCKERHUB_TOKEN_SECRET: DOCKERHUB_TOKEN
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
 
     permissions:
       contents: read
@@ -53,32 +55,38 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets[env.DOCKERHUB_USERNAME_SECRET] }}
-          password: ${{ secrets[env.DOCKERHUB_TOKEN_SECRET] }}
-
       - name: Read package version
         id: version
         run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets[env.DOCKERHUB_USERNAME_SECRET] }}/${{ github.event.repository.name }}
-          tags: |
-            type=sha
-            type=raw,value=latest
-            type=raw,value=${{ steps.version.outputs.APP_VERSION }}
-
-      - name: Build and push Docker image
+      - name: Build image (no push)
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: APP_VERSION=${{ steps.version.outputs.APP_VERSION }}
+
+  # Runs on a self-hosted runner on the lab host itself — GitHub's own hosted
+  # runners can't reach this private host. Gated to push-to-main ONLY
+  # (never pull_request) so untrusted PR code can never execute here; this
+  # job only ever runs post-merge, already-trusted code. Delegates the
+  # actual deploy to lab-sentinel's own guarded engine (fetch + fast-
+  # forward-only pull + docker compose build/up + health-check, refuses
+  # rather than forces on a dirty/diverged checkout) rather than
+  # reimplementing that logic here.
+  deploy:
+    name: Deploy to lab
+    needs: [build_test, docker_build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, lab]
+    steps:
+      - name: Trigger lab-sentinel deploy
+        run: |
+          curl -sf -X POST http://127.0.0.1:7891/api/deploy \
+            -H 'Content-Type: application/json' \
+            -d '{"repo":"jambo2","containerName":"jambo2-app-1"}' \
+            -o deploy-result.json
+          cat deploy-result.json
+          jq -e '.deployStatus == "done"' deploy-result.json
