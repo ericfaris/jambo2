@@ -2,6 +2,8 @@
 
 Digital implementation of Jambo with a pure TypeScript game engine, React UI, and AI opponents.
 
+**Live:** [jambo.mooseflip.com](https://jambo.mooseflip.com)
+
 ## Quick Start
 
 ```bash
@@ -40,6 +42,27 @@ Auth endpoints used by UI:
 - `GET /api/auth/google/callback`
 - `GET /api/auth/session`
 - `POST /api/auth/logout`
+
+In production the redirect URI / `APP_BASE_URL` are the public domain
+(`https://jambo.mooseflip.com`) instead of `localhost:5173`.
+
+## Deployment
+
+Jambo2 is self-hosted on a local Docker lab and exposed publicly at
+[jambo.mooseflip.com](https://jambo.mooseflip.com) via a Cloudflare Tunnel
+(no longer on Railway). A single Node process serves the built client, the
+WebSocket, and the HTTP auth API on container port `3001`, bound to
+`127.0.0.1:8500` on the host — the tunnel is the only public entry point.
+
+```bash
+docker compose up -d --build
+```
+
+Production env values live in `.env` (gitignored). `VITE_CAST_APP_ID` is a
+build-time arg baked into the client bundle, so it is passed via
+`build.args` in `docker-compose.yml` as well as a runtime env var. CI
+(`.github/workflows/ci-cd.yml`) runs build/tests and a Docker build check
+only — there is no registry push or remote deploy.
 
 ## Tech Stack
 

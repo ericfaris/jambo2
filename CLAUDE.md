@@ -4,7 +4,11 @@ Digital implementation of "Jambo" card game by Rudiger Dorn.
 
 ## Deployment
 
-- Production URL: `http://jambo.up.railway.app`
+- Production URL: `https://jambo.mooseflip.com`
+- Self-hosted on the local Docker lab (`docker compose up -d --build`), exposed
+  publicly via a Cloudflare Tunnel. No longer on Railway. Container port `3001`
+  is bound to `127.0.0.1:8500` on the host; the tunnel is the only public entry
+  point. See `docker-compose.yml`.
 
 ## Commands
 
