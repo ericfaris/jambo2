@@ -15,6 +15,7 @@ COPY . .
 RUN npm run build
 
 FROM node:20-alpine AS runtime
+RUN apk update && apk upgrade --no-cache
 LABEL version=$APP_VERSION
 WORKDIR /app
 
