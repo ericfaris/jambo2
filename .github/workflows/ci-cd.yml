@@ -33,6 +33,9 @@ jobs:
           npm ci
           npm install --no-save @rollup/rollup-linux-x64-gnu@4.57.1
 
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npm run build
 

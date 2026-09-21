@@ -15,7 +15,7 @@ interface CenterRowProps {
   visualFeedback?: VisualFeedbackState;
 }
 
-export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = false, visualFeedback }: CenterRowProps) {
+export function CenterRow({ state, isLocalMode = true, showGlow = false, visualFeedback }: CenterRowProps) {
   const phaseLabel = state.phase === 'DRAW'
     ? `Draw Phase (${state.drawsThisPhase}/5)`
     : state.phase === 'PLAY'
@@ -260,37 +260,6 @@ export function CenterRow({ state, dispatch, isLocalMode = true, showGlow = fals
             ))}
           </div>
         </div>
-        {/* End Turn button */}
-        {false && isLocalMode && state.phase === 'PLAY' && state.currentPlayer === 0 && (
-          <div style={{ marginTop: 12 }}>
-            <button
-              onClick={() => dispatch({ type: 'END_TURN' })}
-              style={{
-                background: 'linear-gradient(135deg, #c04030 0%, #a03020 50%, #c04030 100%)',
-                border: '2px solid #ff6b5a',
-                borderRadius: 8,
-                padding: '8px 16px',
-                color: 'white',
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: 'pointer',
-                boxShadow: '0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
-                animation: 'shimmer 2s ease-in-out infinite alternate',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '0 0 30px rgba(192, 64, 48, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.3)';
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = '0 0 20px rgba(192, 64, 48, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              End Turn
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Discard */}

@@ -72,7 +72,7 @@
   function stopTvMusic() {
     tvMusic.enabled = false;
     if (cafPlayerManager) {
-      try { cafPlayerManager.stop(); } catch (_) {}
+      try { cafPlayerManager.stop(); } catch { /* ignore */ }
     }
     var bgMusicEl = document.getElementById('bgMusic');
     if (bgMusicEl) {
@@ -456,13 +456,13 @@
       }
       try {
         publicRoomSnapshot = await response.json();
-      } catch (_parseErr) {
+      } catch {
         setConnection('Receiver state: polling response parse error', true);
         return;
       }
       setConnection('Receiver state: ready', false);
       renderRoom();
-    } catch (_err) {
+    } catch {
       setConnection('Receiver state: polling failed', true);
     }
   }
@@ -512,7 +512,7 @@
           publicRoomSnapshot = JSON.parse(event.data);
           setConnection('Receiver state: ready (stream)', false);
           renderRoom();
-        } catch (_err) {
+        } catch {
           setConnection('Receiver state: stream payload parse failed', true);
         }
       });
@@ -532,7 +532,7 @@
           restartStream();
         }, 4000);
       };
-    } catch (_err) {
+    } catch {
       setConnection('Receiver state: stream unavailable; using polling fallback', true);
       restartPolling();
     }
@@ -591,7 +591,7 @@
     } else {
       try {
         payload = JSON.parse(rawData);
-      } catch (_err) {
+      } catch {
         sendError(senderId, 'INVALID_PAYLOAD', 'Payload is not valid JSON.');
         return;
       }
