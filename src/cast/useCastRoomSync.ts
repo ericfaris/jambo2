@@ -22,7 +22,6 @@ interface CastRoomSyncOptions {
 // The receiver should never try to sync room to itself.
 function isCastReceiverContext(): boolean {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return !!(window as any).cast?.framework?.CastReceiverContext;
   } catch {
     return false;

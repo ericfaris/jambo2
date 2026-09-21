@@ -1,5 +1,3 @@
-/* eslint-env node */
-
 import { cpSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
