@@ -271,25 +271,15 @@ function ReactionDecisionPanel({
 
 function ReactionCardTile({ cardId, onMegaView }: { cardId: DeckCardId; onMegaView?: (cardId: DeckCardId) => void }) {
   const card = getCard(cardId);
-  const LINEN_BG = [
-    'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-    'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-    'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-    'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-  ].join(', ');
-  const LINEN_BG_SIZE = '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px';
-  const LINEN_BASE = '#e8e4df';
 
   return (
     <div
       onClick={onMegaView ? () => onMegaView(cardId) : undefined}
+      className="linen-texture"
       style={{
         width: 136,
         borderRadius: 10,
         padding: 5,
-        backgroundImage: LINEN_BG,
-        backgroundSize: LINEN_BG_SIZE,
-        backgroundColor: LINEN_BASE,
         border: '1px solid #b8ab97',
         boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
         cursor: onMegaView ? 'zoom-in' : 'default',
@@ -370,25 +360,14 @@ function shouldUseCompactSourceCard(pr: PendingResolution): boolean {
 
 function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, compactSourceCard, sourceCardOverlay }: { title: string; breadcrumb?: string; children?: React.ReactNode; sourceCardId?: DeckCardId; onMegaView?: (cardId: DeckCardId) => void; compactSourceCard?: boolean; sourceCardOverlay?: React.ReactNode }) {
   const sourceCard = sourceCardId ? getCard(sourceCardId) : null;
-  const LINEN_BG = [
-    'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-    'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-    'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-    'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-  ].join(', ');
-  const LINEN_BG_SIZE = '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px';
-  const LINEN_BASE = '#e8e4df';
 
   return (
     <div className="panel-slide" style={{ maxWidth: compactSourceCard ? 980 : 460, margin: '0 auto', width: '100%' }}>
       <div
-        className="dialog-pop"
+        className="dialog-pop linen-texture"
         style={{
           borderRadius: 14,
           padding: 'clamp(6px, 2vw, 10px)',
-          backgroundImage: LINEN_BG,
-          backgroundSize: LINEN_BG_SIZE,
-          backgroundColor: LINEN_BASE,
           border: '2px solid #a89880',
           boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
           display: compactSourceCard ? 'flex' : 'block',
@@ -419,13 +398,10 @@ function PanelShell({ title, breadcrumb, children, sourceCardId, onMegaView, com
           </div>
         )}
 
-        <div style={{
+        <div className="linen-texture" style={{
           marginTop: sourceCard && !compactSourceCard ? 8 : 0,
           borderRadius: 10,
           padding: 'clamp(10px, 2.5vw, 14px)',
-          backgroundImage: LINEN_BG,
-          backgroundSize: LINEN_BG_SIZE,
-          backgroundColor: LINEN_BASE,
           border: 'none',
           color: '#1a1714',
           flex: compactSourceCard ? '1 1 320px' : undefined,

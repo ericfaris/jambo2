@@ -10,14 +10,6 @@ interface MegaViewProps {
 
 export function MegaView({ cardId, onClose }: MegaViewProps) {
   const card = getCard(cardId);
-  const LINEN_BG = [
-    'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-    'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-    'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-    'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-  ].join(', ');
-  const LINEN_BG_SIZE = '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px';
-  const LINEN_BASE = '#e8e4df';
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -44,15 +36,12 @@ export function MegaView({ cardId, onClose }: MegaViewProps) {
       }}
     >
       <div
-        className="dialog-pop"
+        className="dialog-pop linen-texture"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 380,
           borderRadius: 14,
           padding: 8,
-          backgroundImage: LINEN_BG,
-          backgroundSize: LINEN_BG_SIZE,
-          backgroundColor: LINEN_BASE,
           border: '2px solid #a89880',
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           display: 'flex',

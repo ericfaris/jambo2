@@ -10,16 +10,6 @@ const CARD_TYPE_COLORS: Record<string, string> = {
   stand: 'var(--card-stand)',
 };
 
-// CSS linen finish — fine crosshatch over off-white base
-const LINEN_BG = [
-  'linear-gradient(0deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-  'linear-gradient(90deg, rgba(180,170,155,0.08) 0.3px, transparent 0.3px)',
-  'linear-gradient(135deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-  'linear-gradient(45deg, rgba(200,190,175,0.04) 0.3px, transparent 0.3px)',
-].join(', ');
-const LINEN_BG_SIZE = '1px 1px, 1px 1px, 1.5px 1.5px, 1.5px 1.5px';
-const LINEN_BASE = '#e8e4df';
-
 // Cards that have artwork in public/assets/cards/
 const CARDS_WITH_IMAGES = new Set([
   'guard', 'rain_maker', 'shaman', 'psychic', 'tribal_elder',
@@ -106,15 +96,13 @@ export function CardFace({ cardId, onClick, selected, small, medium, large, extr
       <div
         title={tooltip}
         onClick={onClick}
+        className="linen-texture"
         style={{
           width: faceWidth,
           height: faceHeight,
           borderRadius: 10,
           padding: pad,
           boxSizing: 'border-box',
-          backgroundImage: LINEN_BG,
-          backgroundSize: LINEN_BG_SIZE,
-          backgroundColor: LINEN_BASE,
           border: `1px solid ${selected ? 'var(--gold)' : '#a89880'}`,
           boxShadow: selected ? '0 0 0 2px var(--gold)' : '0 2px 6px rgba(0,0,0,0.3), inset 0 1px 2px rgba(0,0,0,0.08)',
           cursor: onClick ? 'pointer' : 'default',

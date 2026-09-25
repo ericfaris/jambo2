@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jambo — Design System</title>
+<!-- Pulls the app's real stylesheet — tokens/components below are read from this live file, not hand-duplicated. -->
+<link rel="stylesheet" href="/src/index.css" />
+<style>
+  .ds-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+  .ds-page h1 {
+    font-size: 40px;
+    margin-bottom: 4px;
+  }
+  .ds-sub {
+    color: var(--text-muted);
+    margin-bottom: 48px;
+  }
+  .ds-section {
+    margin-bottom: 56px;
+  }
+  .ds-section h2 {
+    font-size: 22px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+  }
+  .ds-note {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .ds-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+  }
+  .ds-swatch {
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .ds-swatch-color {
+    height: 64px;
+  }
+  .ds-swatch-label {
+    padding: 8px 10px;
+    background: var(--surface);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .ds-swatch-label code {
+    color: var(--gold);
+  }
+  .ds-swatch-value {
+    color: var(--text-muted);
+  }
+  .ds-type-row {
+    border-bottom: 1px dashed var(--border);
+    padding: 14px 0;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .ds-type-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 220px;
+  }
+  .ds-scale-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+  .ds-scale-box {
+    background: var(--surface-accent);
+    border: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+  .ds-scale-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: monospace;
+  }
+  .ds-shadow-card {
+    width: 140px;
+    height: 90px;
+    border-radius: 10px;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 8px;
+  }
+  .ds-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .ds-motion-box {
+    width: 80px;
+    height: 80px;
+    border-radius: 10px;
+    background: var(--gold-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    text-align: center;
+    color: #1a1108;
+    cursor: pointer;
+    transition: transform 220ms;
+  }
+  .ds-motion-box:hover {
+    transform: scale(1.12) rotate(-2deg);
+  }
+  .ds-btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .ds-component-demo {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .ds-linen-demo {
+    width: 140px;
+    height: 100px;
+    border-radius: 10px;
+    border: 1px solid #a89880;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1a1714;
+    font-size: 12px;
+    text-align: center;
+    padding: 8px;
+  }
+  .ds-ware-pip {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid rgba(0,0,0,0.6);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: rgba(0,0,0,0.6);
+    text-align: center;
+  }
+  .ds-audio-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .ds-audio-row:last-child { border-bottom: none; }
+  .ds-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+  }
+  .ds-tag-missing {
+    border-color: var(--accent-red);
+    color: #e05040;
+  }
+  .ds-live-note {
+    font-size: 12px;
+    color: var(--gold);
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="ds-page">
+  <h1>Jambo — Design System</h1>
+  <p class="ds-sub">
+    African-market wood &amp; gold identity. Every value on this page is
+    read live from <code>src/index.css</code> and the app's actual
+    component classes — not re-typed here. See <code>DESIGN.md</code> for
+    the full narrative. Open via <code>npm run dev</code> for real values;
+    this loads <code>/src/index.css</code> directly, which only the dev
+    server serves.
+  </p>
+
+  <div class="ds-section">
+    <h2>Color — core palette</h2>
+    <p class="ds-note">Swatches and values below are read from the live <code>:root</code> computed style via JS.</p>
+    <div class="ds-grid" id="color-core"></div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Color — ware types</h2>
+    <div class="ds-grid" id="color-ware"></div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Color — card types</h2>
+    <div class="ds-grid" id="color-card"></div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Type</h2>
+    <p class="ds-note">Family: <code>var(--font-heading)</code> / <code>var(--font-body)</code> — both resolve to Judson, self-hosted from <code>/assets/fonts/</code>.</p>
+    <div class="ds-type-row">
+      <div class="ds-type-meta">h1 — headings, 1.2 line-height</div>
+      <h1 style="margin:0;">Welcome to the Market</h1>
+    </div>
+    <div class="ds-type-row">
+      <div class="ds-type-meta">Bold 700 — Judson-Bold.ttf</div>
+      <div style="font-family: var(--font-heading); font-weight:700; font-size:24px;">Buy: 5g | Sell: 12g</div>
+    </div>
+    <div class="ds-type-row">
+      <div class="ds-type-meta">Italic — Judson-Italic.ttf</div>
+      <div style="font-family: var(--font-heading); font-style:italic; font-size:20px;">"You go first."</div>
+    </div>
+    <div class="ds-type-row">
+      <div class="ds-type-meta">16px — default body / buttons</div>
+      <div style="font-size:16px;">Pay 2g, take 1 ware of choice from supply.</div>
+    </div>
+    <div class="ds-type-row">
+      <div class="ds-type-meta">14px — .panel-section-title / .ui-prompt-text</div>
+      <div class="panel-section-title">Your Market</div>
+    </div>
+    <div class="ds-type-row">
+      <div class="ds-type-meta">12px — .ui-helper-text / .disabled-hint</div>
+      <div class="ui-helper-text">Not enough gold to buy this ware.</div>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Radius scale</h2>
+    <div class="ds-row" id="radius-scale"></div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Shadow</h2>
+    <div class="ds-row">
+      <div class="ds-shadow-card" style="box-shadow: 0 2px 6px rgba(0,0,0,0.3);">small lift</div>
+      <div class="ds-shadow-card" style="box-shadow: 0 4px 16px rgba(0,0,0,0.3);">card / panel</div>
+      <div class="ds-shadow-card" style="box-shadow: 0 8px 32px rgba(0,0,0,0.5);">large dialog</div>
+      <div class="ds-shadow-card turn-emphasis-active" style="border-radius:10px;">turn-emphasis glow</div>
+      <div class="ds-shadow-card etched-wood-border" style="background: var(--surface-light);">etched-wood-border</div>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Motion</h2>
+    <p class="ds-note">Hover each box — durations/easings pulled from the live tokens.</p>
+    <div class="ds-row">
+      <div class="ds-motion-box" style="transition-duration: var(--motion-fast);">--motion-fast</div>
+      <div class="ds-motion-box" style="transition-duration: var(--motion-base);">--motion-base</div>
+      <div class="ds-motion-box" style="transition-duration: var(--motion-slow);">--motion-slow</div>
+      <div class="ds-motion-box pile-pulse-soft" id="pile-pulse-demo" style="cursor:pointer;">.pile-pulse (click)</div>
+      <div class="ds-motion-box gold-pop" id="gold-pop-demo" style="cursor:pointer;">.gold-pop (click)</div>
+    </div>
+    <div class="ds-live-note" id="motion-values"></div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Components</h2>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin-bottom:10px;">Buttons</h3>
+    <div class="ds-component-demo">
+      <div class="ds-btn-row">
+        <button>Default</button>
+        <button class="primary">Primary</button>
+        <button class="danger">Danger</button>
+        <button class="brown">Brown</button>
+        <button disabled>Disabled</button>
+      </div>
+    </div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin: 24px 0 10px;">Linen texture (card stock)</h3>
+    <div class="ds-component-demo">
+      <div class="ds-linen-demo linen-texture">.linen-texture<br/>(consolidated this pass — was duplicated in 6 places)</div>
+    </div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin: 24px 0 10px;">Ware color pips</h3>
+    <div class="ds-component-demo" id="ware-pips"></div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin: 24px 0 10px;">Turn emphasis</h3>
+    <div class="ds-component-demo">
+      <div class="turn-emphasis turn-emphasis-active" style="padding:16px; border-radius:10px; background:var(--surface); width:160px;">Active player</div>
+      <div class="turn-emphasis turn-emphasis-inactive" style="padding:16px; border-radius:10px; background:var(--surface); width:160px;">Inactive player</div>
+    </div>
+
+    <h3 style="font-size:15px; color:var(--text-muted); margin: 24px 0 10px;">Action tags</h3>
+    <div class="ds-component-demo" style="position:relative; height:60px;">
+      <span class="center-row-action-tag" style="position:relative; transform:none; top:auto; left:auto;">You played Boat</span>
+      <span class="center-row-action-tag center-row-action-tag-opponent" style="position:relative; transform:none; top:auto; left:auto;">Opponent played Crocodile</span>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Card art sample</h2>
+    <div class="ds-row">
+      <img src="/assets/cards/card_back.png" alt="Card back" style="width:110px; border-radius:10px; border:2px solid var(--border);" />
+      <img src="/assets/cards/crocodile.png" alt="Crocodile" style="width:110px; border-radius:10px;" />
+      <img src="/assets/cards/ware_khl.png" alt="Ware card" style="width:110px; border-radius:10px;" />
+      <img src="/assets/cards/small_market_stand.png" alt="Small Market Stand" style="width:110px; border-radius:10px;" />
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Backgrounds &amp; texture</h2>
+    <div class="ds-row">
+      <div style="width:180px; height:120px; border-radius:10px; background-image:url(/assets/panels/wood_1.png); background-size:cover; border:1px solid var(--border);"></div>
+      <div style="width:180px; height:120px; border-radius:10px; background-image:url(/assets/menu/main_menu.png); background-size:cover; border:1px solid var(--border);"></div>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Sound</h2>
+    <p class="ds-note">Background music (playing already — 5-track shuffled playlist) and the SFX map (6 events wired end-to-end server → client, files not yet generated — see DESIGN.md).</p>
+    <div id="audio-bgm"></div>
+    <h3 style="font-size:14px; color:var(--text-muted); margin: 16px 0 8px;">SFX events (Cast mode)</h3>
+    <div id="audio-sfx"></div>
+  </div>
+</div>
+
+<script>
+function readVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function swatch(container, name, role) {
+  const val = readVar(name);
+  const div = document.createElement('div');
+  div.className = 'ds-swatch';
+  div.innerHTML = `
+    <div class="ds-swatch-color" style="background:${val || 'transparent'};"></div>
+    <div class="ds-swatch-label"><code>${name}</code><br/><span class="ds-swatch-value">${val || '(unresolved)'}</span><br/>${role}</div>
+  `;
+  container.appendChild(div);
+}
+
+const coreColors = [
+  ['--bg', 'Page background'],
+  ['--surface', 'Panel surface'],
+  ['--surface-light', 'Raised surface'],
+  ['--surface-accent', 'Highlighted surface'],
+  ['--text', 'Primary text'],
+  ['--text-muted', 'Secondary text'],
+  ['--gold', 'Primary accent'],
+  ['--gold-dim', 'Recessed gold'],
+  ['--border', 'Default border'],
+  ['--border-light', 'Light border'],
+  ['--teal', 'Secondary accent'],
+  ['--teal-hover', 'Teal hover'],
+  ['--accent-red', 'Danger'],
+  ['--accent-green', 'Positive'],
+];
+const coreEl = document.getElementById('color-core');
+coreColors.forEach(([n, r]) => swatch(coreEl, n, r));
+
+const wareColors = [
+  ['--ware-trinkets', 'Trinkets'],
+  ['--ware-hides', 'Hides'],
+  ['--ware-tea', 'Tea'],
+  ['--ware-silk', 'Silk'],
+  ['--ware-fruit', 'Fruit'],
+  ['--ware-salt', 'Salt'],
+];
+const wareEl = document.getElementById('color-ware');
+wareColors.forEach(([n, r]) => swatch(wareEl, n, r));
+
+const cardColors = [
+  ['--card-people', 'People'],
+  ['--card-animal', 'Animal'],
+  ['--card-utility', 'Utility'],
+  ['--card-ware', 'Ware'],
+  ['--card-stand', 'Small Market Stand'],
+];
+const cardEl = document.getElementById('color-card');
+cardColors.forEach(([n, r]) => swatch(cardEl, n, r));
+
+// Radius scale
+const radii = [
+  ['4px', 'Scrollbar thumb'],
+  ['7px', '.center-row-recap'],
+  ['8px', 'Card/mega-view art'],
+  ['10px', 'Cards, small dialogs'],
+  ['14px', 'Large dialogs'],
+];
+const radiusEl = document.getElementById('radius-scale');
+radii.forEach(([r, label]) => {
+  const wrap = document.createElement('div');
+  wrap.style.textAlign = 'center';
+  wrap.innerHTML = `
+    <div class="ds-scale-box" style="width:70px; height:70px; border-radius:${r};"></div>
+    <div class="ds-scale-label">${r}</div>
+    <div class="ds-scale-label" style="opacity:0.7;">${label}</div>
+  `;
+  radiusEl.appendChild(wrap);
+});
+
+// Ware pips using real WARE colors + labels
+const wareEl2 = document.getElementById('ware-pips');
+wareColors.forEach(([n, label]) => {
+  const pip = document.createElement('div');
+  pip.className = 'ds-ware-pip';
+  pip.style.background = `var(${n})`;
+  pip.title = label;
+  wareEl2.appendChild(pip);
+});
+
+// Motion values readout
+document.getElementById('motion-values').textContent =
+  `--motion-fast: ${readVar('--motion-fast')} · --motion-base: ${readVar('--motion-base')} · --motion-slow: ${readVar('--motion-slow')} · --anim-pile-pulse-soft: ${readVar('--anim-pile-pulse-soft')} · --anim-gold-pop: ${readVar('--anim-gold-pop')}`;
+
+document.getElementById('pile-pulse-demo').addEventListener('click', (e) => {
+  e.target.classList.remove('pile-pulse-soft');
+  requestAnimationFrame(() => e.target.classList.add('pile-pulse-soft'));
+});
+document.getElementById('gold-pop-demo').addEventListener('click', (e) => {
+  e.target.classList.remove('gold-pop');
+  requestAnimationFrame(() => e.target.classList.add('gold-pop'));
+});
+
+// Audio
+const bgmTracks = [
+  'African_Village_Afternoon_Soundscape.mp3',
+  'Market_Morning_Mosaic.mp3',
+  'River_Paths_Village_Hearts_Voice.mp3',
+  'Sun_In_Our_Hands.mp3',
+  'Sun_on_the_Courtyard.mp3',
+];
+const bgmEl = document.getElementById('audio-bgm');
+bgmTracks.forEach((f) => {
+  const row = document.createElement('div');
+  row.className = 'ds-audio-row';
+  row.innerHTML = `<span class="ds-tag">bgm</span> <code>/audio/${f}</code> <audio controls src="/audio/${f}" style="height:28px;"></audio>`;
+  bgmEl.appendChild(row);
+});
+
+const sfxEvents = [
+  ['card-draw', 'card-draw.mp3', 'Drawing a card'],
+  ['coin', 'coin.mp3', 'Playing a ware card'],
+  ['card-play', 'card-play.mp3', 'Playing a people/utility card'],
+  ['attack', 'attack.mp3', 'Playing an animal card'],
+  ['turn-end', 'turn-end.mp3', 'Ending a turn'],
+  ['guard', 'guard.mp3', 'Guard reaction played'],
+];
+const sfxEl = document.getElementById('audio-sfx');
+sfxEvents.forEach(([event, file, fires]) => {
+  const row = document.createElement('div');
+  row.className = 'ds-audio-row';
+  row.innerHTML = `<span class="ds-tag ds-tag-missing">missing</span> <code>${event}</code> → <code>/audio/sfx/${file}</code> — ${fires}`;
+  sfxEl.appendChild(row);
+});
+</script>
+</body>
+</html>
