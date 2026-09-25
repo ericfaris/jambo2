@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { validateAction } from '../../src/engine/validation/actionValidator.ts';
 import { getEasyAiAction } from '../../src/ai/difficulties/EasyAI.ts';
 import { getMediumAiAction } from '../../src/ai/difficulties/MediumAI.ts';
-import { getHardAiAction } from '../../src/ai/difficulties/HardAI.ts';
+import { getHardAiAction, evaluateBoard } from '../../src/ai/difficulties/HardAI.ts';
 import { getExpertAiAction } from '../../src/ai/difficulties/ExpertAI.ts';
 import { getAiActionByDifficulty } from '../../src/ai/difficulties/index.ts';
+import { pickDiscardCardForValue } from '../../src/ai/strategyHeuristics.ts';
 import { createTestState, toPlayPhase, withGold, withHand, withMarket, withUtility } from '../helpers/testHelpers.ts';
 
 describe('AI difficulties baseline', () => {
@@ -210,5 +211,54 @@ describe('AI difficulties baseline', () => {
     expect(validateAction(state, medium!).valid).toBe(true);
     expect(validateAction(state, hard!).valid).toBe(true);
     expect(validateAction(state, expert!).valid).toBe(true);
+  });
+});
+
+describe('Small Market Stand valuation', () => {
+  it('is not the discard pick over a low-value ware card when the AI owns none yet', () => {
+    const state = createTestState(555);
+    const cardId = pickDiscardCardForValue(state, 0, ['small_market_stand_1', 'ware_3k_1']);
+    expect(cardId).toBe('ware_3k_1');
+  });
+
+  it('is not the discard pick even after already owning one stand', () => {
+    let state = createTestState(556);
+    const newPlayers = [...state.players] as [typeof state.players[0], typeof state.players[1]];
+    newPlayers[0] = { ...newPlayers[0], smallMarketStands: 1 };
+    state = { ...state, players: newPlayers };
+
+    const cardId = pickDiscardCardForValue(state, 0, ['small_market_stand_2', 'ware_3k_1']);
+    expect(cardId).toBe('ware_3k_1');
+  });
+
+  it('is not the discard pick even after already owning two stands (diminishing but still above baseline)', () => {
+    let state = createTestState(557);
+    const newPlayers = [...state.players] as [typeof state.players[0], typeof state.players[1]];
+    newPlayers[0] = { ...newPlayers[0], smallMarketStands: 2 };
+    state = { ...state, players: newPlayers };
+
+    const cardId = pickDiscardCardForValue(state, 0, ['small_market_stand_3', 'ware_3k_1']);
+    expect(cardId).toBe('ware_3k_1');
+  });
+});
+
+describe('Gold-gap awareness', () => {
+  it('MediumAI favors selling over ending its turn when significantly behind on gold', () => {
+    let state = toPlayPhase(createTestState(777));
+    state = withHand(state, 0, ['ware_3k_1']);
+    state = withMarket(state, 0, ['trinkets', 'trinkets', 'trinkets', null, null, null]);
+    state = withGold(state, 0, 5);
+    state = withGold(state, 1, 40); // opponent far ahead
+
+    const action = getMediumAiAction(state, () => 0.1);
+    expect(action).toEqual({ type: 'PLAY_CARD', cardId: 'ware_3k_1', wareMode: 'sell' });
+  });
+
+  it('HardAI evaluateBoard rewards being ahead on gold and penalizes being behind, relative to the raw gap', () => {
+    const state = createTestState(999);
+    const ahead = withGold(withGold(state, 0, 40), 1, 10);
+    const behind = withGold(withGold(state, 0, 10), 1, 40);
+
+    expect(evaluateBoard(ahead, 0)).toBeGreaterThan(evaluateBoard(behind, 0));
   });
 });

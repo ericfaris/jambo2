@@ -101,9 +101,14 @@ export function evaluateBoard(state: GameState, perspective: 0 | 1): number {
   score -= oppSellable * 2.5;
   score += getUtilitySetStrength(state, me);
   score -= getUtilitySetStrength(state, opp) * 0.8;
-  score -= myExposurePenalty;
+
+  // When significantly behind on gold, tolerate more risk (market exposure, hand hoarding)
+  // to chase a comeback; a comfortable lead keeps the full risk-aversion.
+  const goldGap = oppGold - myGold;
+  const riskTolerance = goldGap > 0 ? Math.min(1, goldGap / 30) : 0;
+  score -= myExposurePenalty * (1 - riskTolerance * 0.5);
   score += oppExposurePenalty * 0.55;
-  score -= getHandRiskPenalty(myHand);
+  score -= getHandRiskPenalty(myHand) * (1 - riskTolerance * 0.5);
   score += getHandRiskPenalty(oppHand) * 0.45;
 
   // Cards beyond 5 are wasted actions — penalize hoarding
@@ -166,22 +171,27 @@ export function tacticalActionBonus(state: GameState, action: GameAction, me: 0 
     }
     if (card.type === 'ware' && action.wareMode === 'buy' && card.wares) {
       const myGold = state.players[me].gold;
+      const oppGold = state.players[opponent].gold;
       const effectiveBuy = Math.max(0, card.wares.buyPrice - state.turnModifiers.buyDiscount);
       let bonus = (getWareAcquisitionPriority(state, me, card.wares) - 44) * 0.5;
       // Penalize buying when close to 60g if the spend drops us below 48g
       if (myGold >= 48 && myGold - effectiveBuy < 48) bonus -= 10;
+      // Far behind — willing to spend down to build up sellable inventory for a comeback
+      if (oppGold - myGold > 20) bonus += 5;
       return bonus;
     }
     if (card.type === 'animal') {
       const pressure = getCardPressureBonus(state, me, action.cardId);
       const defense = getDefensiveAnimalPriority(state, me, card.designId);
+      // Behind on gold — lean into steal plays to catch up
+      const catchUpBonus = Math.max(0, state.players[opponent].gold - state.players[me].gold) * 0.4;
       if (card.designId === 'crocodile') {
-        return state.players[opponent].utilities.length * 2.6 + pressure + defense;
+        return state.players[opponent].utilities.length * 2.6 + pressure + defense + catchUpBonus;
       }
       if (card.designId === 'parrot') {
-        return 8 + pressure + defense;
+        return 8 + pressure + defense + catchUpBonus;
       }
-      return 2 + pressure + defense;
+      return 2 + pressure + defense + catchUpBonus * 0.5;
     }
     if (card.type === 'people') {
       const pressure = getCardPressureBonus(state, me, action.cardId);

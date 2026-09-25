@@ -700,7 +700,8 @@ function getCardDiscardCost(state: GameState, playerIndex: 0 | 1, cardId: DeckCa
   }
 
   if (card.type === 'stand') {
-    return state.players[playerIndex].smallMarketStands === 0 ? 5 : 2;
+    const owned = state.players[playerIndex].smallMarketStands;
+    return owned === 0 ? 60 : owned === 1 ? 35 : 15;
   }
 
   return 1;

@@ -13,7 +13,7 @@ export function getAiActionDescription(action: GameAction, state: GameState): st
       return "Not what I need right now, discarding it.";
 
     case 'SKIP_DRAW':
-      return "My hand is full, I'll skip the draw phase.";
+      return "I'll hold off on drawing this turn.";
 
     case 'PLAY_CARD': {
       const card = getCard(action.cardId);
