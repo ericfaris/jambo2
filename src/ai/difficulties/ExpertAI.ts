@@ -4,6 +4,7 @@ import { processAction } from '../../engine/GameEngine.ts';
 import { getValidActions } from '../../engine/validation/actionValidator.ts';
 import { getRandomAiAction, getRandomInteractionResponse, getFallbackInteractionResponses } from '../RandomAI.ts';
 import { createRng } from '../../utils/rng.ts';
+import { determinizeForPlayer, createDeterminizeRng } from '../determinize.ts';
 import { getCard } from '../../engine/cards/CardDatabase.ts';
 import {
   evaluateBoard,
@@ -101,6 +102,14 @@ function monteCarloRollout(
 
 /**
  * Run R rollouts from a state and return the average board evaluation.
+ *
+ * Each rollout first redeals what `perspective` can't see (opponent hand +
+ * deck order) into a fresh plausible guess before playing out — a human
+ * imagining several ways the hidden cards could fall, not one who can see
+ * them. This also means the rollout's own simulated draws and the
+ * opponent's simulated hand are no longer the true hidden state, so the
+ * average naturally comes out closer to what a strong human would predict
+ * rather than what's actually true.
  */
 function averageRolloutScore(
   state: GameState,
@@ -111,7 +120,8 @@ function averageRolloutScore(
   let total = 0;
   for (let r = 0; r < rollouts; r++) {
     const rolloutRng = createRng(Math.floor(rng() * 0x7fffffff) + r);
-    total += monteCarloRollout(state, perspective, ROLLOUT_DEPTH, rolloutRng);
+    const world = determinizeForPlayer(state, perspective, rolloutRng);
+    total += monteCarloRollout(world, perspective, ROLLOUT_DEPTH, rolloutRng);
   }
   return total / rollouts;
 }
@@ -250,8 +260,13 @@ export function getExpertAiAction(state: GameState, rng: () => number = createEx
 
   const me = state.currentPlayer;
 
+  // Scoring candidate moves requires guessing the opponent's hand and future
+  // draws — reason about one plausible redeal for the fast filtering pass
+  // (the rollout phase below samples many independent redeals of its own).
+  const world = determinizeForPlayer(state, me, createDeterminizeRng(state, 0));
+
   // Phase 1: Score all actions with fast 1-ply evaluation
-  const hardScored = validActions.map((action) => ({ action, hScore: hardScore(state, action) }));
+  const hardScored = validActions.map((action) => ({ action, hScore: hardScore(world, action) }));
   hardScored.sort((a, b) => b.hScore - a.hScore);
 
   // Phase 2: Take top-K candidates for rollout evaluation
@@ -268,7 +283,7 @@ export function getExpertAiAction(state: GameState, rng: () => number = createEx
       const next = processAction(state, action);
       const rolloutRng = createRng(Math.floor(rng() * 0x7fffffff));
       const rolloutAvg = averageRolloutScore(next, me, ROLLOUT_COUNT, rolloutRng);
-      const baselineEval = evaluateBoard(state, me);
+      const baselineEval = evaluateBoard(world, me);
       const rolloutDelta = rolloutAvg - baselineEval;
       const finalScore = HARD_WEIGHT * hS + ROLLOUT_WEIGHT * rolloutDelta;
       blended.push({ action, score: finalScore });

@@ -6,6 +6,7 @@ import { getValidActions } from '../../engine/validation/actionValidator.ts';
 import { getMediumAiAction } from './MediumAI.ts';
 import { getRandomAiAction, getRandomInteractionResponse, getFallbackInteractionResponses } from '../RandomAI.ts';
 import { createRng } from '../../utils/rng.ts';
+import { determinizeForPlayer, createDeterminizeRng } from '../determinize.ts';
 import {
   countCurrentlySellableWareCards,
   getAuctionMaxBid,
@@ -358,6 +359,10 @@ export function getHardInteractionAction(state: GameState, rng: () => number): G
     }
   }
 
+  // Comparing outcomes still requires guessing what the opponent holds —
+  // reason about a plausible redeal of their hand/deck, not the true one.
+  const world = determinizeForPlayer(state, responder, createDeterminizeRng(state, 2));
+
   // Simulate each and pick best by board eval
   let bestAction: GameAction | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
@@ -365,7 +370,7 @@ export function getHardInteractionAction(state: GameState, rng: () => number): G
   for (const response of unique) {
     const action: GameAction = { type: 'RESOLVE_INTERACTION', response };
     try {
-      const next = processAction(state, action);
+      const next = processAction(world, action);
       const score = evaluateBoard(next, responder);
       if (score > bestScore) {
         bestScore = score;
@@ -398,12 +403,15 @@ export function getHardAuctionBidAction(state: GameState): GameAction | null {
     return { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
   }
 
-  // Simulate the pass outcome to see if letting the opponent win cheaply is bad
+  // Simulate the pass outcome to see if letting the opponent win cheaply is bad.
+  // Comparing outcomes requires guessing what the opponent holds — reason
+  // about a plausible redeal, not their true hand.
   try {
+    const world = determinizeForPlayer(state, me, createDeterminizeRng(state, 1));
     const passAction: GameAction = { type: 'RESOLVE_INTERACTION', response: { type: 'AUCTION_PASS' } };
-    const afterPass = processAction(state, passAction);
+    const afterPass = processAction(world, passAction);
     const passScore = evaluateBoard(afterPass, me);
-    const currentScore = evaluateBoard(state, me);
+    const currentScore = evaluateBoard(world, me);
 
     // If passing gives opponent cheap wares that hurt us significantly, bid
     // If passing is neutral or good (no real loss), still bid if within valuation
@@ -455,7 +463,11 @@ export function getHardAiAction(state: GameState, rng: () => number = createHard
   const validActions = getValidActions(state);
   if (validActions.length === 0) return null;
 
-  const scored = validActions.map((action) => ({ action, score: scoreAction(state, action) }));
+  // Scoring candidate moves requires guessing the opponent's hand and future
+  // draws — reason about one plausible redeal, not the true hidden state.
+  const world = determinizeForPlayer(state, state.currentPlayer, createDeterminizeRng(state, 0));
+
+  const scored = validActions.map((action) => ({ action, score: scoreAction(world, action) }));
   const topScore = Math.max(...scored.map(s => s.score));
   const wareNearTop = pickWareNearTop(scored, topScore);
   if (wareNearTop) return wareNearTop;
